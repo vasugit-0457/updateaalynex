@@ -169,7 +169,7 @@ nav{
 .hero{
   flex:1;display:flex;flex-direction:column;align-items:center;
   justify-content:center;text-align:center;padding:60px 20px 40px;
-  position:relative;overflow:hidden;
+  position:relative;overflow:visible;
 }
 .hero-glow{
   position:absolute;width:600px;height:600px;border-radius:50%;
@@ -468,6 +468,13 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
 .divider{display:flex;align-items:center;gap:12px;margin:14px 0;color:var(--text-4);font-size:.75rem;}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--glass-border);}
 
+/* ── WHY CONTAINER — DESKTOP ── */
+.why-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
 /* ══════════ MOBILE ══════════ */
 @media(max-width:768px){
   :root{--nav-h:54px;--sidebar-w:260px;}
@@ -504,11 +511,47 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
   .toast{min-width:unset;}
   .wf-body{padding:18px 14px;}
   .msg-video-player{max-width:200px;}
+
+  /* ── FIX 1: Role cards side by side on mobile ── */
+  .role-cards {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: center;
+    gap: 10px;
+  }
+  .role-cards .role-card {
+    flex: 1;
+    min-width: 0;
+    max-width: 160px;
+    padding: 18px 12px;
+  }
+
+  /* ── FIX 2: Why Aalynex — compact centered sliding cards ── */
+  .why-container {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 10px;
+    padding: 10px 20px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+  .why-container::-webkit-scrollbar { display: none; }
+  .why-container .role-card {
+    flex: 0 0 auto;
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+    scroll-snap-align: center;
+    padding: 16px 12px;
+    font-size: .82rem;
+  }
 }
+
 @media(max-width:380px){
   .cards-grid{grid-template-columns:1fr;}
-  .role-cards{flex-direction:column;align-items:center;}
-  .role-card{width:100%;max-width:300px;}
+  .role-cards .role-card { max-width: 140px; }
   .hero-cta{flex-direction:column;align-items:stretch;}
 }
 </style>
@@ -550,7 +593,52 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
         <p>Browse projects, set your rate, grow your portfolio.</p>
       </div>
     </div>
+
+<div style="margin-top:80px; text-align:center;">
+  <h2 style="font-family:'Outfit'; margin-bottom:30px;">How Aalynex Works</h2>
+
+  <div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
+    
+    <div class="role-card">
+      <h3>1. Post Project</h3>
+      <p>Upload your video</p>
+    </div>
+
+    <div class="role-card">
+      <h3>2. Choose Editor</h3>
+      <p>Select best freelancer</p>
+    </div>
+
+    <div class="role-card">
+      <h3>3. Get Final Video</h3>
+      <p>Receive edited content</p>
+    </div>
+
   </div>
+</div>
+
+<div style="margin-top:80px; text-align:center;">
+  <h2 style="font-family:'Outfit'; margin-bottom:30px;">Why Aalynex?</h2>
+
+  <div class="why-container">
+    <div class="role-card">⚡ Fast Delivery</div>
+    <div class="role-card">💬 Real-time Chat</div>
+    <div class="role-card">💸 Secure Payments</div>
+  </div>
+</div>
+
+  </div>
+
+  <div style="margin-top:60px; text-align:center;">
+  <p style="color:var(--text-3); font-size:0.8rem;">Trusted by creators worldwide</p>
+  <div style="display:flex; justify-content:center; gap:30px; margin-top:15px; opacity:0.6;">
+    <span>YouTube</span>
+    <span>Instagram</span>
+    <span>Reels</span>
+    <span>Brands</span>
+  </div>
+</div>
+
 </div>
 
 <!-- ════════════════════════
@@ -1039,7 +1127,6 @@ async function loginSuccess(u) {
 async function syncFromSupabase(u) {
   if (!supaClient) return;
   try {
-    /* Profiles */
     const { data: profiles } = await supaClient.from('profiles').select('*');
     if (profiles && profiles.length) {
       const localUsers = DB.users();
@@ -1051,7 +1138,6 @@ async function syncFromSupabase(u) {
       DB.saveUsers(localUsers);
     }
 
-    /* Projects */
     const { data: projects } = await supaClient.from('projects').select('*');
     if (projects && projects.length) {
       const mapped = projects.map(p => ({
@@ -1065,7 +1151,6 @@ async function syncFromSupabase(u) {
       DB.saveProjects(mapped);
     }
 
-    /* Messages — now includes file_url */
     const { data: messages } = await supaClient
       .from('messages').select('*')
       .or('sender_id.eq.'+u.id+',receiver_id.eq.'+u.id)
@@ -1170,7 +1255,6 @@ function cNew() {
 }
 
 function wfContent() {
-  /* Step 0 — Project Details */
   if (wfStep === 0) return `
     <h3>📋 Project Details</h3>
     <div class="fg"><label>Project Title *</label><input id="wf-title" placeholder="e.g. YouTube Vlog Edit – Travel Series EP5"/></div>
@@ -1178,7 +1262,6 @@ function wfContent() {
     <div class="fg"><label>Budget (₹) *</label><input id="wf-budget" type="number" placeholder="5000" min="100"/></div>
     <button class="btn btn-primary" onclick="wfN()">Next →</button>`;
 
-  /* Step 1 — Content Type */
   if (wfStep === 1) return `
     <h3>🎬 Choose Content Type</h3>
     <div class="ct-list" style="margin-bottom:18px;">
@@ -1191,7 +1274,6 @@ function wfContent() {
       <button class="btn btn-primary" onclick="wfN()">Next →</button>
     </div>`;
 
-  /* Step 2 — Deadline */
   if (wfStep === 2) return `
     <h3>📅 Set Deadline & Priority</h3>
     <div class="fg"><label>Deadline Date *</label><input type="date" id="wf-deadline" min="${new Date().toISOString().split('T')[0]}"/></div>
@@ -1203,7 +1285,6 @@ function wfContent() {
       <button class="btn btn-primary" onclick="wfN()">Next →</button>
     </div>`;
 
-  /* Step 3 — Choose Freelancer */
   if (wfStep === 3) {
     const editors = DB.users().filter(u => u.role === 'freelancer');
     return `
@@ -1226,7 +1307,6 @@ function wfContent() {
     </div>`;
   }
 
-  /* Step 4 — Chat */
   if (wfStep === 4) return `
     <h3>💬 Chat with ${selFreelancerName || 'Editor'}</h3>
     ${buildChat(CU.id, selFreelancerId || 'u2')}
@@ -1235,9 +1315,6 @@ function wfContent() {
       <button class="btn btn-primary" onclick="wfN()">Share Raw Video →</button>
     </div>`;
 
-  /* ════════════════════════════════════════
-     Step 5 — Upload Raw Video (UPDATED)
-  ════════════════════════════════════════ */
   if (wfStep === 5) return `
     <h3>📤 Share Raw Video</h3>
     <div class="alert alert-i">
@@ -1265,7 +1342,6 @@ function wfContent() {
       </button>
     </div>`;
 
-  /* Step 6 — Review Edited Video */
   if (wfStep === 6) return `
     <h3>🎞 Receive & Review Edited Video</h3>
     <div class="alert alert-s">✅ <strong>${selFreelancerName || 'Your editor'}</strong> has uploaded the edited video!</div>
@@ -1285,7 +1361,6 @@ function wfContent() {
       <button class="btn btn-primary" onclick="wfN()">Approve & Pay →</button>
     </div>`;
 
-  /* Step 7 — Payment & Rating */
   if (wfStep === 7) return `
     <h3>💳 Complete Payment & Rate</h3>
     <div class="two-col">
@@ -1317,7 +1392,6 @@ function wfContent() {
   return '';
 }
 
-/* ── Raw file selected callback ── */
 function onRawFileSelect(input) {
   const zone  = document.getElementById('raw-drop-zone');
   const label = document.getElementById('raw-file-label');
@@ -1334,9 +1408,6 @@ function onRawFileSelect(input) {
   }
 }
 
-/* ══════════════════════════════════════════════
-   UPLOAD RAW VIDEO → SUPABASE STORAGE → CHAT
-══════════════════════════════════════════════ */
 async function uploadAndSendVideo() {
   const fileInput = document.getElementById('raw-video-input');
   const btn       = document.getElementById('raw-video-btn');
@@ -1345,16 +1416,14 @@ async function uploadAndSendVideo() {
   const progFill  = document.getElementById('upload-progress-fill');
   const progLabel = document.getElementById('upload-progress-label');
 
-  /* ── Validations ── */
   if (!fileInput || !fileInput.files || !fileInput.files.length) {
     showToast('Please select a video file first', 'err', '⚠️'); return;
   }
   const file = fileInput.files[0];
-  const MAX_SIZE = 10 * 1024 * 1024 * 1024; // 10 GB
+  const MAX_SIZE = 10 * 1024 * 1024 * 1024;
   if (file.size > MAX_SIZE) { showToast('File too large. Maximum size is 10 GB.', 'err', '⚠️'); return; }
   if (!selFreelancerId)     { showToast('No freelancer selected. Go back and choose one.', 'err', '⚠️'); return; }
 
-  /* ── Loading state ── */
   btn.disabled      = true;
   btn.textContent   = 'Uploading…';
   btn.classList.add('btn-loading');
@@ -1364,14 +1433,11 @@ async function uploadAndSendVideo() {
   let fileUrl = null;
 
   try {
-    /* ── STEP A: Upload to Supabase Storage ── */
     if (supaClient) {
       if (progLabel) progLabel.textContent = 'Uploading to cloud…';
       if (progFill)  progFill.style.width  = '20%';
 
-      const ext  = file.name.split('.').pop().toLowerCase();
       const path = `raw/${CU.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-
       const { data: uploadData, error: uploadError } =
         await supaClient.storage.from('videos').upload(path, file, { cacheControl:'3600', upsert:false });
 
@@ -1383,67 +1449,52 @@ async function uploadAndSendVideo() {
       }
 
       if (progFill) progFill.style.width = '60%';
-
-      /* ── STEP B: Get public URL ── */
       const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
       fileUrl = urlData?.publicUrl || null;
       if (progFill) progFill.style.width = '70%';
     } else {
-      /* No Supabase — simulate for local demo */
       fileUrl = null;
       if (progFill) progFill.style.width = '70%';
     }
 
-    /* ── STEP C: Get or create conversation_id ── */
     if (progLabel) progLabel.textContent = 'Sending to chat…';
     let conversationId = null;
 
     if (supaClient) {
       const uid1 = [CU.id, selFreelancerId].sort()[0];
       const uid2 = [CU.id, selFreelancerId].sort()[1];
-
       let { data: convo } = await supaClient.from('conversations').select('id')
         .eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
-
       if (!convo) {
-        const { data: newConvo, error: createErr } = await supaClient.from('conversations')
+        const { data: newConvo } = await supaClient.from('conversations')
           .insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
-        if (createErr) console.warn('Conversation create error:', createErr.message);
-        else convo = newConvo;
+        convo = newConvo;
       }
       conversationId = convo?.id || null;
     }
 
     if (progFill) progFill.style.width = '85%';
 
-    /* ── STEP D: Save message with file_url ── */
     const msgText = '📹 Raw Video: ' + file.name;
     const msgTime = Date.now();
 
-    /* Local save */
     const key = [CU.id, selFreelancerId].sort().join('_');
     const allMsgs = DB.messages();
     if (!allMsgs[key]) allMsgs[key] = [];
     allMsgs[key].push({ from: CU.id, text: msgText, file_url: fileUrl, time: msgTime });
     DB.saveMessages(allMsgs);
 
-    /* Supabase save */
     if (supaClient && conversationId) {
-      const { error: msgError } = await supaClient.from('messages').insert({
-        conversation_id: conversationId,
-        sender_id:       CU.id,
-        text:            msgText,
-        file_url:        fileUrl
+      await supaClient.from('messages').insert({
+        conversation_id: conversationId, sender_id: CU.id, text: msgText, file_url: fileUrl
       });
-      if (msgError) console.warn('Message Supabase save error:', msgError.message);
     }
 
     if (progFill) progFill.style.width = '100%';
     if (progLabel) progLabel.textContent = 'Done! ✓';
 
-    /* ── STEP E: Advance workflow ── */
     showToast('Video sent to ' + (selFreelancerName || 'editor') + '! 🎬', 'ok', '🎬');
-    await new Promise(r => setTimeout(r, 600)); // brief pause so user sees 100%
+    await new Promise(r => setTimeout(r, 600));
     wfStep = Math.min(wfStep + 1, 7);
     document.getElementById('c-main').innerHTML = cNew();
 
@@ -1460,7 +1511,6 @@ function resetUploadBtn(btn, backBtn, progWrap) {
   if (progWrap){ progWrap.classList.remove('show'); }
 }
 
-/* ── Workflow navigation ── */
 async function completePayment() {
   const title  = document.getElementById('wf-title')?.value || 'New Project';
   const budget = parseInt(document.getElementById('wf-budget')?.value || 2500);
@@ -1468,8 +1518,7 @@ async function completePayment() {
   const projs  = DB.projects(); projs.push(newP); DB.saveProjects(projs);
 
   if (supaClient) {
-    const { error } = await supaClient.from('projects').insert({ id:newP.id, creator_id:CU.id, freelancer_id:selFreelancerId||null, title, description:'', budget, content_type:selContent||'', deadline:null, priority:'Normal', status:'completed', raw_shared:true, edited_uploaded:true, paid:true });
-    if (error) console.warn('Project save error:', error.message);
+    await supaClient.from('projects').insert({ id:newP.id, creator_id:CU.id, freelancer_id:selFreelancerId||null, title, description:'', budget, content_type:selContent||'', deadline:null, priority:'Normal', status:'completed', raw_shared:true, edited_uploaded:true, paid:true });
   }
   showToast('Payment successful! Project completed! 🎉', 'ok', '✅');
   setTimeout(() => renderC('home'), 500);
@@ -1517,12 +1566,10 @@ function filterProjects(f) {
     : '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No projects in this category.</div>';
 }
 
-/* ── Creator: Chat ── */
 function cChat() {
   return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id,'u2')}`;
 }
 
-/* ── Creator: Payments ── */
 function cPayment() {
   const projs   = DB.projects().filter(p => p.creatorId === CU.id);
   const paid    = projs.filter(p => p.paid).reduce((s,p) => s+p.budget, 0);
@@ -1557,7 +1604,6 @@ function payProject(id) {
   });
 }
 
-/* ── Creator: Rate ── */
 function cRate() {
   const projs = DB.projects().filter(p => p.creatorId===CU.id && p.status==='completed' && p.rating===0);
   return `
@@ -1580,7 +1626,6 @@ function saveRating(pid) {
   showToast(`Rating submitted! ${rating}★`, 'ok', '⭐'); renderC('rate');
 }
 
-/* ── Creator: Profile ── */
 function cProfile() {
   const u = CU;
   return `
@@ -1650,7 +1695,6 @@ function renderF(p) {
   m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
 }
 
-/* ── Freelancer: Home ── */
 function fHome() {
   const projs    = DB.projects().filter(p => p.freelancerId === CU.id);
   const earned   = projs.filter(p => p.paid).reduce((s,p) => s+p.budget, 0);
@@ -1674,7 +1718,6 @@ function fHome() {
   </div>`;
 }
 
-/* ── Freelancer: Browse ── */
 function fBrowse() {
   const open = DB.projects().filter(p => p.status === 'open');
   return `
@@ -1704,8 +1747,7 @@ function acceptProject(id) {
     const projs = DB.projects(), p = projs.find(x => x.id === id);
     if (p) { p.freelancerId = CU.id; p.status = 'ongoing'; DB.saveProjects(projs); }
     if (supaClient) {
-      const { error } = await supaClient.from('projects').update({ freelancer_id: CU.id, status:'ongoing' }).eq('id', id);
-      if (error) console.warn('Accept project error:', error.message);
+      await supaClient.from('projects').update({ freelancer_id: CU.id, status:'ongoing' }).eq('id', id);
     }
     showToast('Project accepted! Chat with the creator to begin.', 'ok', '✅'); renderF('ongoing');
   });
@@ -1716,7 +1758,6 @@ function viewProject(id) {
   document.getElementById('modal-confirm').textContent = 'Accept Project';
 }
 
-/* ── Freelancer: Ongoing ── */
 function fOngoing() {
   const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
   return `
@@ -1756,7 +1797,6 @@ function markEditDone(id) {
   showToast('Marked as done! Client notified. ✓', 'ok', '✓'); renderF('ongoing');
 }
 
-/* ── Freelancer: Negotiate ── */
 function fNegotiate() {
   const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
   return `
@@ -1784,7 +1824,6 @@ function sendCounter(id) {
   showToast(`Counter-offer sent: ₹${fmt(price)} 🤝`, 'ok', '🤝');
 }
 
-/* ── Freelancer: Upload Work ── */
 function fUpload() {
   const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
   return `
@@ -1809,7 +1848,6 @@ function uploadVideo(id) {
   showToast('Video uploaded! Creator notified. 🎉', 'ok', '🎉'); renderF('upload');
 }
 
-/* ── Freelancer: Earnings ── */
 function fEarnings() {
   const projs    = DB.projects().filter(p => p.freelancerId === CU.id);
   const received = projs.filter(p => p.paid).reduce((s,p) => s+p.budget, 0);
@@ -1881,9 +1919,6 @@ function buildChat(myId, otherDefaultId) {
   </div>`;
 }
 
-/* ══════════════════════════════════════════════
-   RENDER MESSAGES — supports text + video bubbles
-══════════════════════════════════════════════ */
 function renderMsgs(msgs, myId) {
   if (!msgs.length)
     return '<div style="text-align:center;color:var(--text-3);font-size:.78rem;padding:20px 0;">Start the conversation! 👋</div>';
@@ -1892,7 +1927,6 @@ function renderMsgs(msgs, myId) {
     const isMine    = m.from === myId;
     const timeAlign = isMine ? 'text-align:right' : '';
 
-    /* ── Video message bubble ── */
     if (m.file_url) {
       const fname = m.text.replace('📹 Raw Video: ', '') || 'video';
       return `
@@ -1913,7 +1947,6 @@ function renderMsgs(msgs, myId) {
       </div>`;
     }
 
-    /* ── Regular text bubble ── */
     return `
     <div>
       <div class="msg ${isMine ? 'sent' : 'received'}">${m.text}</div>
@@ -1961,7 +1994,6 @@ async function sendMsg(myId, otherId) {
   const el = document.getElementById('chat-msgs-el');
   if (el) { el.innerHTML = renderMsgs(allMsgs[key], myId); el.scrollTop = el.scrollHeight; }
 
-  /* Supabase — get or create conversation first */
   if (supaClient) {
     try {
       const uid1 = [myId, otherId].sort()[0];
@@ -1972,8 +2004,7 @@ async function sendMsg(myId, otherId) {
         convo = newC;
       }
       if (convo) {
-        const { error } = await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: null });
-        if (error) console.warn('Message save error:', error.message);
+        await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: null });
       }
     } catch(e) { console.warn('sendMsg Supabase error:', e); }
   }
@@ -1998,7 +2029,6 @@ function rateStar(id, n) {
    INIT — restore session on page load
 ══════════════════════════════════════════════ */
 window.addEventListener('load', async () => {
-  /* Try Supabase session */
   if (supaClient) {
     try {
       const { data: { session } } = await supaClient.auth.getSession();
@@ -2013,11 +2043,9 @@ window.addEventListener('load', async () => {
     } catch(e) { console.warn('Session check failed:', e); }
   }
 
-  /* Fallback: localStorage session */
   const saved = DB.currentUser();
   if (saved) { CU = saved; loginSuccess(saved); }
 
-  /* Auto-scroll chat on DOM changes */
   new MutationObserver(() => {
     const el = document.getElementById('chat-msgs-el');
     if (el) el.scrollTop = el.scrollHeight;
