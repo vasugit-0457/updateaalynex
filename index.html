@@ -497,7 +497,6 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
   .bottom-nav{display:flex;}
   .two-col{grid-template-columns:1fr;}
   .form-row{grid-template-columns:1fr;}
-  .hero{padding:36px 14px 20px;}
   h1{letter-spacing:-1px;}
   .stats-bar{gap:0;}
   .stat{padding:12px 12px;}
@@ -512,12 +511,45 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
   .wf-body{padding:18px 14px;}
   .msg-video-player{max-width:200px;}
 
-  /* ── FIX 1: Role cards side by side on mobile ── */
+  /* ── CENTERING: Hero and all landing sections ── */
+  .hero {
+    padding: 36px 16px 20px;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .hero > * {
+    max-width: 100%;
+  }
+  .hero h1 {
+    width: 100%;
+    text-align: center;
+  }
+  .hero-sub {
+    width: 100%;
+    text-align: center;
+    padding: 0;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero-cta {
+    width: 100%;
+    justify-content: center;
+    padding: 0 16px;
+    box-sizing: border-box;
+  }
+
+  /* ── Role cards side by side and centered ── */
   .role-cards {
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     justify-content: center;
     gap: 10px;
+    width: 100%;
+    padding: 0 16px;
+    box-sizing: border-box;
   }
   .role-cards .role-card {
     flex: 1;
@@ -526,33 +558,59 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
     padding: 18px 12px;
   }
 
-  /* ── FIX 2: Why Aalynex — compact centered sliding cards ── */
-  .why-container {
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    gap: 10px;
-    padding: 10px 20px;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    justify-content: flex-start;
-    scrollbar-width: none;
+  /* ── How Aalynex Works — centered on mobile ── */
+  .hero > div[style*="margin-top:80px"] {
+    width: 100%;
+    padding: 0 16px;
+    box-sizing: border-box;
   }
-  .why-container::-webkit-scrollbar { display: none; }
+  .hero > div[style*="margin-top:80px"] > div[style*="display:flex"] {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero > div[style*="margin-top:80px"] > div[style*="display:flex"] .role-card {
+    width: 100%;
+    max-width: 320px;
+    min-width: unset;
+  }
+
+  /* ── Why Aalynex — 1 card at a time, centered, snap scroll ── */
+  .why-container {
+    display: flex;
+    overflow-x: scroll;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    gap: 0;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: flex-start;
+  }
+  .why-container::-webkit-scrollbar {
+    display: none;
+  }
   .why-container .role-card {
-    flex: 0 0 auto;
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
     scroll-snap-align: center;
-    padding: 16px 12px;
-    font-size: .82rem;
+    padding: 28px 20px;
+    margin: 0;
+    box-sizing: border-box;
+    border-radius: var(--radius-lg);
+    font-size: .9rem;
+    text-align: center;
   }
 }
 
 @media(max-width:380px){
   .cards-grid{grid-template-columns:1fr;}
   .role-cards .role-card { max-width: 140px; }
-  .hero-cta{flex-direction:column;align-items:stretch;}
+  .hero-cta{flex-direction:column;align-items:stretch;padding:0 16px;}
 }
 </style>
 </head>
