@@ -99,6 +99,10 @@ nav{
   z-index:-1;filter:blur(4px);
 }
 .logo span{color:var(--accent);}
+.logo-text {
+  color: #ff6b35;  /* 🔥 orange */
+  font-weight: 700;
+}
 
 .nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .nav-greeting{font-size:.8rem;color:var(--text-3);white-space:nowrap;}
@@ -753,7 +757,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
   <nav>
 <div class="logo">
   <img src="aalynex-logo.jpg" class="logo-img">
-  Aalynex
+  <span class="logo-text">Aalynex</span>
 </div>
     <div class="nav-right">
       <button class="btn btn-ghost btn-sm" onclick="goAuth('login')">Login</button>
