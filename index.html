@@ -326,6 +326,14 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
   transform: translateX(6px); scale(1.02);
   box-shadow:0 10px 30px rgba(255,107,53,0.2);
 }
+/* Mobile */
+@media (hover: none) {
+  .why-card:active {
+    transform: scale(0.97);
+    box-shadow: 0 8px 20px rgba(255,107,53,0.1);
+  }
+}
+
 .why-card:hover::after{opacity:1;}
 .why-card-icon{
   width:44px;height:44px;border-radius:12px;
