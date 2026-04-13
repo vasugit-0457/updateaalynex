@@ -79,12 +79,12 @@ nav{
   font-family:'Outfit',sans-serif;font-size:1.22rem;font-weight:800;
   letter-spacing:-.5px;display:flex;align-items:center;gap:9px;
   flex-shrink:0;
-  .logo-img {
+}
+.logo-img {
   height: 34px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));
-}
 }
 .logo-icon{
   width:32px;height:32px;border-radius:9px;
@@ -306,6 +306,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
   display:flex;gap:14px;flex-direction:column;
 }
 .why-card{
+  animation: fadeUp 0.6s ease both;
   background:var(--glass);
   backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--glass-border);
@@ -322,8 +323,8 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
 }
 .why-card:hover{
   border-color:var(--glass-border-strong);
-  transform:translateX(4px);
-  box-shadow:0 8px 32px rgba(0,0,0,.2);
+  transform:translateX(6px); scale: (1.02);
+  box-shadow:0 10px 30px rgba(255,107,53,0.2);
 }
 .why-card:hover::after{opacity:1;}
 .why-card-icon{
@@ -701,11 +702,11 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
 }
 
 .follow-section{
-  margin-top: 80px;
+  margin-top: 40px;
   padding-bottom: 50px;
   border-top: 1px solid var(--glass-border);
   text-align:center;
-  padding:60px 20px 40px;
+  padding: 40px 20px;
 }
 
 .follow-title{
@@ -841,6 +842,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
         </div>
       </div>
     </div>
+    </div>
     <section class="follow-section">
   <div class="follow-title">Follow Us On</div>
 
@@ -851,7 +853,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),#ff8c42)
     YouTube
   </a>
 
-<a href="https://instagram.com" target="_blank" class="social-btn">
+<a href= "https://www.instagram.com/aalynex?igsh=MTlzZDV2NTBmaGxkdA==" target="_blank" class="social-btn">
   <svg viewBox="0 0 24 24">
     <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5C8.13 2 7.84 2 6.68 2.07 5.52 2.14 4.6 2.38 3.8 2.75a5.5 5.5 0 00-2.05 1.3A5.5 5.5 0 002.75 6c-.37.8-.61 1.72-.68 2.88C2 10.04 2 10.33 2 14s0 3.96.07 5.12c.07 1.16.31 2.08.68 2.88.37.8.86 1.47 1.3 2.05.58.58 1.25 1.07 2.05 1.3.8.37 1.72.61 2.88.68C10.04 22 10.33 22 14 22s3.96 0 5.12-.07c1.16-.07 2.08-.31 2.88-.68.8-.37 1.47-.86 2.05-1.3.58-.58 1.07-1.25 1.3-2.05.37-.8.61-1.72.68-2.88C26 17.96 26 17.67 26 14s0-3.96-.07-5.12c-.07-1.16-.31-2.08-.68-2.88a5.5 5.5 0 00-1.3-2.05A5.5 5.5 0 0022 2.75c-.8-.37-1.72-.61-2.88-.68C17.96 2 17.67 2 14 2h-2z"/>
   </svg>
