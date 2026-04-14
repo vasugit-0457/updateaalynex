@@ -630,9 +630,9 @@ h1 em{
 <div id="screen-landing" class="screen active">
   <nav>
     <div class="logo">
-      <img src="aalynex-logo.png" class="logo-img">
-      <span class="logo-text">Aalynex</span>
-    </div>
+  <img src="aalynex-logo.png" class="logo-img" draggable="false">
+  <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+</div>
     <div class="nav-right">
       <button class="btn btn-ghost btn-sm" onclick="goAuth('login')">Login</button>
       <button class="btn btn-primary btn-sm" onclick="goAuth('signup')">Get Started</button>
@@ -2250,6 +2250,14 @@ window.addEventListener('load', async () => {
     const el = document.getElementById('chat-msgs-el');
     if (el) el.scrollTop = el.scrollHeight;
   }).observe(document.body, { childList: true, subtree: true });
+});
+</script>
+<script>
+const logo = document.getElementById("logoDrag");
+
+logo.addEventListener("dragstart", (e) => {
+  e.dataTransfer.setData("text/uri-list", window.location.href);
+  e.dataTransfer.setData("text/plain", window.location.href);
 });
 </script>
 </body>
