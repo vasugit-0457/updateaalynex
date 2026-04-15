@@ -626,7 +626,6 @@ h1 em{
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
-<!-- LANDING -->
 <div id="screen-landing" class="screen active">
   <nav>
     <div class="logo">
@@ -664,7 +663,6 @@ h1 em{
     </div>
   </div>
 
-  <!-- HOW IT WORKS -->
   <section class="how-section">
     <div class="section-heading">How <em>Aalynex</em> Works</div>
     <p class="section-sub">Three Simple Steps To Get Your Video Edited By A Pro</p>
@@ -696,7 +694,6 @@ h1 em{
     </div>
   </section>
 
-  <!-- WHY AALYNEX -->
   <section class="why-section">
     <div class="why-inner">
       <div class="section-heading" style="text-align:center;margin-bottom:8px;">Why <em>Aalynex</em>?</div>
@@ -756,7 +753,6 @@ h1 em{
   </section>
 </div>
 
-<!-- AUTH -->
 <div id="screen-auth" class="screen">
   <nav>
     <div class="logo">
@@ -773,7 +769,6 @@ h1 em{
         <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</div>
         <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</div>
       </div>
-      <!-- LOGIN -->
       <div id="form-login">
         <div class="role-select">
           <div class="role-btn ac" id="lr-c" onclick="setLRole('creator')">Creator</div>
@@ -786,7 +781,6 @@ h1 em{
         <div class="divider">or</div>
         <div class="form-footer">Don't have an account? <a onclick="switchTab('signup')">Sign up free</a></div>
       </div>
-      <!-- SIGNUP -->
       <div id="form-signup" style="display:none;">
         <div class="role-select">
           <div class="role-btn ac" id="sr-c" onclick="setSRole('creator')">Creator</div>
@@ -825,7 +819,6 @@ h1 em{
   </div>
 </div>
 
-<!-- CREATOR DASHBOARD -->
 <div id="screen-creator" class="screen">
   <nav>
     <div class="logo">
@@ -895,7 +888,6 @@ h1 em{
   </nav>
 </div>
 
-<!-- FREELANCER DASHBOARD -->
 <div id="screen-freelancer" class="screen">
   <nav>
     <div class="logo">
@@ -966,7 +958,6 @@ h1 em{
   </nav>
 </div>
 
-<!-- MODAL -->
 <div class="modal-bg" id="modal-bg">
   <div class="modal" id="modal-inner">
     <h3 id="modal-title">Confirm</h3>
@@ -1001,25 +992,25 @@ try {
 }
 
 /* ══════════════════════════════════════════════
-   LOCAL DB
-   — No seed data; all lists default to empty.
-   — Safe guards (|| []) prevent crashes on
-     first load when localStorage is empty.
+   DATABASE HANDLER (Strictly RAM/Memory + Supabase)
 ══════════════════════════════════════════════ */
+const MemDB = { users: [], projects: [], msgs: {} };
+
 const DB = {
-  users(){ return [] },
-  saveUsers(){},
+  users() { return MemDB.users; },
+  saveUsers(data) { MemDB.users = data; },
+  projects() { return MemDB.projects; },
+  saveProjects(data) { MemDB.projects = data; },
+  messages() { return MemDB.msgs; },
+  saveMessages(data) { MemDB.msgs = data; },
 
-  projects(){ return [] },
-  saveProjects(){},
-
-  messages(){ return [] },
-  saveMessages(){},
-
-  currentUser(){ return null },
-  setCurrentUser(){},
-
-  logout(){}
+  // We ONLY keep the login token in local storage so you stay logged in
+  currentUser() { return JSON.parse(localStorage.getItem('aalynex_cu') || 'null'); },
+  setCurrentUser(data) { localStorage.setItem('aalynex_cu', JSON.stringify(data)); },
+  logout() { 
+    localStorage.removeItem('aalynex_cu'); 
+    MemDB.users = []; MemDB.projects = []; MemDB.msgs = {}; 
+  }
 };
 
 /* ══════════════════════════════════════════════
@@ -1299,7 +1290,6 @@ async function syncFromSupabase(u) {
       DB.saveMessages(msgMap);
     }
 
-    if (u.role === 'creator') renderC('home'); else renderF('home');
     console.log('✅ Supabase sync complete');
   } catch(e) {
     console.warn('Sync failed, using local data:', e);
@@ -1316,20 +1306,27 @@ function logout() {
 }
 
 /* ══════════════════════════════════════════════
-   CREATOR PAGES — ROUTING
+   CREATOR PAGES — ROUTING (With Live Sync)
 ══════════════════════════════════════════════ */
 function cPage(p, el) {
   document.querySelectorAll('#screen-creator .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   closeSidebar('creator');
-  renderC(p);
+  renderC(p); 
+  
+  // Silently pull fresh data from Supabase in the background and update UI
+  if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
 }
+
 function cPageMobile(p, el) {
   document.querySelectorAll('#c-bottom-nav .bn-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   document.querySelectorAll('#c-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
   renderC(p);
+  
+  if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
 }
+
 function renderC(p) {
   const m = document.getElementById('c-main');
   if      (p === 'home')    m.innerHTML = cHome();
@@ -1372,18 +1369,34 @@ function cHome() {
 /* ── Creator: New Project Wizard ── */
 function cNew() {
   const steps = ['Details','Content','Deadline','Freelancer','Chat','Raw Video','Review','Payment'];
-  const stepper = steps.map((s, i) => {
-    const cls  = i < wfStep ? 'done' : i === wfStep ? 'active' : '';
-    const line = i < steps.length-1 ? `<div class="step-line ${i < wfStep ? 'done' : ''}"></div>` : '';
-    return `<div class="step"><div class="step-dot ${cls}">${i < wfStep ? '&#10003;' : i+1}</div>${line}</div>`;
-  }).join('');
-  return `
-  <div class="page-head"><h2>Post a New Project</h2><p>Step ${wfStep+1} of ${steps.length} — ${steps[wfStep]}</p></div>
-  <div class="wf-stepper">${stepper}</div>
-  <div class="wf-body">${wfContent()}</div>`;
+
+  const stepper = steps.map((s, i) => `
+    <div class="step">
+      <div class="step-dot ${wfStep === i ? 'active' : (wfStep > i ? 'done' : '')}">
+        ${wfStep > i ? '✓' : (i + 1)}
+      </div>
+      ${i < steps.length - 1 ? `<div class="step-line ${wfStep > i ? 'done' : ''}"></div>` : ''}
+    </div>
+  `).join('');
+
+  const html = `
+    <div class="page-head">
+      <h2>Post a New Project</h2>
+    </div>
+    <div class="wf-stepper">${stepper}</div>
+    <div class="wf-body" id="wf-body"></div>`;
+
+  setTimeout(async () => {
+    const el = document.getElementById("wf-body");
+    if (el) {
+      el.innerHTML = await wfContent();
+    }
+  }, 0);
+
+  return html;
 }
 
-function wfContent() {
+async function wfContent() {
   if (wfStep === 0) return `
     <h3>Project Details</h3>
     <div class="fg"><label>Project Title *</label><input id="wf-title" placeholder="e.g. YouTube Vlog Edit – Travel Series EP5"/></div>
@@ -1415,19 +1428,41 @@ function wfContent() {
     </div>`;
 
   if (wfStep === 3) {
-    const editors = DB.users().filter(u => u.role === 'freelancer');
+    let editors = [];
+    
+    // 1. Try fetching from Supabase
+    if (supaClient) {
+      try {
+        const { data, error } = await supaClient
+          .from("profiles") 
+          .select("*")
+          .eq("role", "freelancer");
+          
+        if (!error && data) {
+          editors = data;
+        }
+      } catch (e) {
+        console.warn("Supabase fetch failed:", e);
+      }
+    }
+
+    // 2. Fallback to Local Storage if Supabase is empty/offline
+    if (!editors || editors.length === 0) {
+      editors = DB.users().filter(u => u.role === "freelancer");
+    }
+
     return `
     <h3>Choose an Editor</h3>
     <p style="color:var(--text-3);font-size:.8rem;margin-bottom:14px;">Matched for <strong style="color:var(--accent);">${selContent || 'your content'}</strong></p>
     <div class="f-grid">
-      ${editors.map(f => `
+      ${(editors && editors.length > 0) ? editors.map(f => `
         <div class="f-card${selFreelancerId===f.id?' sel':''}" onclick="selFL('${f.id}','${f.name}')">
-          <div class="f-avatar">${f.avatar}</div>
+          <div class="f-avatar">${f.avatar || 'F'}</div>
           <div class="f-name">${f.name}</div>
           <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
           <div class="f-rate">4.9 &middot; ₹2,500+</div>
-          <div class="f-spec">${f.profession}</div>
-        </div>`).join('') || `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors available yet. Editors will appear here once they sign up.</div>`}
+          <div class="f-spec">${f.profession || 'Editor'}</div>
+        </div>`).join('') : `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors available yet. Editors will appear here once they sign up.</div>`}
     </div><br/>
     ${selFreelancerName ? `<div class="alert alert-s">Selected: <strong>${selFreelancerName}</strong></div>` : ''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1813,20 +1848,26 @@ function saveProfile() {
 }
 
 /* ══════════════════════════════════════════════
-   FREELANCER PAGES — ROUTING
+   FREELANCER PAGES — ROUTING (With Live Sync)
 ══════════════════════════════════════════════ */
 function fPage(p, el) {
   document.querySelectorAll('#screen-freelancer .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   closeSidebar('freelancer');
   renderF(p);
+  
+  if (supaClient && CU) syncFromSupabase(CU).then(() => renderF(p));
 }
+
 function fPageMobile(p, el) {
   document.querySelectorAll('#f-bottom-nav .bn-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   document.querySelectorAll('#f-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
   renderF(p);
+  
+  if (supaClient && CU) syncFromSupabase(CU).then(() => renderF(p));
 }
+
 function renderF(p) {
   const m = document.getElementById('f-main');
   if      (p === 'home')     m.innerHTML = fHome();
