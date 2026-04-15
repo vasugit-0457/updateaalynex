@@ -630,9 +630,9 @@ h1 em{
 <div id="screen-landing" class="screen active">
   <nav>
     <div class="logo">
-  <img src="aalynex-logo.png" class="logo-img" draggable="false">
-  <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
-</div>
+      <img src="aalynex-logo.png" class="logo-img" draggable="false">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
     <div class="nav-right">
       <button class="btn btn-ghost btn-sm" onclick="goAuth('login')">Login</button>
       <button class="btn btn-primary btn-sm" onclick="goAuth('signup')">Get Started</button>
@@ -759,10 +759,10 @@ h1 em{
 <!-- AUTH -->
 <div id="screen-auth" class="screen">
   <nav>
-        <div class="logo">
-  <img src="aalynex-logo.png" class="logo-img" draggable="false">
-  <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
-</div>
+    <div class="logo">
+      <img src="aalynex-logo.png" class="logo-img" draggable="false">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
     <div class="nav-right">
       <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-landing')">&larr; Back</button>
     </div>
@@ -785,9 +785,6 @@ h1 em{
         <button class="btn btn-primary full-btn" style="margin-top:10px;" id="login-btn" onclick="doLogin()">Login &rarr;</button>
         <div class="divider">or</div>
         <div class="form-footer">Don't have an account? <a onclick="switchTab('signup')">Sign up free</a></div>
-        <div class="form-footer" style="margin-top:8px;font-size:.72rem;">
-          Demo: <a onclick="demoLogin('creator')">Creator Demo</a> &middot; <a onclick="demoLogin('freelancer')">Freelancer Demo</a>
-        </div>
       </div>
       <!-- SIGNUP -->
       <div id="form-signup" style="display:none;">
@@ -831,10 +828,10 @@ h1 em{
 <!-- CREATOR DASHBOARD -->
 <div id="screen-creator" class="screen">
   <nav>
-        <div class="logo">
-  <img src="aalynex-logo.png" class="logo-img" draggable="false">
-  <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
-</div>
+    <div class="logo">
+      <img src="aalynex-logo.png" class="logo-img" draggable="false">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
     <div class="nav-right">
       <span class="nav-greeting" id="c-nav-greeting">Hi, <strong id="c-nav-name"></strong></span>
       <div class="hamburger" id="c-hamburger" onclick="toggleSidebar('creator')">
@@ -901,10 +898,10 @@ h1 em{
 <!-- FREELANCER DASHBOARD -->
 <div id="screen-freelancer" class="screen">
   <nav>
-        <div class="logo">
-  <img src="aalynex-logo.png" class="logo-img" draggable="false">
-  <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
-</div>
+    <div class="logo">
+      <img src="aalynex-logo.png" class="logo-img" draggable="false">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
     <div class="nav-right">
       <span class="nav-greeting nav-greeting-f" id="f-nav-greeting">Hi, <strong id="f-nav-name"></strong></span>
       <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
@@ -1005,6 +1002,9 @@ try {
 
 /* ══════════════════════════════════════════════
    LOCAL DB
+   — No seed data; all lists default to empty.
+   — Safe guards (|| []) prevent crashes on
+     first load when localStorage is empty.
 ══════════════════════════════════════════════ */
 const DB = {
   get(k)    { try { return JSON.parse(localStorage.getItem('cc_'+k)) || null; } catch { return null; } },
@@ -1019,36 +1019,6 @@ const DB = {
   setCurrentUser(u){ this.set('currentUser', u); },
   logout()        { localStorage.removeItem('cc_currentUser'); }
 };
-
-/* Seed demo data */
-(function seed() {
-  const users = DB.users();
-  if (!users.find(u => u.email === 'creator@demo.com')) {
-    users.push({ id:'u1', name:'Alex Carter', email:'creator@demo.com', phone:'+91 98765 43210', password:'demo123', role:'creator', profession:'Content Creator', platform:'YouTube', avatar:'A', createdAt: Date.now() - 86400000*30 });
-  }
-  if (!users.find(u => u.email === 'freelancer@demo.com')) {
-    users.push({ id:'u2', name:'Sam Verma', email:'freelancer@demo.com', phone:'+91 91234 56789', password:'demo123', role:'freelancer', profession:'Video Editor', avatar:'S', createdAt: Date.now() - 86400000*20 });
-  }
-  DB.saveUsers(users);
-
-  if (!DB.projects().length) {
-    DB.saveProjects([
-      { id:'p1', creatorId:'u1', title:'YouTube Vlog – Week 32', description:'Weekly vlog needs color grading and music sync', budget:2500, contentType:'YouTube Long-form', deadline:'2025-04-08', priority:'Normal', freelancerId:'u2', status:'ongoing', rawShared:true, editedUploaded:false, paid:false, rating:0, review:'', createdAt: Date.now()-86400000*3 },
-      { id:'p2', creatorId:'u1', title:'Instagram Reel Batch (5 reels)', description:'5 short reels for Instagram, 30 sec each', budget:8000, contentType:'Instagram Reel', deadline:'2025-04-10', priority:'Urgent', freelancerId:null, status:'open', rawShared:false, editedUploaded:false, paid:false, rating:0, review:'', createdAt: Date.now()-86400000*2 },
-      { id:'p3', creatorId:'u1', title:'Brand Video – TechCorp', description:'2 min brand promo video', budget:6000, contentType:'Brand Video', deadline:'2025-03-28', priority:'Normal', freelancerId:'u2', status:'completed', rawShared:true, editedUploaded:true, paid:true, rating:5, review:'Excellent work!', createdAt: Date.now()-86400000*10 },
-    ]);
-  }
-
-  const msgs = DB.messages();
-  if (!msgs['u1_u2']) {
-    msgs['u1_u2'] = [
-      { from:'u2', text:"Hi! I saw your project. I specialize in Reels and short-form.", time: Date.now()-3600000*5 },
-      { from:'u1', text:"Great! Can you share some samples?", time: Date.now()-3600000*4 },
-      { from:'u2', text:"Sure! I'll send my portfolio link. What's your target deadline?", time: Date.now()-3600000*3 },
-    ];
-    DB.saveMessages(msgs);
-  }
-})();
 
 /* ══════════════════════════════════════════════
    GLOBAL STATE
@@ -1190,7 +1160,7 @@ async function doLogin() {
   const u = users.find(x => x.email === email && x.password === pw);
   setBtn('login-btn', false);
   if (u) { loginSuccess(u); showToast('Welcome back, ' + u.name.split(' ')[0] + '!', 'ok', ''); }
-  else   { errEl.textContent = 'Invalid email or password. Try the demo links below.'; errEl.style.display = 'flex'; }
+  else   { errEl.textContent = 'Invalid email or password.'; errEl.style.display = 'flex'; }
 }
 
 async function doSignup() {
@@ -1255,14 +1225,6 @@ async function doSignup() {
   setBtn('signup-btn', false);
   loginSuccess(newU);
   showToast('Account created! Welcome, ' + name.split(' ')[0] + '!', 'ok', '');
-}
-
-function demoLogin(role) {
-  const email = role === 'creator' ? 'creator@demo.com' : 'freelancer@demo.com';
-  document.getElementById('login-email').value = email;
-  document.getElementById('login-pw').value    = 'demo123';
-  setLRole(role);
-  setTimeout(doLogin, 100);
 }
 
 async function loginSuccess(u) {
@@ -1463,7 +1425,7 @@ function wfContent() {
           <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
           <div class="f-rate">4.9 &middot; ₹2,500+</div>
           <div class="f-spec">${f.profession}</div>
-        </div>`).join('') || `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors yet. Sign up as a freelancer to appear here.</div>`}
+        </div>`).join('') || `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors available yet. Editors will appear here once they sign up.</div>`}
     </div><br/>
     ${selFreelancerName ? `<div class="alert alert-s">Selected: <strong>${selFreelancerName}</strong></div>` : ''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1474,7 +1436,7 @@ function wfContent() {
 
   if (wfStep === 4) return `
     <h3>Chat with ${selFreelancerName || 'Editor'}</h3>
-    ${buildChat(CU.id, selFreelancerId || 'u2')}
+    ${buildChat(CU.id, selFreelancerId || '')}
     <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
       <button class="btn btn-primary" onclick="wfN()">Share Raw Video &rarr;</button>
@@ -1536,7 +1498,7 @@ function wfContent() {
       <div>
         <div class="section-title">Payment Summary</div>
         <div class="det-card" style="margin-bottom:14px;">
-          <div class="info-row"><span class="key">Editor</span><span>${selFreelancerName || 'Sam Verma'}</span></div>
+          <div class="info-row"><span class="key">Editor</span><span>${selFreelancerName || '—'}</span></div>
           <div class="info-row"><span class="key">Content Type</span><span>${selContent || '—'}</span></div>
           <div class="info-row"><span class="key">Base Amount</span><span id="pay-base">₹—</span></div>
           <div class="info-row"><span class="key">Platform Fee (5%)</span><span id="pay-fee">₹—</span></div>
@@ -1705,7 +1667,7 @@ async function completePayment() {
 function submitReview() { showToast('Review submitted! Thank you', 'ok', ''); }
 
 function updatePayAmounts() {
-  const base = parseInt(document.getElementById('wf-budget')?.value || 2500) || 2500;
+  const base = parseInt(document.getElementById('wf-budget')?.value || 0) || 0;
   const fee  = Math.round(base * 0.05);
   const e1   = document.getElementById('pay-base'), e2 = document.getElementById('pay-fee'), e3 = document.getElementById('pay-total');
   if (e1) { e1.textContent = '₹'+fmt(base); e2.textContent = '₹'+fmt(fee); e3.textContent = '₹'+fmt(base+fee); }
@@ -1745,7 +1707,9 @@ function filterProjects(f) {
 }
 
 function cChat() {
-  return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id,'u2')}`;
+  const others = DB.users().filter(u => u.role === 'freelancer');
+  const defaultOther = others[0]?.id || '';
+  return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id, defaultOther)}`;
 }
 
 function cPayment() {
@@ -1840,7 +1804,7 @@ function saveProfile() {
   document.getElementById('c-nav-name').textContent  = name.split(' ')[0];
   document.getElementById('c-sb-name').textContent   = name;
   document.getElementById('c-sb-avatar').textContent = name.charAt(0).toUpperCase();
-  if (supaClient && CU.id && !CU.id.startsWith('u1') && !CU.id.startsWith('u2')) {
+  if (supaClient && CU.id) {
     supaClient.from('profiles').update({ name, phone, platform }).eq('id', CU.id).then(() => {});
   }
   showToast('Profile updated', 'ok', '');
@@ -1866,7 +1830,11 @@ function renderF(p) {
   if      (p === 'home')     m.innerHTML = fHome();
   else if (p === 'browse')   m.innerHTML = fBrowse();
   else if (p === 'ongoing')  m.innerHTML = fOngoing();
-  else if (p === 'chat')     m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id,'u1')}`;
+  else if (p === 'chat')  {
+    const others = DB.users().filter(u => u.role === 'creator');
+    const defaultOther = others[0]?.id || '';
+    m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id, defaultOther)}`;
+  }
   else if (p === 'negotiate')m.innerHTML = fNegotiate();
   else if (p === 'upload')   m.innerHTML = fUpload();
   else if (p === 'earnings') m.innerHTML = fEarnings();
@@ -2068,7 +2036,7 @@ function buildChat(myId, otherDefaultId) {
     return { user: u, key, msgs, last };
   });
   const activeConvo = conversations.find(c => c.user.id === otherDefaultId) || conversations[0];
-  const activeKey   = activeConvo?.key || [myId, otherDefaultId].sort().join('_');
+  const activeKey   = activeConvo?.key || (otherDefaultId ? [myId, otherDefaultId].sort().join('_') : '');
 
   return `
   <div class="chat-wrap">
@@ -2101,7 +2069,7 @@ function buildChat(myId, otherDefaultId) {
 }
 
 function renderMsgs(msgs, myId) {
-  if (!msgs.length)
+  if (!msgs || !msgs.length)
     return '<div style="text-align:center;color:var(--text-3);font-size:.78rem;padding:20px 0;">Start the conversation!</div>';
 
   return msgs.map(m => {
@@ -2203,7 +2171,6 @@ function pRow(ic, t, m, sc, sl) {
 function statusClass(s)  { return { open:'s-pe', ongoing:'s-on', completed:'s-co', cancelled:'s-wa' }[s] || 's-pe'; }
 function statusLabel(s)  { return { open:'Open', ongoing:'In Progress', completed:'Completed', cancelled:'Cancelled' }[s] || s; }
 
-/* SVG icons for content types — no emojis */
 function contentIconSvg(t) {
   const icons = {
     'YouTube Long-form': `<svg class="pico-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>`,
@@ -2218,7 +2185,6 @@ function contentIconSvg(t) {
   return icons[t] || `<svg class="pico-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>`;
 }
 
-/* Keep old contentIcon for backward compat if called anywhere */
 function contentIcon(t) { return contentIconSvg(t); }
 
 function rateStar(id, n) {
