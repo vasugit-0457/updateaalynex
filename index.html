@@ -1370,29 +1370,20 @@ function cHome() {
 }
 
 /* ── Creator: New Project Wizard ── */
-async function cNew() {
+function cNew() {
   const steps = ['Details','Content','Deadline','Freelancer','Chat','Raw Video','Review','Payment'];
-
-  const stepper = steps.map(...).join('');
-
-  const html = `
-    <div class="page-head">
-      <h2>Post a New Project</h2>
-    </div>
-    <div class="wf-stepper">${stepper}</div>
-    <div class="wf-body" id="wf-body"></div>`;
-
-  setTimeout(async () => {
-    const el = document.getElementById("wf-body");
-    if (el) {
-      el.innerHTML = await wfContent();
-    }
-  }, 0);
-
-  return html;
+  const stepper = steps.map((s, i) => {
+    const cls  = i < wfStep ? 'done' : i === wfStep ? 'active' : '';
+    const line = i < steps.length-1 ? `<div class="step-line ${i < wfStep ? 'done' : ''}"></div>` : '';
+    return `<div class="step"><div class="step-dot ${cls}">${i < wfStep ? '&#10003;' : i+1}</div>${line}</div>`;
+  }).join('');
+  return `
+  <div class="page-head"><h2>Post a New Project</h2><p>Step ${wfStep+1} of ${steps.length} — ${steps[wfStep]}</p></div>
+  <div class="wf-stepper">${stepper}</div>
+  <div class="wf-body">${wfContent()}</div>`;
 }
 
-async function wfContent() {
+function wfContent() {
   if (wfStep === 0) return `
     <h3>Project Details</h3>
     <div class="fg"><label>Project Title *</label><input id="wf-title" placeholder="e.g. YouTube Vlog Edit – Travel Series EP5"/></div>
@@ -1424,15 +1415,12 @@ async function wfContent() {
     </div>`;
 
   if (wfStep === 3) {
-    const { data: editors, error } = await supabase
-  .from("users")
-  .select("*")
-  .eq("role", "freelancer");
+    const editors = DB.users().filter(u => u.role === 'freelancer');
     return `
     <h3>Choose an Editor</h3>
     <p style="color:var(--text-3);font-size:.8rem;margin-bottom:14px;">Matched for <strong style="color:var(--accent);">${selContent || 'your content'}</strong></p>
     <div class="f-grid">
-      ${(editors || []).map(f => `
+      ${editors.map(f => `
         <div class="f-card${selFreelancerId===f.id?' sel':''}" onclick="selFL('${f.id}','${f.name}')">
           <div class="f-avatar">${f.avatar}</div>
           <div class="f-name">${f.name}</div>
@@ -2239,57 +2227,6 @@ logo.addEventListener("dragstart", (e) => {
   e.dataTransfer.setData("text/uri-list", window.location.href);
   e.dataTransfer.setData("text/plain", window.location.href);
 });
-</script>
-<script>
-
-// screen switch
-function showScreen(id){
-  document.querySelectorAll(".screen").forEach(s=>{
-    s.classList.remove("active");
-  });
-  document.getElementById(id).classList.add("active");
-}
-
-// login/signup page open
-function goAuth(type){
-  showScreen("screen-auth");
-  switchTab(type);
-}
-
-// tab switch
-function switchTab(tab){
-  document.getElementById("form-login").style.display = tab==="login" ? "block":"none";
-  document.getElementById("form-signup").style.display = tab==="signup" ? "block":"none";
-
-  document.getElementById("tab-login").classList.toggle("active", tab==="login");
-  document.getElementById("tab-signup").classList.toggle("active", tab==="signup");
-}
-
-// role select (login)
-function setLRole(role){
-  document.getElementById("lr-c").classList.toggle("ac", role==="creator");
-  document.getElementById("lr-f").classList.toggle("af", role==="freelancer");
-}
-
-// role select (signup)
-function setSRole(role){
-  document.getElementById("sr-c").classList.toggle("ac", role==="creator");
-  document.getElementById("sr-f").classList.toggle("af", role==="freelancer");
-}
-
-// LOGIN FUNCTION
-function doLogin(){
-  const email = document.getElementById("login-email").value;
-  const pw = document.getElementById("login-pw").value;
-
-  if(!email || !pw){
-    alert("Fill all fields");
-    return;
-  }
-
-  alert("Login successful ✅");
-}
-
 </script>
 </body>
 </html>
