@@ -2240,5 +2240,56 @@ logo.addEventListener("dragstart", (e) => {
   e.dataTransfer.setData("text/plain", window.location.href);
 });
 </script>
+<script>
+
+// screen switch
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>{
+    s.classList.remove("active");
+  });
+  document.getElementById(id).classList.add("active");
+}
+
+// login/signup page open
+function goAuth(type){
+  showScreen("screen-auth");
+  switchTab(type);
+}
+
+// tab switch
+function switchTab(tab){
+  document.getElementById("form-login").style.display = tab==="login" ? "block":"none";
+  document.getElementById("form-signup").style.display = tab==="signup" ? "block":"none";
+
+  document.getElementById("tab-login").classList.toggle("active", tab==="login");
+  document.getElementById("tab-signup").classList.toggle("active", tab==="signup");
+}
+
+// role select (login)
+function setLRole(role){
+  document.getElementById("lr-c").classList.toggle("ac", role==="creator");
+  document.getElementById("lr-f").classList.toggle("af", role==="freelancer");
+}
+
+// role select (signup)
+function setSRole(role){
+  document.getElementById("sr-c").classList.toggle("ac", role==="creator");
+  document.getElementById("sr-f").classList.toggle("af", role==="freelancer");
+}
+
+// LOGIN FUNCTION
+function doLogin(){
+  const email = document.getElementById("login-email").value;
+  const pw = document.getElementById("login-pw").value;
+
+  if(!email || !pw){
+    alert("Fill all fields");
+    return;
+  }
+
+  alert("Login successful ✅");
+}
+
+</script>
 </body>
 </html>
