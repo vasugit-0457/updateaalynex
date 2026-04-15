@@ -1007,17 +1007,19 @@ try {
      first load when localStorage is empty.
 ══════════════════════════════════════════════ */
 const DB = {
-  get(k)    { try { return JSON.parse(localStorage.getItem('cc_'+k)) || null; } catch { return null; } },
-  set(k,v)  { localStorage.setItem('cc_'+k, JSON.stringify(v)); },
-  users()   { return this.get('users')   || []; },
-  saveUsers(u)    { this.set('users', u); },
-  projects()      { return this.get('projects') || []; },
-  saveProjects(p) { this.set('projects', p); },
-  messages()      { return this.get('messages') || {}; },
-  saveMessages(m) { this.set('messages', m); },
-  currentUser()   { return this.get('currentUser'); },
-  setCurrentUser(u){ this.set('currentUser', u); },
-  logout()        { localStorage.removeItem('cc_currentUser'); }
+  users(){ return [] },
+  saveUsers(){},
+
+  projects(){ return [] },
+  saveProjects(){},
+
+  messages(){ return [] },
+  saveMessages(){},
+
+  currentUser(){ return null },
+  setCurrentUser(){},
+
+  logout(){}
 };
 
 /* ══════════════════════════════════════════════
