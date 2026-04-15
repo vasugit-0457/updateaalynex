@@ -1370,20 +1370,29 @@ function cHome() {
 }
 
 /* ── Creator: New Project Wizard ── */
-function cNew() {
+async function cNew() {
   const steps = ['Details','Content','Deadline','Freelancer','Chat','Raw Video','Review','Payment'];
-  const stepper = steps.map((s, i) => {
-    const cls  = i < wfStep ? 'done' : i === wfStep ? 'active' : '';
-    const line = i < steps.length-1 ? `<div class="step-line ${i < wfStep ? 'done' : ''}"></div>` : '';
-    return `<div class="step"><div class="step-dot ${cls}">${i < wfStep ? '&#10003;' : i+1}</div>${line}</div>`;
-  }).join('');
-  return `
-  <div class="page-head"><h2>Post a New Project</h2><p>Step ${wfStep+1} of ${steps.length} — ${steps[wfStep]}</p></div>
-  <div class="wf-stepper">${stepper}</div>
-  <div class="wf-body">${wfContent()}</div>`;
+
+  const stepper = steps.map(...).join('');
+
+  const html = `
+    <div class="page-head">
+      <h2>Post a New Project</h2>
+    </div>
+    <div class="wf-stepper">${stepper}</div>
+    <div class="wf-body" id="wf-body"></div>`;
+
+  setTimeout(async () => {
+    const el = document.getElementById("wf-body");
+    if (el) {
+      el.innerHTML = await wfContent();
+    }
+  }, 0);
+
+  return html;
 }
 
-function wfContent() {
+async function wfContent() {
   if (wfStep === 0) return `
     <h3>Project Details</h3>
     <div class="fg"><label>Project Title *</label><input id="wf-title" placeholder="e.g. YouTube Vlog Edit – Travel Series EP5"/></div>
@@ -1415,12 +1424,15 @@ function wfContent() {
     </div>`;
 
   if (wfStep === 3) {
-    const editors = DB.users().filter(u => u.role === 'freelancer');
+    const { data: editors, error } = await supabase
+  .from("users")
+  .select("*")
+  .eq("role", "freelancer");
     return `
     <h3>Choose an Editor</h3>
     <p style="color:var(--text-3);font-size:.8rem;margin-bottom:14px;">Matched for <strong style="color:var(--accent);">${selContent || 'your content'}</strong></p>
     <div class="f-grid">
-      ${editors.map(f => `
+      ${(editors || []).map(f => `
         <div class="f-card${selFreelancerId===f.id?' sel':''}" onclick="selFL('${f.id}','${f.name}')">
           <div class="f-avatar">${f.avatar}</div>
           <div class="f-name">${f.name}</div>
