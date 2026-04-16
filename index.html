@@ -987,29 +987,34 @@ try {
   }
   console.log("✅ Supabase client initialized");
 } catch(e) {
-  console.warn("Supabase init failed, using local DB only:", e);
+  console.warn("Supabase init failed:", e);
   supaClient = null;
 }
 
 /* ══════════════════════════════════════════════
-   DATABASE HANDLER (Strictly RAM/Memory + Supabase)
+   DATABASE HANDLER
+   — All user data lives in MemDB (RAM) only.
+   — No sensitive data is ever written to localStorage.
+   — Supabase manages the session token internally.
 ══════════════════════════════════════════════ */
-const MemDB = { users: [], projects: [], msgs: {} };
+const MemDB = { users: [], projects: [], msgs: {}, currentUser: null };
 
 const DB = {
-  users() { return MemDB.users; },
-  saveUsers(data) { MemDB.users = data; },
-  projects() { return MemDB.projects; },
-  saveProjects(data) { MemDB.projects = data; },
-  messages() { return MemDB.msgs; },
-  saveMessages(data) { MemDB.msgs = data; },
+  users()           { return MemDB.users; },
+  saveUsers(data)   { MemDB.users = data; },
+  projects()        { return MemDB.projects; },
+  saveProjects(data){ MemDB.projects = data; },
+  messages()        { return MemDB.msgs; },
+  saveMessages(data){ MemDB.msgs = data; },
 
-  // We ONLY keep the login token in local storage so you stay logged in
-  currentUser() { return JSON.parse(localStorage.getItem('aalynex_cu') || 'null'); },
-  setCurrentUser(data) { localStorage.setItem('aalynex_cu', JSON.stringify(data)); },
-  logout() { 
-    localStorage.removeItem('aalynex_cu'); 
-    MemDB.users = []; MemDB.projects = []; MemDB.msgs = {}; 
+  /* Session is managed by Supabase — we only hold it in RAM */
+  currentUser()          { return MemDB.currentUser || null; },
+  setCurrentUser(data)   { MemDB.currentUser = data; },
+  logout() {
+    MemDB.currentUser = null;
+    MemDB.users       = [];
+    MemDB.projects    = [];
+    MemDB.msgs        = {};
   }
 };
 
@@ -1114,6 +1119,7 @@ function setBtn(id, loading, text) {
   else         { btn.classList.remove('btn-loading'); btn.disabled = false; }
 }
 
+/* ── LOGIN — Supabase only, no localStorage ── */
 async function doLogin() {
   const email  = document.getElementById('login-email').value.trim();
   const pw     = document.getElementById('login-pw').value;
@@ -1130,32 +1136,56 @@ async function doLogin() {
       if (!error && data.user) {
         const { data: profile, error: pErr } = await supaClient.from('profiles').select('*').eq('id', data.user.id).single();
         if (!pErr && profile) {
-          const u = { id:profile.id, name:profile.name||email.split('@')[0], email:data.user.email, phone:profile.phone||'', role:profile.role||loginRole, profession:profile.profession||'', platform:profile.platform||'', avatar:(profile.name||email).charAt(0).toUpperCase(), createdAt:new Date(profile.created_at).getTime() };
+          const u = {
+            id: profile.id,
+            name: profile.name || email.split('@')[0],
+            email: data.user.email,
+            phone: profile.phone || '',
+            role: profile.role || loginRole,
+            profession: profile.profession || '',
+            platform: profile.platform || '',
+            avatar: (profile.name || email).charAt(0).toUpperCase(),
+            createdAt: new Date(profile.created_at).getTime()
+          };
           setBtn('login-btn', false);
           loginSuccess(u);
           showToast('Welcome back, ' + u.name.split(' ')[0] + '!', 'ok', '');
           return;
         } else {
+          /* Profile row missing — create it */
           const name = email.split('@')[0];
-          await supaClient.from('profiles').insert({ id:data.user.id, name, role:loginRole, profession:'', platform:'', avatar:name.charAt(0).toUpperCase() });
-          const u = { id:data.user.id, name, email, phone:'', role:loginRole, profession:'', platform:'', avatar:name.charAt(0).toUpperCase(), createdAt:Date.now() };
+          await supaClient.from('profiles').insert({
+            id: data.user.id, name, role: loginRole,
+            profession: '', platform: '', avatar: name.charAt(0).toUpperCase()
+          });
+          const u = {
+            id: data.user.id, name, email, phone: '',
+            role: loginRole, profession: '', platform: '',
+            avatar: name.charAt(0).toUpperCase(), createdAt: Date.now()
+          };
           setBtn('login-btn', false);
           loginSuccess(u);
           showToast('Welcome, ' + u.name + '!', 'ok', '');
           return;
         }
+      } else {
+        setBtn('login-btn', false);
+        errEl.textContent = error?.message || 'Invalid email or password.';
+        errEl.style.display = 'flex';
+        return;
       }
-    } catch(e) { console.warn('Supabase login error:', e); }
+    } catch(e) {
+      console.warn('Supabase login error:', e);
+    }
   }
 
-  /* Local fallback */
-  const users = DB.users();
-  const u = users.find(x => x.email === email && x.password === pw);
+  /* No Supabase connection available */
   setBtn('login-btn', false);
-  if (u) { loginSuccess(u); showToast('Welcome back, ' + u.name.split(' ')[0] + '!', 'ok', ''); }
-  else   { errEl.textContent = 'Invalid email or password.'; errEl.style.display = 'flex'; }
+  errEl.textContent = 'Login failed. Please check your connection and try again.';
+  errEl.style.display = 'flex';
 }
 
+/* ── SIGNUP — Supabase only, no localStorage ── */
 async function doSignup() {
   const name       = document.getElementById('su-name').value.trim();
   const phone      = document.getElementById('su-phone').value.trim();
@@ -1182,15 +1212,23 @@ async function doSignup() {
       const authUser = data.user || (await supaClient.auth.getUser()).data.user;
       if (authUser) {
         const { error: profileError } = await supaClient.from('profiles').upsert({
-          id: authUser.id, name, phone, role: signupRole, profession, platform, avatar: name.charAt(0).toUpperCase()
-        }, { onConflict:'id' });
+          id: authUser.id, name, phone, role: signupRole, profession, platform,
+          avatar: name.charAt(0).toUpperCase()
+        }, { onConflict: 'id' });
         if (profileError) console.warn('Profile upsert error:', profileError.message);
       }
 
-      const u = { id: authUser?.id || uid(), name, email, phone, role: signupRole, profession, platform, avatar: name.charAt(0).toUpperCase(), createdAt: Date.now() };
+      const u = {
+        id: authUser?.id || uid(), name, email, phone,
+        role: signupRole, profession, platform,
+        avatar: name.charAt(0).toUpperCase(), createdAt: Date.now()
+      };
+
+      /* Keep an in-memory copy for the current session */
       const users = DB.users();
-      if (!users.find(x => x.id === u.id)) users.push({...u, password:''});
+      if (!users.find(x => x.id === u.id)) users.push({ ...u });
       DB.saveUsers(users);
+
       setBtn('signup-btn', false);
 
       if (!data.session) {
@@ -1210,19 +1248,17 @@ async function doSignup() {
     return;
   }
 
-  /* Local fallback */
-  const users = DB.users();
-  if (users.find(x => x.email === email)) { errEl.textContent = 'An account with this email already exists.'; errEl.style.display = 'flex'; setBtn('signup-btn', false); return; }
-  const newU = { id:uid(), name, email, phone, password:pw, role:signupRole, profession, platform, avatar:name.charAt(0).toUpperCase(), createdAt:Date.now() };
-  users.push(newU); DB.saveUsers(users);
+  /* No Supabase connection */
   setBtn('signup-btn', false);
-  loginSuccess(newU);
-  showToast('Account created! Welcome, ' + name.split(' ')[0] + '!', 'ok', '');
+  errEl.textContent = 'Signup requires a connection. Please try again.';
+  errEl.style.display = 'flex';
 }
 
+/* ── LOGIN SUCCESS — stores user only in RAM ── */
 async function loginSuccess(u) {
   CU = u;
-  DB.setCurrentUser(u);
+  DB.setCurrentUser(u); /* writes to MemDB.currentUser — NOT localStorage */
+
   if (u.role === 'creator') {
     document.getElementById('c-nav-name').textContent  = u.name.split(' ')[0];
     document.getElementById('c-sb-name').textContent   = u.name;
@@ -1252,7 +1288,12 @@ async function syncFromSupabase(u) {
       const localUsers = DB.users();
       profiles.forEach(p => {
         const exists = localUsers.find(x => x.id === p.id);
-        const mapped = { id:p.id, name:p.name||'User', email:'', phone:p.phone||'', role:p.role||'creator', profession:p.profession||'', platform:p.platform||'', avatar:(p.name||'U').charAt(0).toUpperCase(), createdAt:new Date(p.created_at).getTime() };
+        const mapped = {
+          id: p.id, name: p.name || 'User', email: '', phone: p.phone || '',
+          role: p.role || 'creator', profession: p.profession || '',
+          platform: p.platform || '', avatar: (p.name || 'U').charAt(0).toUpperCase(),
+          createdAt: new Date(p.created_at).getTime()
+        };
         if (!exists) localUsers.push(mapped); else Object.assign(exists, mapped);
       });
       DB.saveUsers(localUsers);
@@ -1261,12 +1302,12 @@ async function syncFromSupabase(u) {
     const { data: projects } = await supaClient.from('projects').select('*');
     if (projects && projects.length) {
       const mapped = projects.map(p => ({
-        id:p.id, creatorId:p.creator_id, freelancerId:p.freelancer_id||null,
-        title:p.title||'', description:p.description||'', budget:p.budget||0,
-        contentType:p.content_type||'', deadline:p.deadline||'', priority:p.priority||'Normal',
-        status:p.status||'open', rawShared:p.raw_shared||false,
-        editedUploaded:p.edited_uploaded||false, paid:p.paid||false,
-        rating:p.rating||0, review:p.review||'', createdAt:new Date(p.created_at).getTime()
+        id: p.id, creatorId: p.creator_id, freelancerId: p.freelancer_id || null,
+        title: p.title || '', description: p.description || '', budget: p.budget || 0,
+        contentType: p.content_type || '', deadline: p.deadline || '', priority: p.priority || 'Normal',
+        status: p.status || 'open', rawShared: p.raw_shared || false,
+        editedUploaded: p.edited_uploaded || false, paid: p.paid || false,
+        rating: p.rating || 0, review: p.review || '', createdAt: new Date(p.created_at).getTime()
       }));
       DB.saveProjects(mapped);
     }
@@ -1281,8 +1322,7 @@ async function syncFromSupabase(u) {
         const key = [m.sender_id, m.receiver_id].sort().join('_');
         if (!msgMap[key]) msgMap[key] = [];
         msgMap[key].push({
-          from: m.sender_id,
-          text: m.text,
+          from: m.sender_id, text: m.text,
           file_url: m.file_url || null,
           time: new Date(m.created_at).getTime()
         });
@@ -1292,14 +1332,18 @@ async function syncFromSupabase(u) {
 
     console.log('✅ Supabase sync complete');
   } catch(e) {
-    console.warn('Sync failed, using local data:', e);
+    console.warn('Sync failed, using in-memory data:', e);
   }
 }
 
+/* ── LOGOUT — Supabase signOut only, no localStorage ── */
 function logout() {
   showModal('Log Out', 'Are you sure you want to log out?', async () => {
-    if (supaClient) { try { await supaClient.auth.signOut(); } catch(e) {} }
-    CU = null; DB.logout();
+    if (supaClient) {
+      try { await supaClient.auth.signOut(); } catch(e) { console.warn('Sign out error:', e); }
+    }
+    CU = null;
+    DB.logout(); /* clears MemDB only */
     showScreen('screen-landing');
     showToast('Logged out successfully', 'info', '');
   });
@@ -1312,9 +1356,7 @@ function cPage(p, el) {
   document.querySelectorAll('#screen-creator .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   closeSidebar('creator');
-  renderC(p); 
-  
-  // Silently pull fresh data from Supabase in the background and update UI
+  renderC(p);
   if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
 }
 
@@ -1323,14 +1365,13 @@ function cPageMobile(p, el) {
   if (el) el.classList.add('active');
   document.querySelectorAll('#c-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
   renderC(p);
-  
   if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
 }
 
 function renderC(p) {
   const m = document.getElementById('c-main');
-  if      (p === 'home')    m.innerHTML = cHome();
-  else if (p === 'new')   { wfStep = 0; selContent = ''; selFreelancerId = null; m.innerHTML = cNew(); }
+  if      (p === 'home')     m.innerHTML = cHome();
+  else if (p === 'new')    { wfStep = 0; selContent = ''; selFreelancerId = null; m.innerHTML = cNew(); }
   else if (p === 'projects') m.innerHTML = cProjects();
   else if (p === 'chat')     m.innerHTML = cChat();
   else if (p === 'payment')  m.innerHTML = cPayment();
@@ -1380,17 +1421,13 @@ function cNew() {
   `).join('');
 
   const html = `
-    <div class="page-head">
-      <h2>Post a New Project</h2>
-    </div>
+    <div class="page-head"><h2>Post a New Project</h2></div>
     <div class="wf-stepper">${stepper}</div>
     <div class="wf-body" id="wf-body"></div>`;
 
   setTimeout(async () => {
     const el = document.getElementById("wf-body");
-    if (el) {
-      el.innerHTML = await wfContent();
-    }
+    if (el) el.innerHTML = await wfContent();
   }, 0);
 
   return html;
@@ -1429,24 +1466,12 @@ async function wfContent() {
 
   if (wfStep === 3) {
     let editors = [];
-    
-    // 1. Try fetching from Supabase
     if (supaClient) {
       try {
-        const { data, error } = await supaClient
-          .from("profiles") 
-          .select("*")
-          .eq("role", "freelancer");
-          
-        if (!error && data) {
-          editors = data;
-        }
-      } catch (e) {
-        console.warn("Supabase fetch failed:", e);
-      }
+        const { data, error } = await supaClient.from("profiles").select("*").eq("role", "freelancer");
+        if (!error && data) editors = data;
+      } catch (e) { console.warn("Supabase fetch failed:", e); }
     }
-
-    // 2. Fallback to Local Storage if Supabase is empty/offline
     if (!editors || editors.length === 0) {
       editors = DB.users().filter(u => u.role === "freelancer");
     }
@@ -1482,30 +1507,24 @@ async function wfContent() {
   if (wfStep === 5) return `
     <h3>Share Raw Video</h3>
     <div class="alert alert-i">
-      Upload your raw footage for <strong>${selFreelancerName || 'the editor'}</strong>. 
+      Upload your raw footage for <strong>${selFreelancerName || 'the editor'}</strong>.
       It will be sent automatically as a message in chat.
     </div>
-
     <label class="upload-area-lg" for="raw-video-input" id="raw-drop-zone">
       <div class="upload-icon" id="raw-upload-icon">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
       </div>
       <div class="upload-label" id="raw-file-label">Drag &amp; drop or click to select video</div>
       <div class="upload-sub">MP4, MOV, AVI &middot; Up to 10 GB</div>
-      <input type="file" id="raw-video-input" accept="video/*" style="display:none;"
-        onchange="onRawFileSelect(this)"/>
+      <input type="file" id="raw-video-input" accept="video/*" style="display:none;" onchange="onRawFileSelect(this)"/>
     </label>
-
     <div class="upload-progress-wrap" id="upload-progress-wrap">
       <div class="upload-progress-bar"><div class="upload-progress-fill" id="upload-progress-fill"></div></div>
       <div class="upload-progress-label" id="upload-progress-label">Uploading…</div>
     </div>
-
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
       <button class="btn btn-ghost" onclick="wfB()" id="raw-back-btn">&larr; Back</button>
-      <button class="btn btn-primary" id="raw-video-btn" onclick="uploadAndSendVideo()">
-        Mark as Sent &rarr;
-      </button>
+      <button class="btn btn-primary" id="raw-video-btn" onclick="uploadAndSendVideo()">Mark as Sent &rarr;</button>
     </div>`;
 
   if (wfStep === 6) return `
@@ -1592,8 +1611,8 @@ async function uploadAndSendVideo() {
   if (file.size > MAX_SIZE) { showToast('File too large. Maximum size is 10 GB.', 'err', ''); return; }
   if (!selFreelancerId)     { showToast('No freelancer selected. Go back and choose one.', 'err', ''); return; }
 
-  btn.disabled      = true;
-  btn.textContent   = 'Uploading…';
+  btn.disabled    = true;
+  btn.textContent = 'Uploading…';
   btn.classList.add('btn-loading');
   if (backBtn) backBtn.disabled = true;
   if (progWrap) { progWrap.classList.add('show'); progFill.style.width = '0%'; progLabel.textContent = 'Preparing upload…'; }
@@ -1606,7 +1625,6 @@ async function uploadAndSendVideo() {
       if (progFill)  progFill.style.width  = '20%';
 
       const path = `raw/${CU.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-
       const { data: uploadData, error: uploadError } =
         await supaClient.storage.from('videos').upload(path, file, { cacheControl:'3600', upsert:false });
 
@@ -1618,7 +1636,6 @@ async function uploadAndSendVideo() {
       }
 
       if (progFill) progFill.style.width = '60%';
-
       const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
       fileUrl = urlData?.publicUrl || null;
       if (progFill) progFill.style.width = '70%';
@@ -1633,10 +1650,8 @@ async function uploadAndSendVideo() {
     if (supaClient) {
       const uid1 = [CU.id, selFreelancerId].sort()[0];
       const uid2 = [CU.id, selFreelancerId].sort()[1];
-
       let { data: convo } = await supaClient.from('conversations').select('id')
         .eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
-
       if (!convo) {
         const { data: newConvo, error: createErr } = await supaClient.from('conversations')
           .insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
@@ -1650,7 +1665,6 @@ async function uploadAndSendVideo() {
 
     const msgText = 'Raw Video: ' + file.name;
     const msgTime = Date.now();
-
     const key = [CU.id, selFreelancerId].sort().join('_');
     const allMsgs = DB.messages();
     if (!allMsgs[key]) allMsgs[key] = [];
@@ -1660,14 +1674,12 @@ async function uploadAndSendVideo() {
     if (supaClient && conversationId) {
       const { error: msgError } = await supaClient.from('messages').insert({
         conversation_id: conversationId,
-        sender_id:       CU.id,
-        text:            msgText,
-        file_url:        fileUrl
+        sender_id: CU.id, text: msgText, file_url: fileUrl
       });
       if (msgError) console.warn('Message Supabase save error:', msgError.message);
     }
 
-    if (progFill) progFill.style.width = '100%';
+    if (progFill)  progFill.style.width  = '100%';
     if (progLabel) progLabel.textContent = 'Done!';
 
     showToast('Video sent to ' + (selFreelancerName || 'editor') + '!', 'ok', '');
@@ -1695,7 +1707,12 @@ async function completePayment() {
   const projs  = DB.projects(); projs.push(newP); DB.saveProjects(projs);
 
   if (supaClient) {
-    const { error } = await supaClient.from('projects').insert({ id:newP.id, creator_id:CU.id, freelancer_id:selFreelancerId||null, title, description:'', budget, content_type:selContent||'', deadline:null, priority:'Normal', status:'completed', raw_shared:true, edited_uploaded:true, paid:true });
+    const { error } = await supaClient.from('projects').insert({
+      id:newP.id, creator_id:CU.id, freelancer_id:selFreelancerId||null,
+      title, description:'', budget, content_type:selContent||'',
+      deadline:null, priority:'Normal', status:'completed',
+      raw_shared:true, edited_uploaded:true, paid:true
+    });
     if (error) console.warn('Project save error:', error.message);
   }
   showToast('Payment successful! Project completed!', 'ok', '');
@@ -1855,7 +1872,6 @@ function fPage(p, el) {
   if (el) el.classList.add('active');
   closeSidebar('freelancer');
   renderF(p);
-  
   if (supaClient && CU) syncFromSupabase(CU).then(() => renderF(p));
 }
 
@@ -1864,7 +1880,6 @@ function fPageMobile(p, el) {
   if (el) el.classList.add('active');
   document.querySelectorAll('#f-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
   renderF(p);
-  
   if (supaClient && CU) syncFromSupabase(CU).then(() => renderF(p));
 }
 
@@ -1878,9 +1893,9 @@ function renderF(p) {
     const defaultOther = others[0]?.id || '';
     m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id, defaultOther)}`;
   }
-  else if (p === 'negotiate')m.innerHTML = fNegotiate();
-  else if (p === 'upload')   m.innerHTML = fUpload();
-  else if (p === 'earnings') m.innerHTML = fEarnings();
+  else if (p === 'negotiate') m.innerHTML = fNegotiate();
+  else if (p === 'upload')    m.innerHTML = fUpload();
+  else if (p === 'earnings')  m.innerHTML = fEarnings();
   m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
 }
 
@@ -2235,16 +2250,28 @@ function rateStar(id, n) {
 }
 
 /* ══════════════════════════════════════════════
-   INIT — restore session on page load
+   INIT — Restore session via Supabase only.
+   No localStorage is read for user data.
 ══════════════════════════════════════════════ */
 window.addEventListener('load', async () => {
   if (supaClient) {
     try {
       const { data: { session } } = await supaClient.auth.getSession();
       if (session) {
-        const { data: profile } = await supaClient.from('profiles').select('*').eq('id', session.user.id).single();
+        const { data: profile } = await supaClient
+          .from('profiles').select('*').eq('id', session.user.id).single();
         if (profile) {
-          const u = { id:profile.id, name:profile.name||session.user.email.split('@')[0], email:session.user.email, phone:profile.phone||'', role:profile.role||'creator', profession:profile.profession||'', platform:profile.platform||'', avatar:(profile.name||'U').charAt(0).toUpperCase(), createdAt:new Date(profile.created_at).getTime() };
+          const u = {
+            id: profile.id,
+            name: profile.name || session.user.email.split('@')[0],
+            email: session.user.email,
+            phone: profile.phone || '',
+            role: profile.role || 'creator',
+            profession: profile.profession || '',
+            platform: profile.platform || '',
+            avatar: (profile.name || 'U').charAt(0).toUpperCase(),
+            createdAt: new Date(profile.created_at).getTime()
+          };
           loginSuccess(u);
           return;
         }
@@ -2252,8 +2279,8 @@ window.addEventListener('load', async () => {
     } catch(e) { console.warn('Session check failed:', e); }
   }
 
-  const saved = DB.currentUser();
-  if (saved) { CU = saved; loginSuccess(saved); }
+  /* No active Supabase session — stay on landing page */
+  showScreen('screen-landing');
 
   new MutationObserver(() => {
     const el = document.getElementById('chat-msgs-el');
@@ -2263,7 +2290,6 @@ window.addEventListener('load', async () => {
 </script>
 <script>
 const logo = document.getElementById("logoDrag");
-
 logo.addEventListener("dragstart", (e) => {
   e.dataTransfer.setData("text/uri-list", window.location.href);
   e.dataTransfer.setData("text/plain", window.location.href);
