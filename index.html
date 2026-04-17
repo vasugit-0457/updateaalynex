@@ -1018,13 +1018,11 @@ const DB = {
    GLOBAL STATE
 ══════════════════════════════════════════════ */
 let CU = null;
-// NEW CODE START - Manage State logic
 let wfStep = 0, selContent = '', selFreelancerName = null;
-let selFreelancerIds = []; // NEW: Array instead of single ID for multi-select
-let activeManageProjectId = null; // Track which project the wizard is managing
-let newProjectDraft = {}; // 🟢 Draft object to prevent data loss across wizard steps
-let currentChatUserId = null; // 🟢 Active chat memory
-// NEW CODE END
+let selFreelancerIds = [];
+let activeManageProjectId = null;
+let newProjectDraft = {}; 
+let currentChatUserId = null; 
 
 /* ══════════════════════════════════════════════
    UTILITIES
@@ -1272,15 +1270,13 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // NEW CODE START - Real-time System - UPDATED FLICKER FREE CHAT
+  // REAL TIME UPDATES
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
         syncFromSupabase(CU).then(() => {
-          // Check if we are currently NOT on the chat page before re-rendering everything
           const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
           const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
-          
           if (CU.role === 'creator' && cPageActive !== 'chat') renderC(cPageActive || 'home');
           else if (CU.role === 'freelancer' && fPageActive !== 'chat') renderF(fPageActive || 'home');
         });
@@ -1288,10 +1284,6 @@ async function loginSuccess(u) {
 
     supaClient.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        
-        // 🟢 FIX: Agar message humne khud bheja hai, toh ignore karo (race condition rokne ke liye)
-        if (payload.new && String(payload.new.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
-
         syncFromSupabase(CU).then(() => {
            const el = document.getElementById('chat-msgs-el');
            if (el && currentChatUserId) {
@@ -1303,7 +1295,6 @@ async function loginSuccess(u) {
         });
       }).subscribe();
   }
-  // NEW CODE END
 }
 
 /* ══════════════════════════════════════════════
@@ -1312,7 +1303,6 @@ async function loginSuccess(u) {
 async function syncFromSupabase(u) {
   if (!supaClient) return;
   try {
-    // 1. Fetch Profiles
     const { data: profiles } = await supaClient.from('profiles').select('*');
     if (profiles && profiles.length) {
       const localUsers = DB.users();
@@ -1329,7 +1319,6 @@ async function syncFromSupabase(u) {
       DB.saveUsers(localUsers);
     }
 
-    // 2. Fetch Projects
     const { data: projects } = await supaClient.from('projects').select('*');
     if (projects && projects.length) {
       const mapped = projects.map(p => ({
@@ -1344,7 +1333,6 @@ async function syncFromSupabase(u) {
       DB.saveProjects(mapped);
     }
 
-    // 3. Fetch Conversations & Messages
     const { data: convos } = await supaClient.from('conversations')
       .select('*')
       .or(`user1_id.eq.${u.id},user2_id.eq.${u.id}`);
@@ -1362,7 +1350,6 @@ async function syncFromSupabase(u) {
         messages.forEach(m => {
           const c = convos.find(x => x.id === m.conversation_id);
           if (c) {
-            // Find who the other person is
             const otherId = c.user1_id === u.id ? c.user2_id : c.user1_id;
             const key = [u.id, otherId].sort().join('_');
             
@@ -1410,7 +1397,21 @@ function cPage(p, el) {
   }
   
   renderC(p);
-  if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
 }
 
 function cPageMobile(p, el) {
@@ -1422,7 +1423,21 @@ function cPageMobile(p, el) {
   if (p !== 'new') activeManageProjectId = null;
   
   renderC(p);
-  if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
 }
 
 function renderC(p) {
@@ -1910,6 +1925,7 @@ function filterProjects(f) {
 function cChat() {
   const others = DB.users().filter(u => u.role === 'freelancer');
   const defaultOther = currentChatUserId || others[0]?.id || ''; 
+  currentChatUserId = defaultOther;
   return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id, defaultOther)}`;
 }
 
@@ -2013,16 +2029,46 @@ function fPage(p, el) {
   document.querySelectorAll('#screen-freelancer .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   closeSidebar('freelancer');
+  
   renderF(p);
-  if (supaClient && CU) syncFromSupabase(CU).then(() => renderF(p));
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
 }
 
 function fPageMobile(p, el) {
   document.querySelectorAll('#f-bottom-nav .bn-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   document.querySelectorAll('#f-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
+  
   renderF(p);
-  if (supaClient && CU) syncFromSupabase(CU).then(() => renderF(p));
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
 }
 
 function renderF(p) {
@@ -2033,6 +2079,7 @@ function renderF(p) {
   else if (p === 'chat')  {
     const others = DB.users().filter(u => u.role === 'creator');
     const defaultOther = currentChatUserId || others[0]?.id || ''; 
+    currentChatUserId = defaultOther;
     m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id, defaultOther)}`;
   }
   else if (p === 'negotiate') m.innerHTML = fNegotiate();
@@ -2248,7 +2295,6 @@ function fEarnings() {
    CHAT — SHARED
 ══════════════════════════════════════════════ */
 
-// 🟢 NEW: Update sidebar previews smoothly
 function updateChatSidebarPreviews() {
    document.querySelectorAll('.cc-item').forEach(el => {
       const uid = el.getAttribute('data-uid');
@@ -2310,7 +2356,6 @@ function buildChat(myId, otherDefaultId) {
   </div>`;
 }
 
-// 🟢 FIX: Messages styling updated to proper flex layouts to stop stretching
 function renderMsgs(msgs, myId) {
   if (!msgs || !msgs.length)
     return '<div style="text-align:center;color:var(--text-3);font-size:.78rem;padding:20px 0;">Start the conversation!</div>';
@@ -2318,7 +2363,6 @@ function renderMsgs(msgs, myId) {
   const isCreator = CU.role === 'creator';
 
   return msgs.map(m => {
-    // Exact match regardless of lowercase/uppercase format
     const isMine    = String(m.from).toLowerCase() === String(myId).toLowerCase();
     const timeAlign = isMine ? 'text-align:right' : '';
     const flexAlign = isMine ? 'flex-end' : 'flex-start';
@@ -2421,26 +2465,41 @@ async function handleChatUpload(input, myId, otherId) {
 
 async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName = null, overrideText = null) {
   let text = '';
+  const inp = document.getElementById('chat-inp-el');
   
   if (overrideText) {
     text = overrideText;
   } else if (overrideFileUrl) {
     text = 'Video: ' + overrideFileName;
   } else {
-    const inp = document.getElementById('chat-inp-el');
     if (!inp || !inp.value.trim()) return;
-    text = inp.value.trim(); inp.value = '';
+    text = inp.value.trim(); 
+    inp.value = '';
   }
 
-  const key = [myId, otherId].sort().join('_');
-  const allMsgs = DB.messages();
-  if (!allMsgs[key]) allMsgs[key] = [];
-  allMsgs[key].push({ from: myId, text, file_url: overrideFileUrl, time: Date.now() });
-  DB.saveMessages(allMsgs);
-
   const el = document.getElementById('chat-msgs-el');
-  if (el) { el.innerHTML = renderMsgs(allMsgs[key], myId); el.scrollTop = el.scrollHeight; }
-  updateChatSidebarPreviews();
+  if (el) {
+      let tempHtml = '';
+      if (overrideFileUrl) {
+          tempHtml = `<div style="display:flex; flex-direction:column; align-items:flex-end; margin-bottom:8px; width:100%; opacity:0.5;">
+            <div class="msg-video sent-video">
+              <div class="msg-video-inner">
+                <div class="msg-video-label">
+                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${overrideFileName}</span>
+                </div>
+                <div class="msg-video-footer"><span>Sending...</span></div>
+              </div>
+            </div>
+          </div>`;
+      } else {
+          tempHtml = `<div style="display:flex; flex-direction:column; align-items:flex-end; margin-bottom:8px; width:100%; opacity:0.5;">
+            <div class="msg sent">${text}</div>
+            <div class="msg-time" style="text-align:right; width:100%; margin-top:2px;">Sending...</div>
+          </div>`;
+      }
+      el.insertAdjacentHTML('beforeend', tempHtml);
+      el.scrollTop = el.scrollHeight;
+  }
 
   if (supaClient) {
     try {
@@ -2454,7 +2513,20 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
       if (convo) {
         await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
       }
-    } catch(e) {}
+      
+      await syncFromSupabase(CU);
+      
+      if (el && currentChatUserId === otherId) { 
+          const key = [myId, otherId].sort().join('_');
+          el.innerHTML = renderMsgs(DB.messages()[key] || [], myId); 
+          el.scrollTop = el.scrollHeight; 
+      }
+      updateChatSidebarPreviews();
+      
+    } catch(e) {
+       console.error(e);
+       showToast("Message failed to send.", "err");
+    }
   }
 }
 
