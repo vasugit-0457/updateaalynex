@@ -1022,6 +1022,7 @@ let CU = null;
 let wfStep = 0, selContent = '', selFreelancerName = null;
 let selFreelancerIds = []; // NEW: Array instead of single ID for multi-select
 let activeManageProjectId = null; // Track which project the wizard is managing
+let newProjectDraft = {}; // 🟢 Draft object to prevent data loss across wizard steps
 // NEW CODE END
 
 /* ══════════════════════════════════════════════
@@ -1373,13 +1374,15 @@ function cPage(p, el) {
   document.querySelectorAll('#screen-creator .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   closeSidebar('creator');
+  
   // NEW CODE START - Reset wizard only if not managing
   if (p === 'new') { 
-    if(!activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; }
+    if(!activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; newProjectDraft = {}; }
   } else {
     activeManageProjectId = null; // Clear if navigating elsewhere
   }
   // NEW CODE END
+  
   renderC(p);
   if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
 }
@@ -1388,8 +1391,11 @@ function cPageMobile(p, el) {
   document.querySelectorAll('#c-bottom-nav .bn-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   document.querySelectorAll('#c-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
-  if (p === 'new' && !activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; }
+  
+  // 🟢 Include draft reset logic for mobile clicks too
+  if (p === 'new' && !activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; newProjectDraft = {}; }
   if (p !== 'new') activeManageProjectId = null;
+  
   renderC(p);
   if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
 }
@@ -1492,9 +1498,9 @@ function cNew() {
 async function wfContent() {
   if (wfStep === 0) return `
     <h3>Project Details</h3>
-    <div class="fg"><label>Project Title *</label><input id="wf-title" placeholder="e.g. YouTube Vlog Edit – Travel Series EP5"/></div>
-    <div class="fg"><label>Description</label><textarea id="wf-desc" placeholder="Describe what you need edited…"></textarea></div>
-    <div class="fg"><label>Budget (₹) *</label><input id="wf-budget" type="number" placeholder="5000" min="100"/></div>
+    <div class="fg"><label>Project Title *</label><input id="wf-title" value="${newProjectDraft.title || ''}" placeholder="e.g. YouTube Vlog Edit – Travel Series EP5"/></div>
+    <div class="fg"><label>Description</label><textarea id="wf-desc" placeholder="Describe what you need edited…">${newProjectDraft.desc || ''}</textarea></div>
+    <div class="fg"><label>Budget (₹) *</label><input id="wf-budget" type="number" value="${newProjectDraft.budget || ''}" placeholder="5000" min="100"/></div>
     <button class="btn btn-primary" onclick="wfN()">Next &rarr;</button>`;
 
   if (wfStep === 1) return `
@@ -1511,9 +1517,13 @@ async function wfContent() {
 
   if (wfStep === 2) return `
     <h3>Set Deadline &amp; Priority</h3>
-    <div class="fg"><label>Deadline Date *</label><input type="date" id="wf-deadline" min="${new Date().toISOString().split('T')[0]}"/></div>
+    <div class="fg"><label>Deadline Date *</label><input type="date" id="wf-deadline" value="${newProjectDraft.deadline || ''}" min="${new Date().toISOString().split('T')[0]}"/></div>
     <div class="fg"><label>Priority Level</label>
-      <select id="wf-priority"><option>Normal</option><option>Urgent (+20% budget)</option><option>Flexible</option></select>
+      <select id="wf-priority">
+        <option ${newProjectDraft.priority === 'Normal' ? 'selected' : ''}>Normal</option>
+        <option ${newProjectDraft.priority === 'Urgent (+20% budget)' ? 'selected' : ''}>Urgent (+20% budget)</option>
+        <option ${newProjectDraft.priority === 'Flexible' ? 'selected' : ''}>Flexible</option>
+      </select>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
@@ -1749,21 +1759,46 @@ async function completePayment() {
   cPage('projects', document.querySelector('[data-page="projects"]'));
 }
 
+// 🟢 NEW PROJECT SAVING LOGIC HERE
 function wfN() {
-  if (wfStep===0) { const t=document.getElementById('wf-title')?.value?.trim(), b=document.getElementById('wf-budget')?.value; if(!t){showToast('Please enter a project title','err','');return;} if(!b||b<100){showToast('Please enter a valid budget (min ₹100)','err','');return;} }
+  if (wfStep===0) { 
+    const t = document.getElementById('wf-title')?.value?.trim();
+    const b = document.getElementById('wf-budget')?.value;
+    const desc = document.getElementById('wf-desc')?.value || '';
+    if(!t){ showToast('Please enter a project title','err',''); return; } 
+    if(!b||b<100){ showToast('Please enter a valid budget (min ₹100)','err',''); return; } 
+    
+    // 🟢 Save to global draft
+    newProjectDraft.title = t;
+    newProjectDraft.budget = parseInt(b);
+    newProjectDraft.desc = desc;
+  }
+  
   if (wfStep===1 && !selContent)  { showToast('Please select a content type','err',''); return; }
-  if (wfStep===2 && !document.getElementById('wf-deadline')?.value) { showToast('Please select a deadline','err',''); return; }
+  
+  if (wfStep===2) { 
+    const deadlineVal = document.getElementById('wf-deadline')?.value;
+    const priorityVal = document.getElementById('wf-priority')?.value || 'Normal';
+    if (!deadlineVal) { showToast('Please select a deadline','err',''); return; } 
+    
+    // 🟢 Save to global draft
+    newProjectDraft.deadline = deadlineVal;
+    newProjectDraft.priority = priorityVal;
+  }
   
   if (wfStep === 3) {
     if (selFreelancerIds.length === 0) { showToast('Select at least one editor', 'err', ''); return; }
     
-    const title = document.getElementById('wf-title')?.value || 'New Project';
-    const budget = parseInt(document.getElementById('wf-budget')?.value || 2500);
-    const desc = document.getElementById('wf-desc')?.value || '';
+    // 🟢 Use the draft data to build the project
     const newP = { 
-        id: pid(), creatorId: CU.id, title, description: desc, budget, 
-        contentType: selContent, deadline: document.getElementById('wf-deadline')?.value||'', 
-        priority: document.getElementById('wf-priority')?.value||'Normal', freelancerId: null, 
+        id: pid(), creatorId: CU.id, 
+        title: newProjectDraft.title, 
+        description: newProjectDraft.desc, 
+        budget: newProjectDraft.budget, 
+        contentType: selContent, 
+        deadline: newProjectDraft.deadline, 
+        priority: newProjectDraft.priority, 
+        freelancerId: null, 
         invited_freelancers: selFreelancerIds, status: 'open', rawShared: false, 
         editedUploaded: false, paid: false, rating: 0, review: '', createdAt: Date.now() 
     };
@@ -1773,10 +1808,21 @@ function wfN() {
     if (supaClient) {
       supaClient.from('projects').insert({
         id: newP.id, creator_id: CU.id, freelancer_id: null,
-        invited_freelancers: selFreelancerIds, title, description: desc, budget, 
-        content_type: selContent, deadline: newP.deadline, priority: newP.priority, status: 'open',
+        invited_freelancers: selFreelancerIds, 
+        title: newP.title, 
+        description: newP.description, 
+        budget: newP.budget, 
+        content_type: newP.contentType, 
+        deadline: newP.deadline, 
+        priority: newP.priority, 
+        status: 'open',
         raw_shared: false, edited_uploaded: false, paid: false
-      }).then(({error}) => { if(error) console.log(error); });
+      }).then(({error}) => { 
+        if(error) {
+          console.error("Supabase Insert Error:", error);
+          showToast('Database Error: Could not post project', 'err', '');
+        }
+      });
     }
     showToast('Project Requests Sent! Waiting for a freelancer.', 'ok', '');
     activeManageProjectId = null;
@@ -1798,6 +1844,7 @@ function wfN() {
       }, 50);
   }
 }
+
 function wfB() { wfStep = Math.max(wfStep-1, 0); document.getElementById('c-main').innerHTML = cNew(); }
 function selCT(t) { selContent = t; document.getElementById('c-main').innerHTML = cNew(); }
 
