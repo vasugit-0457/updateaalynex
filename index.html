@@ -554,7 +554,7 @@ h1 em{
 ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.2);}
 .divider{display:flex;align-items:center;gap:12px;margin:14px 0;color:var(--text-4);font-size:.75rem;}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--glass-border);}
-.chat-inp-bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--glass-border);background:var(--surface);}
+.chat-inp-bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--glass-border);background:var(--surface); align-items: center;}
 .chat-inp{flex:1;padding:8px 12px;background:var(--bg2);border:1px solid var(--glass-border-strong);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:border .2s;}
 .chat-inp:focus{border-color:rgba(224,92,42,.4);background:#fff;box-shadow:0 0 0 2px rgba(224,92,42,.08);}
 .chat-inp::placeholder{color:var(--text-3);}
@@ -1023,7 +1023,7 @@ let wfStep = 0, selContent = '', selFreelancerName = null;
 let selFreelancerIds = []; // NEW: Array instead of single ID for multi-select
 let activeManageProjectId = null; // Track which project the wizard is managing
 let newProjectDraft = {}; // 🟢 Draft object to prevent data loss across wizard steps
-let currentChatUserId = null; // 🟢 ADDED: Active chat ko yaad rakhne ke liye
+let currentChatUserId = null; // 🟢 Active chat memory
 // NEW CODE END
 
 /* ══════════════════════════════════════════════
@@ -1272,23 +1272,32 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // NEW CODE START - Real-time System
+  // NEW CODE START - Real-time System - UPDATED FLICKER FREE CHAT
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
         syncFromSupabase(CU).then(() => {
-          if (CU.role === 'creator') renderC(document.querySelector('#screen-creator .nav-item.active')?.dataset?.page || 'home');
-          else renderF(document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page || 'home');
+          // Check if we are currently NOT on the chat page before re-rendering everything
+          const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
+          const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
+          
+          if (CU.role === 'creator' && cPageActive !== 'chat') renderC(cPageActive || 'home');
+          else if (CU.role === 'freelancer' && fPageActive !== 'chat') renderF(fPageActive || 'home');
         });
       }).subscribe();
 
     supaClient.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         syncFromSupabase(CU).then(() => {
-          const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
-          const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
-          if (CU.role === 'creator' && cPageActive === 'chat') renderC('chat');
-          if (CU.role === 'freelancer' && fPageActive === 'chat') renderF('chat');
+           // 🟢 NO MORE FULL REFRESH (renderC/renderF removed here)
+           // Only update the chat container if it exists
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
         });
       }).subscribe();
   }
@@ -1333,7 +1342,7 @@ async function syncFromSupabase(u) {
       DB.saveProjects(mapped);
     }
 
-    // 3. Fetch Conversations & Messages (FIXED CHAT LOGIC)
+    // 3. Fetch Conversations & Messages
     const { data: convos } = await supaClient.from('conversations')
       .select('*')
       .or(`user1_id.eq.${u.id},user2_id.eq.${u.id}`);
@@ -1392,13 +1401,11 @@ function cPage(p, el) {
   if (el) el.classList.add('active');
   closeSidebar('creator');
   
-  // NEW CODE START - Reset wizard only if not managing
   if (p === 'new') { 
     if(!activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; newProjectDraft = {}; }
   } else {
-    activeManageProjectId = null; // Clear if navigating elsewhere
+    activeManageProjectId = null; 
   }
-  // NEW CODE END
   
   renderC(p);
   if (supaClient && CU) syncFromSupabase(CU).then(() => renderC(p));
@@ -1409,7 +1416,6 @@ function cPageMobile(p, el) {
   if (el) el.classList.add('active');
   document.querySelectorAll('#c-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
   
-  // 🟢 Include draft reset logic for mobile clicks too
   if (p === 'new' && !activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; newProjectDraft = {}; }
   if (p !== 'new') activeManageProjectId = null;
   
@@ -1426,10 +1432,13 @@ function renderC(p) {
   else if (p === 'payment')  m.innerHTML = cPayment();
   else if (p === 'rate')     m.innerHTML = cRate();
   else if (p === 'profile')  m.innerHTML = cProfile();
-  m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
+  
+  // Don't re-add fade-in specifically on chat to avoid jump, but add for others
+  if (p !== 'chat') {
+     m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
+  }
 }
 
-// NEW CODE START - Manage Project Router
 function manageProject(pid) {
   const p = DB.projects().find(x => x.id === pid);
   if(!p) return;
@@ -1440,7 +1449,6 @@ function manageProject(pid) {
   
   if (p.status === 'open') { showToast('Waiting for freelancers to accept...', 'info'); return; }
   
-  // Route to the correct step based on state
   if (p.status === 'ongoing' && !p.rawShared) wfStep = 4; // Chat / Share Raw
   else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 5; // Wait / Share
   else if (p.status === 'ongoing' && p.editedUploaded) wfStep = 6; // Review
@@ -1449,7 +1457,6 @@ function manageProject(pid) {
   
   cPage('new', document.querySelector('[data-page="new"]'));
 }
-// NEW CODE END
 
 function cHome() {
   const projs  = DB.projects().filter(p => p.creatorId === CU.id);
@@ -1557,7 +1564,6 @@ async function wfContent() {
     }
     if (!editors || editors.length === 0) editors = DB.users().filter(u => u.role === "freelancer");
 
-    // NEW CODE START - Multi-select UI
     return `
     <h3>Choose Editors to Request</h3>
     <p style="color:var(--text-3);font-size:.8rem;margin-bottom:14px;">Select multiple freelancers. First to accept gets the job!</p>
@@ -1576,10 +1582,8 @@ async function wfContent() {
       <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
       <button class="btn btn-primary" onclick="wfN()">Send Requests &amp; Post &rarr;</button>
     </div>`;
-    // NEW CODE END
   }
 
-  // Manage Project Steps Below
   const proj = DB.projects().find(x => x.id === activeManageProjectId);
   const flId = proj ? proj.freelancerId : null;
 
@@ -1587,12 +1591,12 @@ async function wfContent() {
     <h3>Chat with ${selFreelancerName || 'Editor'}</h3>
     ${buildChat(CU.id, flId || '')}
     <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="wfN()">Share Raw Video &rarr;</button>
+      <button class="btn btn-primary" onclick="wfN()">Go To Workflow Step &rarr;</button>
     </div>`;
 
   if (wfStep === 5) return `
     <h3>Share Raw Video</h3>
-    <div class="alert alert-i">Upload your raw footage. It will be sent automatically as a message in chat.</div>
+    <div class="alert alert-i">Upload your raw footage here OR directly inside the Chat menu!</div>
     <label class="upload-area-lg" for="raw-video-input" id="raw-drop-zone">
       <div class="upload-icon" id="raw-upload-icon">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
@@ -1610,7 +1614,6 @@ async function wfContent() {
       <button class="btn btn-primary" id="raw-video-btn" onclick="uploadAndSendVideo()">Mark as Sent &rarr;</button>
     </div>`;
 
-  // NEW CODE START - File Security UI
   if (wfStep === 6) return `
     <h3>Receive &amp; Review Edited Video</h3>
     <div class="alert alert-s"><strong>${selFreelancerName || 'Your editor'}</strong> has uploaded the edited video!</div>
@@ -1631,7 +1634,6 @@ async function wfContent() {
       <button class="btn btn-ghost" onclick="wfB()">&larr; Request Revision</button>
       <button class="btn btn-primary" onclick="wfN()">Approve &amp; Pay &rarr;</button>
     </div>`;
-  // NEW CODE END
 
   if (wfStep === 7) return `
     <h3>Complete Payment &amp; Rate</h3>
@@ -1718,33 +1720,15 @@ async function uploadAndSendVideo() {
 
     if (progLabel) progLabel.textContent = 'Sending to chat…';
     
-    // Save Msg
-    const msgText = 'Raw Video: ' + file.name;
-    const msgTime = Date.now();
-    const key = [CU.id, flId].sort().join('_');
-    const allMsgs = DB.messages();
-    if (!allMsgs[key]) allMsgs[key] = [];
-    allMsgs[key].push({ from: CU.id, text: msgText, file_url: fileUrl, time: msgTime });
-    DB.saveMessages(allMsgs);
-
-    if (supaClient) {
-      const uid1 = [CU.id, flId].sort()[0], uid2 = [CU.id, flId].sort()[1];
-      let { data: convo } = await supaClient.from('conversations').select('id').eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
-      if (!convo) {
-        const { data: newConvo } = await supaClient.from('conversations').insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
-        convo = newConvo;
-      }
-      if (convo) await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: CU.id, text: msgText, file_url: fileUrl });
-      // Update Project Status
-      await supaClient.from('projects').update({ raw_shared: true }).eq('id', proj.id);
-    }
+    await sendMsg(CU.id, flId, fileUrl, file.name);
+    
+    if (supaClient) await supaClient.from('projects').update({ raw_shared: true }).eq('id', proj.id);
     proj.rawShared = true; DB.saveProjects(DB.projects());
 
     if (progFill)  progFill.style.width  = '100%';
     if (progLabel) progLabel.textContent = 'Done!';
     showToast('Video sent to editor!', 'ok', '');
     
-    // Stay here or redirect
     cPage('projects', document.querySelector('[data-page="projects"]'));
   } catch(err) {
     showToast('Upload failed.', 'err', '');
@@ -1754,7 +1738,6 @@ async function uploadAndSendVideo() {
   }
 }
 
-// NEW CODE START - File Security Logic & DB Posting
 function downloadEditedVideo(projectId) {
   const p = DB.projects().find(x => x.id === projectId);
   if (!p) return;
@@ -1762,7 +1745,6 @@ function downloadEditedVideo(projectId) {
     showToast('❌ You must Approve & Pay before downloading the final video.', 'err', '');
   } else {
     showToast('✅ Secure Download Started', 'info', '');
-    // In production, fetch Supabase signed URL for private bucket here
   }
 }
 
@@ -1776,7 +1758,6 @@ async function completePayment() {
   cPage('projects', document.querySelector('[data-page="projects"]'));
 }
 
-// 🟢 NEW PROJECT SAVING LOGIC HERE
 function wfN() {
   if (wfStep===0) { 
     const t = document.getElementById('wf-title')?.value?.trim();
@@ -1785,7 +1766,6 @@ function wfN() {
     if(!t){ showToast('Please enter a project title','err',''); return; } 
     if(!b||b<100){ showToast('Please enter a valid budget (min ₹100)','err',''); return; } 
     
-    // 🟢 Save to global draft
     newProjectDraft.title = t;
     newProjectDraft.budget = parseInt(b);
     newProjectDraft.desc = desc;
@@ -1798,7 +1778,6 @@ function wfN() {
     const priorityVal = document.getElementById('wf-priority')?.value || 'Normal';
     if (!deadlineVal) { showToast('Please select a deadline','err',''); return; } 
     
-    // 🟢 Save to global draft
     newProjectDraft.deadline = deadlineVal;
     newProjectDraft.priority = priorityVal;
   }
@@ -1806,9 +1785,8 @@ function wfN() {
 if (wfStep === 3) {
     if (selFreelancerIds.length === 0) { showToast('Select at least one editor', 'err', ''); return; }
     
-    setBtn('signup-btn', true, 'Posting...'); // Optional loading state
+    setBtn('signup-btn', true, 'Posting...');
 
-    // 🟢 Use the draft data to build the project
     const newP = { 
         id: pid(), creatorId: CU.id, 
         title: newProjectDraft.title, 
@@ -1822,7 +1800,6 @@ if (wfStep === 3) {
         editedUploaded: false, paid: false, rating: 0, review: '', createdAt: Date.now() 
     };
     
-    // Save locally first
     const projs = DB.projects(); projs.push(newP); DB.saveProjects(projs);
     
     if (supaClient) {
@@ -1839,15 +1816,10 @@ if (wfStep === 3) {
         raw_shared: false, edited_uploaded: false, paid: false
       }).then(({error}) => { 
         if(error) {
-          console.error("Supabase Insert Error:", error);
-          // 🟢 If it fails, show the EXACT reason on the screen
           showToast('DB Error: ' + error.message, 'err', '');
-          
-          // Revert local save so it doesn't glitch
           const revertedProjs = DB.projects().filter(x => x.id !== newP.id);
           DB.saveProjects(revertedProjs);
         } else {
-          // 🟢 Only show success and redirect IF Supabase saves it properly
           showToast('Project Requests Sent! Waiting for a freelancer.', 'ok', '');
           activeManageProjectId = null;
           cPage('projects', document.querySelector('[data-page="projects"]'));
@@ -1856,7 +1828,6 @@ if (wfStep === 3) {
       return;
     }
     
-    // Fallback if no internet/supabase
     showToast('Project Requests Sent locally.', 'ok', '');
     activeManageProjectId = null;
     cPage('projects', document.querySelector('[data-page="projects"]'));
@@ -1889,7 +1860,6 @@ function selFL(id, name) {
   }
   document.getElementById('c-main').innerHTML = cNew(); 
 }
-// NEW CODE END
 
 function cProjects() {
   const projs = DB.projects().filter(p => p.creatorId === CU.id);
@@ -1938,7 +1908,7 @@ function filterProjects(f) {
 
 function cChat() {
   const others = DB.users().filter(u => u.role === 'freelancer');
-  const defaultOther = currentChatUserId || others[0]?.id || ''; // 🟢 UPDATED
+  const defaultOther = currentChatUserId || others[0]?.id || ''; 
   return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id, defaultOther)}`;
 }
 
@@ -2061,19 +2031,22 @@ function renderF(p) {
   else if (p === 'ongoing')  m.innerHTML = fOngoing();
   else if (p === 'chat')  {
     const others = DB.users().filter(u => u.role === 'creator');
-    const defaultOther = currentChatUserId || others[0]?.id || ''; // 🟢 UPDATED
+    const defaultOther = currentChatUserId || others[0]?.id || ''; 
     m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id, defaultOther)}`;
   }
   else if (p === 'negotiate') m.innerHTML = fNegotiate();
   else if (p === 'upload')    m.innerHTML = fUpload();
   else if (p === 'earnings')  m.innerHTML = fEarnings();
-  m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
+  
+  if (p !== 'chat') {
+     m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
+  }
 }
 
 function fHome() {
   const projs    = DB.projects().filter(p => p.freelancerId === CU.id);
   const earned   = projs.filter(p => p.paid).reduce((s,p) => s+p.budget, 0);
-  const openProjs= DB.projects().filter(p => p.status === 'open' && (p.invited_freelancers||[]).includes(CU.id)); // NEW: Filtered by invite
+  const openProjs= DB.projects().filter(p => p.status === 'open' && (p.invited_freelancers||[]).includes(CU.id)); 
   return `
   <div class="page-head"><h2>Dashboard</h2><p>Your freelancing overview</p></div>
   <div class="cards-grid">
@@ -2093,7 +2066,6 @@ function fHome() {
   </div>`;
 }
 
-// NEW CODE START - Restrict browse to requested freelancers
 function fBrowse() {
   const open = DB.projects().filter(p => p.status === 'open' && (p.invited_freelancers||[]).includes(CU.id));
   return `
@@ -2120,7 +2092,6 @@ function fBrowse() {
 }
 
 async function acceptProject(id) {
-  // ATOMIC ACCEPTANCE CHECK (Race Condition Handling)
   if (supaClient) {
       const { data, error } = await supaClient.from('projects')
         .update({ freelancer_id: CU.id, status: 'ongoing' })
@@ -2133,7 +2104,6 @@ async function acceptProject(id) {
       }
   }
   
-  // Local DB Update
   const projs = DB.projects(), p = projs.find(x => x.id === id);
   if (p) { 
       if (p.freelancerId) { showToast('Project already taken!', 'err', ''); renderF('browse'); return; }
@@ -2143,7 +2113,6 @@ async function acceptProject(id) {
   showToast('Project accepted! Chat activated.', 'ok', ''); 
   renderF('ongoing');
 }
-// NEW CODE END
 
 function viewProject(id) {
   const p = DB.projects().find(x => x.id === id); if (!p) return;
@@ -2210,11 +2179,10 @@ function sendCounter(id) {
   const price = document.getElementById('neg-price-'+id)?.value, date = document.getElementById('neg-date-'+id)?.value;
   if (!price || !date) { showToast('Fill in all fields', 'err', ''); return; }
   
-  // Save message to chat seamlessly
   const proj = DB.projects().find(x=>x.id===id);
   if(proj) {
      const msg = `Negotiation: Counter offer ₹${fmt(price)} by ${date}. \nNote: ${document.getElementById('neg-msg-'+id)?.value}`;
-     // In a real app, sendMsg(CU.id, proj.creatorId) with this msg text.
+     sendMsg(CU.id, proj.creatorId, null, null, msg);
   }
   
   showToast(`Counter-offer sent: ₹${fmt(price)}`, 'ok', '');
@@ -2224,11 +2192,12 @@ function fUpload() {
   const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
   return `
   <div class="page-head"><h2>Upload Edited Video</h2></div>
+  <div class="alert alert-i">Upload final video here OR securely inside the Chat menu!</div>
   ${projs.length
     ? projs.map(p => `
         <div class="det-card">
           <h4>Upload for: ${p.title}</h4>
-          <div class="upload-area-lg" onclick="showToast('Integrate Cloudinary/S3 for production uploads','info','')">
+          <div class="upload-area-lg" onclick="showToast('To share actual file, open Chat and use the attachment icon','info','')">
             <div class="upload-icon">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
             </div>
@@ -2277,12 +2246,25 @@ function fEarnings() {
 /* ══════════════════════════════════════════════
    CHAT — SHARED
 ══════════════════════════════════════════════ */
+
+// 🟢 NEW: Update sidebar previews smoothly
+function updateChatSidebarPreviews() {
+   document.querySelectorAll('.cc-item').forEach(el => {
+      const uid = el.getAttribute('data-uid');
+      if(uid) {
+         const key = [CU.id, uid].sort().join('_');
+         const msgs = DB.messages()[key] || [];
+         const last = msgs[msgs.length-1];
+         const prevEl = el.querySelector('.cc-prev');
+         if(prevEl) prevEl.textContent = last ? (last.file_url ? 'Video Attachment' : last.text) : 'No messages yet';
+      }
+   });
+}
+
 function buildChat(myId, otherDefaultId) {
-  // NEW CODE START - Restrict chat to connected users
   const myProjects = DB.projects().filter(p => (p.creatorId === myId || p.freelancerId === myId) && p.status !== 'open');
   const relatedUserIds = [...new Set(myProjects.map(p => p.creatorId === myId ? p.freelancerId : p.creatorId).filter(id => id))];
   const allUsers = DB.users().filter(u => relatedUserIds.includes(u.id));
-  // NEW CODE END
 
   const conversations = allUsers.map(u => {
     const key  = [myId, u.id].sort().join('_');
@@ -2297,11 +2279,11 @@ function buildChat(myId, otherDefaultId) {
   <div class="chat-wrap">
     <div class="chat-list">
       ${conversations.map(c => `
-        <div class="cc-item${c.key===activeKey?' active':''}" onclick="switchChat('${myId}','${c.user.id}')">
+        <div class="cc-item${c.key===activeKey?' active':''}" data-uid="${c.user.id}" onclick="switchChat('${myId}','${c.user.id}')">
           <div class="c-av">${c.user.avatar}</div>
           <div style="min-width:0;">
             <div class="cc-name">${c.user.name}</div>
-            <div class="cc-prev">${c.last?.file_url ? 'Video' : (c.last?.text || 'No messages yet')}</div>
+            <div class="cc-prev">${c.last?.file_url ? 'Video Attachment' : (c.last?.text || 'No messages yet')}</div>
           </div>
         </div>`).join('') || `<div style="padding:14px;font-size:.78rem;color:var(--text-3);">You must accept a project first</div>`}
     </div>
@@ -2314,6 +2296,10 @@ function buildChat(myId, otherDefaultId) {
         </div>
         <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(activeConvo.msgs, myId)}</div>
         <div class="chat-inp-bar">
+          <label for="chat-upload-${activeConvo.user.id}" style="cursor:pointer; display:flex; align-items:center; margin-right:4px; color:var(--text-3); transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-3)'">
+             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </label>
+          <input type="file" id="chat-upload-${activeConvo.user.id}" accept="video/*" style="display:none;" onchange="handleChatUpload(this, '${myId}', '${activeConvo.user.id}')"/>
           <input class="chat-inp" id="chat-inp-el" placeholder="Type a message…"
             onkeydown="if(event.key==='Enter')sendMsg('${myId}','${activeConvo.user.id}')"/>
           <button class="btn btn-primary btn-sm" onclick="sendMsg('${myId}','${activeConvo.user.id}')">Send</button>
@@ -2327,12 +2313,24 @@ function renderMsgs(msgs, myId) {
   if (!msgs || !msgs.length)
     return '<div style="text-align:center;color:var(--text-3);font-size:.78rem;padding:20px 0;">Start the conversation!</div>';
 
+  const isCreator = CU.role === 'creator';
+
   return msgs.map(m => {
     const isMine    = m.from === myId;
     const timeAlign = isMine ? 'text-align:right' : '';
 
     if (m.file_url) {
-      const fname = m.text.replace('Raw Video: ', '') || 'video';
+      const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '') || 'video';
+      
+      // 🟢 Download restrictions logic
+      // If Freelancer sent it -> Creator cannot download
+      const sentByFreelancer = !isMine && isCreator;
+      const restrictDownloadAttr = sentByFreelancer ? 'controlsList="nodownload" oncontextmenu="return false;"' : '';
+      
+      // If Creator sent it -> Freelancer CAN download
+      const sentByCreator = !isMine && !isCreator;
+      const downloadBtn = sentByCreator ? `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download Raw File</a>` : '';
+
       return `
       <div class="msg-video ${isMine ? 'sent-video' : ''}">
         <div class="msg-video-inner">
@@ -2340,9 +2338,9 @@ function renderMsgs(msgs, myId) {
             <div class="vico">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
             </div>
-            <span>${fname}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${fname}</span>
           </div>
-          <video class="msg-video-player" controls preload="metadata" src="${m.file_url}">
+          <video class="msg-video-player" controls preload="metadata" src="${m.file_url}" ${restrictDownloadAttr}>
             Your browser does not support the video tag.
           </video>
           <div class="msg-video-footer">
@@ -2350,6 +2348,7 @@ function renderMsgs(msgs, myId) {
             <span>${fmtTime(m.time)}</span>
           </div>
         </div>
+        ${downloadBtn}
       </div>`;
     }
 
@@ -2362,7 +2361,7 @@ function renderMsgs(msgs, myId) {
 }
 
 function switchChat(myId, otherId) {
-  currentChatUserId = otherId; // 🟢 ADDED: Isse active user yaad rahega
+  currentChatUserId = otherId; 
   const key   = [myId, otherId].sort().join('_');
   const msgs  = DB.messages()[key] || [];
   const other = DB.users().find(u => u.id === otherId);
@@ -2378,6 +2377,10 @@ function switchChat(myId, otherId) {
       </div>
       <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(msgs, myId)}</div>
       <div class="chat-inp-bar">
+        <label for="chat-upload-${otherId}" style="cursor:pointer; display:flex; align-items:center; margin-right:4px; color:var(--text-3); transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-3)'">
+           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </label>
+        <input type="file" id="chat-upload-${otherId}" accept="video/*" style="display:none;" onchange="handleChatUpload(this, '${myId}', '${otherId}')"/>
         <input class="chat-inp" id="chat-inp-el" placeholder="Type a message…"
           onkeydown="if(event.key==='Enter')sendMsg('${myId}','${otherId}')"/>
         <button class="btn btn-primary btn-sm" onclick="sendMsg('${myId}','${otherId}')">Send</button>
@@ -2387,19 +2390,55 @@ function switchChat(myId, otherId) {
   }
 }
 
-async function sendMsg(myId, otherId) {
-  const inp = document.getElementById('chat-inp-el');
-  if (!inp || !inp.value.trim()) return;
-  const text = inp.value.trim(); inp.value = '';
+// 🟢 NEW: Function specifically for handling in-chat video uploads
+async function handleChatUpload(input, myId, otherId) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const MAX_SIZE = 10 * 1024 * 1024 * 1024; // 10GB limit
+  if (file.size > MAX_SIZE) { showToast('File too large. Maximum size is 10 GB.', 'err'); return; }
+  
+  showToast('Uploading video attachment...', 'info');
+  
+  let fileUrl = null;
+  try {
+    if (supaClient) {
+      const path = `chat/${myId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const { data: uploadData, error } = await supaClient.storage.from('videos').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
+      fileUrl = urlData?.publicUrl || null;
+    }
+    
+    await sendMsg(myId, otherId, fileUrl, file.name);
+    showToast('Video sent successfully!', 'ok');
+  } catch(e) {
+    showToast('Upload failed', 'err');
+  }
+  input.value = ''; // reset file input
+}
+
+async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName = null, overrideText = null) {
+  let text = '';
+  
+  if (overrideText) {
+    text = overrideText;
+  } else if (overrideFileUrl) {
+    text = 'Video: ' + overrideFileName;
+  } else {
+    const inp = document.getElementById('chat-inp-el');
+    if (!inp || !inp.value.trim()) return;
+    text = inp.value.trim(); inp.value = '';
+  }
 
   const key = [myId, otherId].sort().join('_');
   const allMsgs = DB.messages();
   if (!allMsgs[key]) allMsgs[key] = [];
-  allMsgs[key].push({ from: myId, text, file_url: null, time: Date.now() });
+  allMsgs[key].push({ from: myId, text, file_url: overrideFileUrl, time: Date.now() });
   DB.saveMessages(allMsgs);
 
   const el = document.getElementById('chat-msgs-el');
   if (el) { el.innerHTML = renderMsgs(allMsgs[key], myId); el.scrollTop = el.scrollHeight; }
+  updateChatSidebarPreviews();
 
   if (supaClient) {
     try {
@@ -2411,7 +2450,7 @@ async function sendMsg(myId, otherId) {
         convo = newC;
       }
       if (convo) {
-        const { error } = await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: null });
+        await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
       }
     } catch(e) {}
   }
