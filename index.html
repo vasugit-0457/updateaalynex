@@ -1295,6 +1295,7 @@ async function loginSuccess(u) {
 async function syncFromSupabase(u) {
   if (!supaClient) return;
   try {
+    // 1. Fetch Profiles
     const { data: profiles } = await supaClient.from('profiles').select('*');
     if (profiles && profiles.length) {
       const localUsers = DB.users();
@@ -1311,11 +1312,12 @@ async function syncFromSupabase(u) {
       DB.saveUsers(localUsers);
     }
 
+    // 2. Fetch Projects
     const { data: projects } = await supaClient.from('projects').select('*');
     if (projects && projects.length) {
       const mapped = projects.map(p => ({
         id: p.id, creatorId: p.creator_id, freelancerId: p.freelancer_id || null,
-        invited_freelancers: p.invited_freelancers || [], // NEW ARRAY
+        invited_freelancers: p.invited_freelancers || [], 
         title: p.title || '', description: p.description || '', budget: p.budget || 0,
         contentType: p.content_type || '', deadline: p.deadline || '', priority: p.priority || 'Normal',
         status: p.status || 'open', rawShared: p.raw_shared || false,
@@ -1325,30 +1327,39 @@ async function syncFromSupabase(u) {
       DB.saveProjects(mapped);
     }
 
-    const { data: messages } = await supaClient
-      .from('messages').select('*')
-      .or('sender_id.eq.'+u.id+',receiver_id.eq.'+u.id) // simplistic fallback
-      .order('created_at', { ascending: true });
-    if (messages && messages.length) {
-      const msgMap = {};
-      messages.forEach(m => {
-        // Find other participant using convo logic if needed, fallback for local db
-        let key = "unknown";
-        if (m.conversation_id) {
-           // simple approach for local mapping
-           key = [m.sender_id, u.id].sort().join('_'); // assuming u.id is involved
-        } else {
-           key = [m.sender_id, m.receiver_id].sort().join('_');
-        }
-        
-        if (!msgMap[key]) msgMap[key] = [];
-        msgMap[key].push({
-          from: m.sender_id, text: m.text,
-          file_url: m.file_url || null,
-          time: new Date(m.created_at).getTime()
+    // 3. Fetch Conversations & Messages (FIXED CHAT LOGIC)
+    const { data: convos } = await supaClient.from('conversations')
+      .select('*')
+      .or(`user1_id.eq.${u.id},user2_id.eq.${u.id}`);
+
+    if (convos && convos.length > 0) {
+      const convoIds = convos.map(c => c.id);
+      
+      const { data: messages } = await supaClient.from('messages')
+        .select('*')
+        .in('conversation_id', convoIds)
+        .order('created_at', { ascending: true });
+
+      if (messages && messages.length > 0) {
+        const msgMap = {};
+        messages.forEach(m => {
+          const c = convos.find(x => x.id === m.conversation_id);
+          if (c) {
+            // Find who the other person is
+            const otherId = c.user1_id === u.id ? c.user2_id : c.user1_id;
+            const key = [u.id, otherId].sort().join('_');
+            
+            if (!msgMap[key]) msgMap[key] = [];
+            msgMap[key].push({
+              from: m.sender_id, 
+              text: m.text,
+              file_url: m.file_url || null,
+              time: new Date(m.created_at).getTime()
+            });
+          }
         });
-      });
-      DB.saveMessages(msgMap);
+        DB.saveMessages(msgMap);
+      }
     }
   } catch(e) {
     console.warn('Sync failed, using in-memory data:', e);
