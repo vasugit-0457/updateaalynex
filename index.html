@@ -1284,14 +1284,33 @@ async function loginSuccess(u) {
 
     supaClient.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-        // Ignore message if we sent it (prevent race condition)
-        if (payload.new && String(payload.new.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+        const newMsg = payload.new;
+        if (!newMsg) return;
+        
+        // Ignore if we sent it
+        if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
-        await syncFromSupabase(CU);
+        const otherId = newMsg.sender_id;
+        const key = [CU.id, otherId].sort().join('_');
+        
+        const allMsgs = DB.messages();
+        if (!allMsgs[key]) allMsgs[key] = [];
+        
+        const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
+        
+        if (!exists) {
+            allMsgs[key].push({
+                from: newMsg.sender_id,
+                text: newMsg.text,
+                file_url: newMsg.file_url || null,
+                time: new Date(newMsg.created_at).getTime()
+            });
+            DB.saveMessages(allMsgs);
+        }
+
         const el = document.getElementById('chat-msgs-el');
-        if (el && currentChatUserId) {
-            const key = [CU.id, currentChatUserId].sort().join('_');
-            el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+        if (el && currentChatUserId === otherId) {
+            el.innerHTML = renderMsgs(allMsgs[key], CU.id);
             el.scrollTop = el.scrollHeight;
         }
         updateChatSidebarPreviews();
@@ -1612,46 +1631,67 @@ async function wfContent() {
       <button class="btn btn-primary" onclick="wfN()">Go To Workflow Step &rarr;</button>
     </div>`;
 
-  if (wfStep === 5) return `
-    <h3>Share Raw Video</h3>
-    <div class="alert alert-i">Upload your raw footage here OR directly inside the Chat menu!</div>
-    <label class="upload-area-lg" for="raw-video-input" id="raw-drop-zone">
-      <div class="upload-icon" id="raw-upload-icon">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-      </div>
-      <div class="upload-label" id="raw-file-label">Drag &amp; drop or click to select video</div>
-      <div class="upload-sub">MP4, MOV, AVI &middot; Up to 10 GB</div>
-      <input type="file" id="raw-video-input" accept="video/*" style="display:none;" onchange="onRawFileSelect(this)"/>
-    </label>
-    <div class="upload-progress-wrap" id="upload-progress-wrap">
-      <div class="upload-progress-bar"><div class="upload-progress-fill" id="upload-progress-fill"></div></div>
-      <div class="upload-progress-label" id="upload-progress-label">Uploading…</div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
-      <button class="btn btn-ghost" onclick="wfB()" id="raw-back-btn">&larr; Back</button>
-      <button class="btn btn-primary" id="raw-video-btn" onclick="uploadAndSendVideo()">Mark as Sent &rarr;</button>
-    </div>`;
+  if (wfStep === 5) {
+      if (proj && proj.rawShared) {
+        return `
+        <h3>Raw Video Shared</h3>
+        <div class="alert alert-s">You have already shared the raw video in Chat. Proceed to the next step.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
+          <button class="btn btn-primary" onclick="wfN()">Next Step &rarr;</button>
+        </div>`;
+      }
+      return `
+        <h3>Share Raw Video</h3>
+        <div class="alert alert-i">Upload your raw footage here OR directly inside the Chat menu!</div>
+        <label class="upload-area-lg" for="raw-video-input" id="raw-drop-zone">
+          <div class="upload-icon" id="raw-upload-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          </div>
+          <div class="upload-label" id="raw-file-label">Drag &amp; drop or click to select video</div>
+          <div class="upload-sub">MP4, MOV, AVI &middot; Up to 10 GB</div>
+          <input type="file" id="raw-video-input" accept="video/*" style="display:none;" onchange="onRawFileSelect(this)"/>
+        </label>
+        <div class="upload-progress-wrap" id="upload-progress-wrap">
+          <div class="upload-progress-bar"><div class="upload-progress-fill" id="upload-progress-fill"></div></div>
+          <div class="upload-progress-label" id="upload-progress-label">Uploading…</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+          <button class="btn btn-ghost" onclick="wfB()" id="raw-back-btn">&larr; Back</button>
+          <button class="btn btn-primary" id="raw-video-btn" onclick="uploadAndSendVideo()">Mark as Sent &rarr;</button>
+        </div>`;
+  }
 
-  if (wfStep === 6) return `
-    <h3>Receive &amp; Review Edited Video</h3>
-    <div class="alert alert-s"><strong>${selFreelancerName || 'Your editor'}</strong> has uploaded the edited video!</div>
-    <div style="background:var(--bg2);border:1px solid var(--glass-border);border-radius:var(--radius);padding:16px;margin-bottom:14px;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-        <div style="font-size:1.8rem;">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+  if (wfStep === 6) {
+      if (proj && !proj.editedUploaded) {
+          return `
+          <h3>Receive &amp; Review Edited Video</h3>
+          <div class="alert alert-i">Waiting for <strong>${selFreelancerName || 'Your editor'}</strong> to upload the final edited video. You will be notified in chat once it's ready.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
+          </div>`;
+      }
+      return `
+        <h3>Receive &amp; Review Edited Video</h3>
+        <div class="alert alert-s"><strong>${selFreelancerName || 'Your editor'}</strong> has uploaded the edited video!</div>
+        <div style="background:var(--bg2);border:1px solid var(--glass-border);border-radius:var(--radius);padding:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <div style="font-size:1.8rem;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:500;font-size:.88rem;color:var(--text);">Final_Delivered_Video</div>
+              <div style="color:var(--text-3);font-size:.75rem;">Requires Payment to Download</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="downloadEditedVideo('${activeManageProjectId}')">Download</button>
+          </div>
+          <div class="pb"><div class="pf" style="width:100%;"></div></div>
         </div>
-        <div>
-          <div style="font-weight:500;font-size:.88rem;color:var(--text);">Final_Delivered_Video</div>
-          <div style="color:var(--text-3);font-size:.75rem;">Requires Payment to Download</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="downloadEditedVideo('${activeManageProjectId}')">Download</button>
-      </div>
-      <div class="pb"><div class="pf" style="width:100%;"></div></div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn btn-ghost" onclick="wfB()">&larr; Request Revision</button>
-      <button class="btn btn-primary" onclick="wfN()">Approve &amp; Pay &rarr;</button>
-    </div>`;
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="wfB()">&larr; Request Revision</button>
+          <button class="btn btn-primary" onclick="wfN()">Approve &amp; Pay &rarr;</button>
+        </div>`;
+  }
 
   if (wfStep === 7) return `
     <h3>Complete Payment &amp; Rate</h3>
@@ -1800,7 +1840,7 @@ function wfN() {
     newProjectDraft.priority = priorityVal;
   }
   
-if (wfStep === 3) {
+  if (wfStep === 3) {
     if (selFreelancerIds.length === 0) { showToast('Select at least one editor', 'err', ''); return; }
     
     setBtn('signup-btn', true, 'Posting...');
@@ -1852,7 +1892,15 @@ if (wfStep === 3) {
     return;
   }
   
-  wfStep = Math.min(wfStep+1, 7);
+  // Skip logic: if going from 4 to 5, but raw is shared, jump to 6
+  if (wfStep === 4) {
+     const p = DB.projects().find(x => x.id === activeManageProjectId);
+     if (p && p.rawShared) wfStep = 6;
+     else wfStep = 5;
+  } else {
+     wfStep = Math.min(wfStep+1, 7);
+  }
+
   document.getElementById('c-main').innerHTML = cNew();
   
   if (wfStep === 7) {
@@ -1867,7 +1915,16 @@ if (wfStep === 3) {
   }
 }
 
-function wfB() { wfStep = Math.max(wfStep-1, 0); document.getElementById('c-main').innerHTML = cNew(); }
+function wfB() { 
+  if (wfStep === 6) {
+     const p = DB.projects().find(x => x.id === activeManageProjectId);
+     if (p && p.rawShared) wfStep = 4; // jump back to chat
+     else wfStep = 5;
+  } else {
+     wfStep = Math.max(wfStep-1, 0); 
+  }
+  document.getElementById('c-main').innerHTML = cNew(); 
+}
 function selCT(t) { selContent = t; document.getElementById('c-main').innerHTML = cNew(); }
 
 function selFL(id, name) { 
@@ -2251,7 +2308,9 @@ function sendCounter(id) {
 }
 
 async function acceptNegotiation(btn, projectId, newPrice, newDate, otherId) {
-   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Offer Accepted</span>`;
+   btn.disabled = true;
+   btn.innerText = "Processing...";
+   if (btn.nextElementSibling) btn.nextElementSibling.style.display = 'none';
    
    const projs = DB.projects(), p = projs.find(x => x.id === projectId);
    if (p) { 
@@ -2266,12 +2325,19 @@ async function acceptNegotiation(btn, projectId, newPrice, newDate, otherId) {
    
    await sendMsg(CU.id, otherId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
    showToast('Budget & deadline updated!', 'ok');
+   
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Offer Accepted</span>`;
 }
 
 function rejectNegotiation(btn, projectId, otherId) {
-   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Offer Rejected</span>`;
+   btn.disabled = true;
+   btn.innerText = "Processing...";
+   if (btn.previousElementSibling) btn.previousElementSibling.style.display = 'none';
+
    sendMsg(CU.id, otherId, null, null, `❌ Offer Rejected. Let's discuss further.`);
    showToast('Offer rejected', 'info');
+
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Offer Rejected</span>`;
 }
 
 function onFinalFileSelect(input, pid) {
@@ -2476,8 +2542,23 @@ function renderMsgs(msgs, myId) {
 
     if (m.file_url) {
       const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '').replace('Final Delivery: ', '').replace('Final Delivery', '') || 'video';
-      const restrictDownloadAttr = (!isMine && isCreator) ? 'controlsList="nodownload" oncontextmenu="return false;"' : '';
-      const downloadBtn = (!isMine && !isCreator) ? `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download Raw File</a>` : '';
+      
+      let downloadBtn = '';
+      let restrictDownloadAttr = '';
+      
+      if (!isMine && isCreator) {
+          const proj = DB.projects().find(p => p.creatorId === myId && p.freelancerId === m.from);
+          const isPaid = proj ? proj.paid : false;
+          
+          if (!isPaid) {
+              restrictDownloadAttr = 'controlsList="nodownload" oncontextmenu="return false;"';
+              downloadBtn = `<button class="btn btn-ghost btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="showToast('❌ You must Approve & Pay in the Manage section before downloading.', 'err')">⬇ Download Locked</button>`;
+          } else {
+              downloadBtn = `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download File</a>`;
+          }
+      } else {
+          downloadBtn = `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download File</a>`;
+      }
 
       return `
       <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
@@ -2595,6 +2676,21 @@ async function handleChatUpload(input, myId, otherId) {
     }
     
     await sendMsg(myId, otherId, fileUrl, file.name);
+
+    if (CU.role === 'creator') {
+        const p = DB.projects().find(x => x.creatorId === myId && x.freelancerId === otherId && x.status === 'ongoing');
+        if (p && !p.rawShared) {
+            p.rawShared = true; DB.saveProjects(DB.projects());
+            if (supaClient) supaClient.from('projects').update({ raw_shared: true }).eq('id', p.id);
+        }
+    } else if (CU.role === 'freelancer') {
+        const p = DB.projects().find(x => x.freelancerId === myId && x.creatorId === otherId && x.status === 'ongoing');
+        if (p && !p.editedUploaded) {
+            p.editedUploaded = true; DB.saveProjects(DB.projects());
+            if (supaClient) supaClient.from('projects').update({ edited_uploaded: true }).eq('id', p.id);
+        }
+    }
+
     showToast('Video sent successfully!', 'ok');
   } catch(e) {
     showToast('Upload failed', 'err');
