@@ -1023,13 +1023,19 @@ let wfStep = 0, selContent = '', selFreelancerName = null;
 let selFreelancerIds = []; // NEW: Array instead of single ID for multi-select
 let activeManageProjectId = null; // Track which project the wizard is managing
 let newProjectDraft = {}; // 🟢 Draft object to prevent data loss across wizard steps
+let currentChatUserId = null; // 🟢 ADDED: Active chat ko yaad rakhne ke liye
 // NEW CODE END
 
 /* ══════════════════════════════════════════════
    UTILITIES
 ══════════════════════════════════════════════ */
 function uid()  { return 'u' + Date.now() + Math.random().toString(36).slice(2,7); }
-function pid()  { return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
+function pid() { 
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 function fmt(n) { return new Intl.NumberFormat('en-IN').format(n); }
 function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short' }); }
 function fmtTime(t) { return new Date(t).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }); }
@@ -1371,7 +1377,7 @@ function logout() {
     if (supaClient) {
       try { await supaClient.auth.signOut(); } catch(e) {}
     }
-    CU = null; activeManageProjectId = null;
+    CU = null; activeManageProjectId = null; currentChatUserId = null;
     DB.logout();
     showScreen('screen-landing');
     showToast('Logged out successfully', 'info', '');
@@ -1932,7 +1938,7 @@ function filterProjects(f) {
 
 function cChat() {
   const others = DB.users().filter(u => u.role === 'freelancer');
-  const defaultOther = others[0]?.id || '';
+  const defaultOther = currentChatUserId || others[0]?.id || ''; // 🟢 UPDATED
   return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id, defaultOther)}`;
 }
 
@@ -2055,7 +2061,7 @@ function renderF(p) {
   else if (p === 'ongoing')  m.innerHTML = fOngoing();
   else if (p === 'chat')  {
     const others = DB.users().filter(u => u.role === 'creator');
-    const defaultOther = others[0]?.id || '';
+    const defaultOther = currentChatUserId || others[0]?.id || ''; // 🟢 UPDATED
     m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id, defaultOther)}`;
   }
   else if (p === 'negotiate') m.innerHTML = fNegotiate();
@@ -2356,6 +2362,7 @@ function renderMsgs(msgs, myId) {
 }
 
 function switchChat(myId, otherId) {
+  currentChatUserId = otherId; // 🟢 ADDED: Isse active user yaad rahega
   const key   = [myId, otherId].sort().join('_');
   const msgs  = DB.messages()[key] || [];
   const other = DB.users().find(u => u.id === otherId);
