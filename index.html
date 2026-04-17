@@ -1270,7 +1270,7 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM
+  // 🟢 SMOOTH REAL-TIME SYSTEM (NO DISAPPEARING MESSAGES)
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
@@ -1284,33 +1284,14 @@ async function loginSuccess(u) {
 
     supaClient.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-        const newMsg = payload.new;
-        if (!newMsg) return;
-        
-        // Ignore if we sent it
-        if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+        // Ignore message if we sent it (prevent race condition)
+        if (payload.new && String(payload.new.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
-        const otherId = newMsg.sender_id;
-        const key = [CU.id, otherId].sort().join('_');
-        
-        const allMsgs = DB.messages();
-        if (!allMsgs[key]) allMsgs[key] = [];
-        
-        const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
-        
-        if (!exists) {
-            allMsgs[key].push({
-                from: newMsg.sender_id,
-                text: newMsg.text,
-                file_url: newMsg.file_url || null,
-                time: new Date(newMsg.created_at).getTime()
-            });
-            DB.saveMessages(allMsgs);
-        }
-
+        await syncFromSupabase(CU);
         const el = document.getElementById('chat-msgs-el');
-        if (el && currentChatUserId === otherId) {
-            el.innerHTML = renderMsgs(allMsgs[key], CU.id);
+        if (el && currentChatUserId) {
+            const key = [CU.id, currentChatUserId].sort().join('_');
+            el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
             el.scrollTop = el.scrollHeight;
         }
         updateChatSidebarPreviews();
@@ -1660,7 +1641,7 @@ async function wfContent() {
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
         </div>
         <div>
-          <div style="font-weight:500;font-size:.88rem;color:var(--text);">Edited_Final_v2.mp4</div>
+          <div style="font-weight:500;font-size:.88rem;color:var(--text);">Final_Delivered_Video</div>
           <div style="color:var(--text-3);font-size:.75rem;">Requires Payment to Download</div>
         </div>
         <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="downloadEditedVideo('${activeManageProjectId}')">Download</button>
@@ -2269,9 +2250,8 @@ function sendCounter(id) {
   showToast(`Counter-offer sent: ₹${fmt(price)}`, 'ok', '');
 }
 
-// 🟢 NEW: Creator accepts the negotiation directly from chat with instant visual feedback
-async function acceptNegotiation(e, projectId, newPrice, newDate) {
-   if(e && e.target) e.target.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Processing...</span>`;
+async function acceptNegotiation(btn, projectId, newPrice, newDate, otherId) {
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Offer Accepted</span>`;
    
    const projs = DB.projects(), p = projs.find(x => x.id === projectId);
    if (p) { 
@@ -2284,16 +2264,79 @@ async function acceptNegotiation(e, projectId, newPrice, newDate) {
        await supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', projectId);
    }
    
-   await sendMsg(CU.id, p.freelancerId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
-   
+   await sendMsg(CU.id, otherId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
    showToast('Budget & deadline updated!', 'ok');
-   cPage('home', document.querySelector('#screen-creator [data-page="home"]'));
 }
 
-function rejectNegotiation(e, projectId, otherId) {
-   if(e && e.target) e.target.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Processing...</span>`;
+function rejectNegotiation(btn, projectId, otherId) {
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Offer Rejected</span>`;
    sendMsg(CU.id, otherId, null, null, `❌ Offer Rejected. Let's discuss further.`);
    showToast('Offer rejected', 'info');
+}
+
+function onFinalFileSelect(input, pid) {
+  const zone  = document.getElementById('final-drop-zone-' + pid);
+  const label = document.getElementById('final-file-label-' + pid);
+  const icon  = document.getElementById('final-upload-icon-' + pid);
+  if (input.files && input.files[0]) {
+    const f = input.files[0];
+    label.textContent = `${f.name}  (${fmtFileSize(f.size)})`;
+    icon.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>';
+    zone.classList.add('has-file');
+  } else {
+    label.textContent = 'Drag & drop your final edited video or click to browse';
+    icon.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>';
+    zone.classList.remove('has-file');
+  }
+}
+
+async function uploadFinalVideo(pid) {
+  const fileInput = document.getElementById('final-video-input-' + pid);
+  const btn       = document.getElementById('final-video-btn-' + pid);
+  const progWrap  = document.getElementById('final-progress-wrap-' + pid);
+  const progFill  = document.getElementById('final-progress-fill-' + pid);
+  const note      = document.getElementById('final-note-' + pid)?.value || '';
+
+  if (!fileInput || !fileInput.files || !fileInput.files.length) { showToast('Please select a final video file first', 'err', ''); return; }
+  const file = fileInput.files[0];
+  const MAX_SIZE = 10 * 1024 * 1024 * 1024;
+  if (file.size > MAX_SIZE) { showToast('File too large. Maximum size is 10 GB.', 'err', ''); return; }
+
+  const proj = DB.projects().find(x => x.id === pid);
+  if (!proj) return;
+
+  btn.disabled = true; btn.textContent = 'Uploading…'; btn.classList.add('btn-loading');
+  if (progWrap) { progWrap.classList.add('show'); progFill.style.width = '0%'; }
+
+  let fileUrl = null;
+  try {
+    if (supaClient) {
+      if (progFill) progFill.style.width = '20%';
+      const path = `final/${CU.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const { data: uploadData, error: uploadError } =
+        await supaClient.storage.from('videos').upload(path, file, { cacheControl:'3600', upsert:false });
+      if (uploadError) throw uploadError;
+      if (progFill) progFill.style.width = '60%';
+      const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
+      fileUrl = urlData?.publicUrl || null;
+      if (progFill) progFill.style.width = '80%';
+    }
+
+    if (supaClient) await supaClient.from('projects').update({ edited_uploaded: true }).eq('id', proj.id);
+    proj.editedUploaded = true; 
+    DB.saveProjects(DB.projects());
+
+    const msgText = note ? `Final Delivery: ${note}` : `Final Delivery`;
+    await sendMsg(CU.id, proj.creatorId, fileUrl, file.name, msgText);
+
+    if (progFill) progFill.style.width = '100%';
+    showToast('Final video uploaded and sent to creator!', 'ok', '');
+    fPage('upload', document.querySelector('[data-page="upload"]'));
+  } catch(err) {
+    showToast('Upload failed.', 'err', '');
+    if (btn) { btn.disabled = false; btn.textContent = 'Upload Final Video →'; btn.classList.remove('btn-loading'); }
+    if (progWrap) progWrap.classList.remove('show');
+  }
 }
 
 function fUpload() {
@@ -2305,23 +2348,21 @@ function fUpload() {
     ? projs.map(p => `
         <div class="det-card">
           <h4>Upload for: ${p.title}</h4>
-          <div class="upload-area-lg" onclick="showToast('To share actual file, open Chat and use the attachment icon','info','')">
-            <div class="upload-icon">
+          <label class="upload-area-lg" for="final-video-input-${p.id}" id="final-drop-zone-${p.id}">
+            <div class="upload-icon" id="final-upload-icon-${p.id}">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
             </div>
-            <div class="upload-label">Drag &amp; drop your final edited video</div>
+            <div class="upload-label" id="final-file-label-${p.id}">Drag & drop your final edited video or click to browse</div>
             <div class="upload-sub">MP4, MOV &middot; Up to 10 GB</div>
+            <input type="file" id="final-video-input-${p.id}" accept="video/*" style="display:none;" onchange="onFinalFileSelect(this, '${p.id}')"/>
+          </label>
+          <div class="upload-progress-wrap" id="final-progress-wrap-${p.id}">
+            <div class="upload-progress-bar"><div class="upload-progress-fill" id="final-progress-fill-${p.id}"></div></div>
           </div>
-          <div class="fg"><label>Version Notes</label><input placeholder="v1 – Color graded, audio synced…"/></div>
-          <button class="btn btn-primary" onclick="uploadVideo('${p.id}')">Upload Final Video &rarr;</button>
+          <div class="fg"><label>Version Notes</label><input id="final-note-${p.id}" placeholder="v1 – Color graded, audio synced…"/></div>
+          <button class="btn btn-primary" id="final-video-btn-${p.id}" onclick="uploadFinalVideo('${p.id}')">Upload Final Video &rarr;</button>
         </div>`).join('')
     : '<div class="alert alert-i">No projects ready for upload.</div>'}`;
-}
-function uploadVideo(id) {
-  const projs = DB.projects(), p = projs.find(x => x.id === id);
-  if (p) { p.editedUploaded = true; DB.saveProjects(projs); }
-  if (supaClient) supaClient.from('projects').update({ edited_uploaded: true }).eq('id', id);
-  showToast('Video uploaded! Creator notified.', 'ok', ''); renderF('upload');
 }
 
 function fEarnings() {
@@ -2434,7 +2475,7 @@ function renderMsgs(msgs, myId) {
     const flexAlign = isMine ? 'flex-end' : 'flex-start';
 
     if (m.file_url) {
-      const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '') || 'video';
+      const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '').replace('Final Delivery: ', '').replace('Final Delivery', '') || 'video';
       const restrictDownloadAttr = (!isMine && isCreator) ? 'controlsList="nodownload" oncontextmenu="return false;"' : '';
       const downloadBtn = (!isMine && !isCreator) ? `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download Raw File</a>` : '';
 
@@ -2461,7 +2502,6 @@ function renderMsgs(msgs, myId) {
       </div>`;
     }
 
-    // 🟢 2. Render Negotiation UI (Only show buttons if no reply has been given yet)
     if (m.text.startsWith('[NEGOTIATION_REQ]')) {
        const parts = m.text.split('|');
        const projId = parts[1];
@@ -2471,7 +2511,6 @@ function renderMsgs(msgs, myId) {
        
        let buttonsHtml = '';
        if (!isMine && isCreator) {
-          // Check if any message AFTER this one is a response to the negotiation
           const hasResponded = msgs.slice(idx + 1).some(msg => String(msg.from).toLowerCase() === String(myId).toLowerCase() && (msg.text.includes('✅ Offer Accepted') || msg.text.includes('❌ Offer Rejected')));
 
           if (hasResponded) {
@@ -2479,8 +2518,8 @@ function renderMsgs(msgs, myId) {
           } else {
               buttonsHtml = `
                  <div style="display:flex; gap:6px; margin-top:10px;">
-                    <button class="btn btn-green-btn btn-xs" onclick="acceptNegotiation(event, '${projId}', '${newPrice}', '${newDate}')">Accept Offer</button>
-                    <button class="btn btn-danger btn-xs" style="border:1px solid var(--red); color:var(--red);" onclick="rejectNegotiation(event, '${projId}', '${m.from}')">Reject</button>
+                    <button class="btn btn-green-btn btn-xs" onclick="acceptNegotiation(this, '${projId}', '${newPrice}', '${newDate}', '${m.from}')">Accept Offer</button>
+                    <button class="btn btn-danger btn-xs" style="border:1px solid var(--red); color:var(--red);" onclick="rejectNegotiation(this, '${projId}', '${m.from}')">Reject</button>
                  </div>
               `;
           }
