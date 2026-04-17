@@ -1786,9 +1786,11 @@ function wfN() {
     newProjectDraft.priority = priorityVal;
   }
   
-  if (wfStep === 3) {
+if (wfStep === 3) {
     if (selFreelancerIds.length === 0) { showToast('Select at least one editor', 'err', ''); return; }
     
+    setBtn('signup-btn', true, 'Posting...'); // Optional loading state
+
     // 🟢 Use the draft data to build the project
     const newP = { 
         id: pid(), creatorId: CU.id, 
@@ -1803,6 +1805,7 @@ function wfN() {
         editedUploaded: false, paid: false, rating: 0, review: '', createdAt: Date.now() 
     };
     
+    // Save locally first
     const projs = DB.projects(); projs.push(newP); DB.saveProjects(projs);
     
     if (supaClient) {
@@ -1820,11 +1823,24 @@ function wfN() {
       }).then(({error}) => { 
         if(error) {
           console.error("Supabase Insert Error:", error);
-          showToast('Database Error: Could not post project', 'err', '');
+          // 🟢 If it fails, show the EXACT reason on the screen
+          showToast('DB Error: ' + error.message, 'err', '');
+          
+          // Revert local save so it doesn't glitch
+          const revertedProjs = DB.projects().filter(x => x.id !== newP.id);
+          DB.saveProjects(revertedProjs);
+        } else {
+          // 🟢 Only show success and redirect IF Supabase saves it properly
+          showToast('Project Requests Sent! Waiting for a freelancer.', 'ok', '');
+          activeManageProjectId = null;
+          cPage('projects', document.querySelector('[data-page="projects"]'));
         }
       });
+      return;
     }
-    showToast('Project Requests Sent! Waiting for a freelancer.', 'ok', '');
+    
+    // Fallback if no internet/supabase
+    showToast('Project Requests Sent locally.', 'ok', '');
     activeManageProjectId = null;
     cPage('projects', document.querySelector('[data-page="projects"]'));
     return;
