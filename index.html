@@ -1270,7 +1270,6 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
@@ -1287,7 +1286,6 @@ async function loginSuccess(u) {
         const newMsg = payload.new;
         if (!newMsg) return;
         
-        // Ignore if we sent it
         if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
         const otherId = newMsg.sender_id;
@@ -1296,7 +1294,6 @@ async function loginSuccess(u) {
         const allMsgs = DB.messages();
         if (!allMsgs[key]) allMsgs[key] = [];
         
-        // Prevent dupes
         const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
         
         if (!exists) {
@@ -1487,10 +1484,10 @@ function manageProject(pid) {
   
   if (p.status === 'open') { showToast('Waiting for freelancers to accept...', 'info'); return; }
   
-  if (p.status === 'ongoing' && !p.rawShared) wfStep = 4; // Chat / Share Raw
-  else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 5; // Wait / Share
-  else if (p.status === 'ongoing' && p.editedUploaded) wfStep = 6; // Review
-  else if (p.status === 'completed' && !p.paid) wfStep = 7; // Pay
+  if (p.status === 'ongoing' && !p.rawShared) wfStep = 4; 
+  else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 5; 
+  else if (p.status === 'ongoing' && p.editedUploaded) wfStep = 6; 
+  else if (p.status === 'completed' && !p.paid) wfStep = 7; 
   else wfStep = 7; 
   
   cPage('new', document.querySelector('[data-page="new"]'));
@@ -2263,11 +2260,37 @@ function sendCounter(id) {
   
   const proj = DB.projects().find(x=>x.id===id);
   if(proj) {
-     const msg = `Negotiation: Counter offer ₹${fmt(price)} by ${date}. \nNote: ${document.getElementById('neg-msg-'+id)?.value}`;
+     // 🟢 1. Create special parsable negotiation message
+     const msg = `[NEGOTIATION_REQ]|${proj.id}|${price}|${date}|${document.getElementById('neg-msg-'+id)?.value}`;
      sendMsg(CU.id, proj.creatorId, null, null, msg);
   }
   
   showToast(`Counter-offer sent: ₹${fmt(price)}`, 'ok', '');
+}
+
+// 🟢 NEW: Creator accepts the negotiation directly from chat
+async function acceptNegotiation(projectId, newPrice, newDate) {
+   const projs = DB.projects(), p = projs.find(x => x.id === projectId);
+   if (p) { 
+       p.budget = parseInt(newPrice); 
+       p.deadline = newDate;
+       DB.saveProjects(projs); 
+   }
+   
+   if (supaClient) {
+       await supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', projectId);
+   }
+   
+   // Send auto-confirmation in chat
+   await sendMsg(CU.id, p.freelancerId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
+   
+   showToast('Budget & deadline updated!', 'ok');
+   cPage('home');
+}
+
+function rejectNegotiation(projectId, otherId) {
+   sendMsg(CU.id, otherId, null, null, `❌ Offer Rejected. Let's discuss further.`);
+   showToast('Offer rejected', 'info');
 }
 
 function fUpload() {
@@ -2336,8 +2359,14 @@ function updateChatSidebarPreviews() {
          const key = [CU.id, uid].sort().join('_');
          const msgs = DB.messages()[key] || [];
          const last = msgs[msgs.length-1];
+         let previewText = 'No messages yet';
+         if (last) {
+            if (last.file_url) previewText = 'Video Attachment';
+            else if (last.text.startsWith('[NEGOTIATION_REQ]')) previewText = 'New Negotiation Offer';
+            else previewText = last.text;
+         }
          const prevEl = el.querySelector('.cc-prev');
-         if(prevEl) prevEl.textContent = last ? (last.file_url ? 'Video Attachment' : last.text) : 'No messages yet';
+         if(prevEl) prevEl.textContent = previewText;
       }
    });
 }
@@ -2364,7 +2393,7 @@ function buildChat(myId, otherDefaultId) {
           <div class="c-av">${c.user.avatar}</div>
           <div style="min-width:0;">
             <div class="cc-name">${c.user.name}</div>
-            <div class="cc-prev">${c.last?.file_url ? 'Video Attachment' : (c.last?.text || 'No messages yet')}</div>
+            <div class="cc-prev">${c.last?.file_url ? 'Video Attachment' : (c.last?.text?.includes('[NEGOTIATION') ? 'New Offer' : (c.last?.text || 'No messages yet'))}</div>
           </div>
         </div>`).join('') || `<div style="padding:14px;font-size:.78rem;color:var(--text-3);">You must accept a project first</div>`}
     </div>
@@ -2403,12 +2432,8 @@ function renderMsgs(msgs, myId) {
 
     if (m.file_url) {
       const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '') || 'video';
-      
-      const sentByFreelancer = !isMine && isCreator;
-      const restrictDownloadAttr = sentByFreelancer ? 'controlsList="nodownload" oncontextmenu="return false;"' : '';
-      
-      const sentByCreator = !isMine && !isCreator;
-      const downloadBtn = sentByCreator ? `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download Raw File</a>` : '';
+      const restrictDownloadAttr = (!isMine && isCreator) ? 'controlsList="nodownload" oncontextmenu="return false;"' : '';
+      const downloadBtn = (!isMine && !isCreator) ? `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download Raw File</a>` : '';
 
       return `
       <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
@@ -2431,6 +2456,37 @@ function renderMsgs(msgs, myId) {
           ${downloadBtn}
         </div>
       </div>`;
+    }
+
+    // 🟢 2. Render Negotiation UI if message is a special negotiation request
+    if (m.text.startsWith('[NEGOTIATION_REQ]')) {
+       const parts = m.text.split('|');
+       const projId = parts[1];
+       const newPrice = parts[2];
+       const newDate = parts[3];
+       const note = parts[4] || '';
+       
+       let buttonsHtml = '';
+       if (!isMine && isCreator) {
+          buttonsHtml = `
+             <div style="display:flex; gap:6px; margin-top:10px;">
+                <button class="btn btn-green-btn btn-xs" onclick="acceptNegotiation('${projId}', '${newPrice}', '${newDate}')">Accept Offer</button>
+                <button class="btn btn-danger btn-xs" style="border:1px solid var(--red); color:var(--red);" onclick="rejectNegotiation('${projId}', '${m.from}')">Reject</button>
+             </div>
+          `;
+       }
+
+       return `
+       <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
+         <div class="msg ${isMine ? 'sent' : 'received'}" style="border:2px solid var(--accent); background: ${isMine ? 'var(--accent)' : 'var(--accent-soft)'};">
+           <strong style="display:block; margin-bottom:4px;">Negotiation Offer</strong>
+           <div>New Price: <strong>₹${fmt(newPrice)}</strong></div>
+           <div>New Deadline: <strong>${fmtDate(newDate)}</strong></div>
+           ${note ? `<div style="margin-top:6px; font-style:italic;">"${note}"</div>` : ''}
+           ${buttonsHtml}
+         </div>
+         <div class="msg-time" style="${timeAlign}; width:100%; margin-top:2px;">${fmtTime(m.time)}</div>
+       </div>`;
     }
 
     return `
@@ -2511,14 +2567,12 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
     inp.value = '';
   }
 
-  // 1. FIX: Turant Local Database me save karo
   const key = [myId, otherId].sort().join('_');
   const allMsgs = DB.messages();
   if (!allMsgs[key]) allMsgs[key] = [];
   allMsgs[key].push({ from: myId, text: text, file_url: overrideFileUrl, time: Date.now() });
   DB.saveMessages(allMsgs);
 
-  // 2. FIX: Chat box ko turant update karo (ab gayab nahi hoga)
   const el = document.getElementById('chat-msgs-el');
   if (el) { 
       el.innerHTML = renderMsgs(allMsgs[key], myId); 
@@ -2526,7 +2580,6 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
   }
   updateChatSidebarPreviews();
 
-  // 3. Background mein Supabase par bhej do
   if (supaClient) {
     try {
       const uid1 = [myId, otherId].sort()[0];
@@ -2610,6 +2663,13 @@ window.addEventListener('load', async () => {
     const el = document.getElementById('chat-msgs-el');
     if (el) el.scrollTop = el.scrollHeight;
   }).observe(document.body, { childList: true, subtree: true });
+});
+</script>
+<script>
+const logo = document.getElementById("logoDrag");
+logo.addEventListener("dragstart", (e) => {
+  e.dataTransfer.setData("text/uri-list", window.location.href);
+  e.dataTransfer.setData("text/plain", window.location.href);
 });
 </script>
 </body>
