@@ -1487,7 +1487,7 @@ function manageProject(pid) {
   if (p.status === 'open') { showToast('Waiting for freelancers to accept...', 'info'); return; }
   
   if (p.status === 'ongoing' && !p.rawShared) wfStep = 4; // Chat / Share Raw
-  else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 5; // Wait / Share
+  else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 6; // Skip directly to wait/review
   else if (p.status === 'ongoing' && p.editedUploaded) wfStep = 6; // Review
   else if (p.status === 'completed' && !p.paid) wfStep = 7; // Pay
   else wfStep = 7; 
@@ -2677,6 +2677,7 @@ async function handleChatUpload(input, myId, otherId) {
     
     await sendMsg(myId, otherId, fileUrl, file.name);
 
+    // 🟢 Update project status correctly if raw/final shared from Chat
     if (CU.role === 'creator') {
         const p = DB.projects().find(x => x.creatorId === myId && x.freelancerId === otherId && x.status === 'ongoing');
         if (p && !p.rawShared) {
@@ -2718,6 +2719,7 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
   allMsgs[key].push({ from: myId, text: text, file_url: overrideFileUrl, time: Date.now() });
   DB.saveMessages(allMsgs);
 
+  // Directly update chat UI for instant feel
   const el = document.getElementById('chat-msgs-el');
   if (el) { 
       el.innerHTML = renderMsgs(allMsgs[key], myId); 
