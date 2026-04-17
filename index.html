@@ -1270,7 +1270,7 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // REAL TIME UPDATES
+  // 🟢 SMOOTH REAL-TIME SYSTEM
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
@@ -1284,15 +1284,34 @@ async function loginSuccess(u) {
 
     supaClient.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        const newMsg = payload.new;
+        if (!newMsg) return;
         
-        // 🟢 FIX: Ignore message if we sent it (prevent race condition)
-        if (payload.new && String(payload.new.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+        // Ignore if we sent it
+        if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
-        await syncFromSupabase(CU);
+        const otherId = newMsg.sender_id;
+        const key = [CU.id, otherId].sort().join('_');
+        
+        const allMsgs = DB.messages();
+        if (!allMsgs[key]) allMsgs[key] = [];
+        
+        // Prevent dupes
+        const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
+        
+        if (!exists) {
+            allMsgs[key].push({
+                from: newMsg.sender_id,
+                text: newMsg.text,
+                file_url: newMsg.file_url || null,
+                time: new Date(newMsg.created_at).getTime()
+            });
+            DB.saveMessages(allMsgs);
+        }
+
         const el = document.getElementById('chat-msgs-el');
-        if (el && currentChatUserId) {
-            const key = [CU.id, currentChatUserId].sort().join('_');
-            el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+        if (el && currentChatUserId === otherId) {
+            el.innerHTML = renderMsgs(allMsgs[key], CU.id);
             el.scrollTop = el.scrollHeight;
         }
         updateChatSidebarPreviews();
@@ -1926,9 +1945,15 @@ function filterProjects(f) {
 }
 
 function cChat() {
-  const others = DB.users().filter(u => u.role === 'freelancer');
-  const defaultOther = currentChatUserId || others[0]?.id || ''; 
+  const myProjects = DB.projects().filter(p => (p.creatorId === CU.id || p.freelancerId === CU.id) && p.status !== 'open');
+  const relatedUserIds = [...new Set(myProjects.map(p => p.creatorId === CU.id ? p.freelancerId : p.creatorId).filter(id => id))];
+  
+  let defaultOther = currentChatUserId;
+  if (!defaultOther || !relatedUserIds.includes(defaultOther)) {
+      defaultOther = relatedUserIds[0] || ''; 
+  }
   currentChatUserId = defaultOther;
+
   return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id, defaultOther)}`;
 }
 
@@ -2080,9 +2105,15 @@ function renderF(p) {
   else if (p === 'browse')   m.innerHTML = fBrowse();
   else if (p === 'ongoing')  m.innerHTML = fOngoing();
   else if (p === 'chat')  {
-    const others = DB.users().filter(u => u.role === 'creator');
-    const defaultOther = currentChatUserId || others[0]?.id || ''; 
+    const myProjects = DB.projects().filter(p => (p.creatorId === CU.id || p.freelancerId === CU.id) && p.status !== 'open');
+    const relatedUserIds = [...new Set(myProjects.map(p => p.creatorId === CU.id ? p.freelancerId : p.creatorId).filter(id => id))];
+    
+    let defaultOther = currentChatUserId;
+    if (!defaultOther || !relatedUserIds.includes(defaultOther)) {
+        defaultOther = relatedUserIds[0] || ''; 
+    }
     currentChatUserId = defaultOther;
+
     m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id, defaultOther)}`;
   }
   else if (p === 'negotiate') m.innerHTML = fNegotiate();
@@ -2579,13 +2610,6 @@ window.addEventListener('load', async () => {
     const el = document.getElementById('chat-msgs-el');
     if (el) el.scrollTop = el.scrollHeight;
   }).observe(document.body, { childList: true, subtree: true });
-});
-</script>
-<script>
-const logo = document.getElementById("logoDrag");
-logo.addEventListener("dragstart", (e) => {
-  e.dataTransfer.setData("text/uri-list", window.location.href);
-  e.dataTransfer.setData("text/plain", window.location.href);
 });
 </script>
 </body>
