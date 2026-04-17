@@ -1270,7 +1270,7 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM (NO DISAPPEARING MESSAGES)
+  // REAL TIME UPDATES
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
@@ -1284,6 +1284,10 @@ async function loginSuccess(u) {
 
     supaClient.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        
+        // 🟢 FIX: Ignore message if we sent it (prevent race condition)
+        if (payload.new && String(payload.new.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+
         await syncFromSupabase(CU);
         const el = document.getElementById('chat-msgs-el');
         if (el && currentChatUserId) {
@@ -2476,32 +2480,22 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
     inp.value = '';
   }
 
-  // 🟢 Remove local push array bug, and directly append HTML visually
-  const el = document.getElementById('chat-msgs-el');
-  if (el) {
-      if (el.innerHTML.includes('Start the conversation!')) el.innerHTML = '';
-      let tempHtml = '';
-      if (overrideFileUrl) {
-          tempHtml = `<div class="temp-msg" style="display:flex; flex-direction:column; align-items:flex-end; margin-bottom:8px; width:100%; opacity:0.5;">
-            <div class="msg-video sent-video">
-              <div class="msg-video-inner">
-                <div class="msg-video-label">
-                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${overrideFileName}</span>
-                </div>
-                <div class="msg-video-footer"><span>Sending...</span></div>
-              </div>
-            </div>
-          </div>`;
-      } else {
-          tempHtml = `<div class="temp-msg" style="display:flex; flex-direction:column; align-items:flex-end; margin-bottom:8px; width:100%; opacity:0.5;">
-            <div class="msg sent">${text}</div>
-            <div class="msg-time" style="text-align:right; width:100%; margin-top:2px;">Sending...</div>
-          </div>`;
-      }
-      el.insertAdjacentHTML('beforeend', tempHtml);
-      el.scrollTop = el.scrollHeight;
-  }
+  // 1. FIX: Turant Local Database me save karo
+  const key = [myId, otherId].sort().join('_');
+  const allMsgs = DB.messages();
+  if (!allMsgs[key]) allMsgs[key] = [];
+  allMsgs[key].push({ from: myId, text: text, file_url: overrideFileUrl, time: Date.now() });
+  DB.saveMessages(allMsgs);
 
+  // 2. FIX: Chat box ko turant update karo (ab gayab nahi hoga)
+  const el = document.getElementById('chat-msgs-el');
+  if (el) { 
+      el.innerHTML = renderMsgs(allMsgs[key], myId); 
+      el.scrollTop = el.scrollHeight; 
+  }
+  updateChatSidebarPreviews();
+
+  // 3. Background mein Supabase par bhej do
   if (supaClient) {
     try {
       const uid1 = [myId, otherId].sort()[0];
@@ -2514,25 +2508,10 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
       if (convo) {
         await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
       }
-      // No syncFromSupabase call here - Realtime listener will catch and render it!
-      
     } catch(e) {
        console.error(e);
        showToast("Message failed to send.", "err");
-       if(el) {
-          const temps = el.querySelectorAll('.temp-msg');
-          temps.forEach(t => t.remove());
-       }
     }
-  } else {
-      // Offline fallback
-      const key = [myId, otherId].sort().join('_');
-      const allMsgs = DB.messages();
-      if (!allMsgs[key]) allMsgs[key] = [];
-      allMsgs[key].push({ from: myId, text, file_url: overrideFileUrl, time: Date.now() });
-      DB.saveMessages(allMsgs);
-      if (el) { el.innerHTML = renderMsgs(allMsgs[key], myId); el.scrollTop = el.scrollHeight; }
-      updateChatSidebarPreviews();
   }
 }
 
