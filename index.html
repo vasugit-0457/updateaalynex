@@ -1270,6 +1270,7 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
+  // 🟢 SMOOTH REAL-TIME SYSTEM
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
@@ -1286,6 +1287,7 @@ async function loginSuccess(u) {
         const newMsg = payload.new;
         if (!newMsg) return;
         
+        // Ignore if we sent it
         if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
         const otherId = newMsg.sender_id;
@@ -1484,10 +1486,10 @@ function manageProject(pid) {
   
   if (p.status === 'open') { showToast('Waiting for freelancers to accept...', 'info'); return; }
   
-  if (p.status === 'ongoing' && !p.rawShared) wfStep = 4; 
-  else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 5; 
-  else if (p.status === 'ongoing' && p.editedUploaded) wfStep = 6; 
-  else if (p.status === 'completed' && !p.paid) wfStep = 7; 
+  if (p.status === 'ongoing' && !p.rawShared) wfStep = 4; // Chat / Share Raw
+  else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 5; // Wait / Share
+  else if (p.status === 'ongoing' && p.editedUploaded) wfStep = 6; // Review
+  else if (p.status === 'completed' && !p.paid) wfStep = 7; // Pay
   else wfStep = 7; 
   
   cPage('new', document.querySelector('[data-page="new"]'));
@@ -2260,7 +2262,6 @@ function sendCounter(id) {
   
   const proj = DB.projects().find(x=>x.id===id);
   if(proj) {
-     // 🟢 1. Create special parsable negotiation message
      const msg = `[NEGOTIATION_REQ]|${proj.id}|${price}|${date}|${document.getElementById('neg-msg-'+id)?.value}`;
      sendMsg(CU.id, proj.creatorId, null, null, msg);
   }
@@ -2268,8 +2269,10 @@ function sendCounter(id) {
   showToast(`Counter-offer sent: ₹${fmt(price)}`, 'ok', '');
 }
 
-// 🟢 NEW: Creator accepts the negotiation directly from chat
-async function acceptNegotiation(projectId, newPrice, newDate) {
+// 🟢 NEW: Creator accepts the negotiation directly from chat with instant visual feedback
+async function acceptNegotiation(e, projectId, newPrice, newDate) {
+   if(e && e.target) e.target.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Processing...</span>`;
+   
    const projs = DB.projects(), p = projs.find(x => x.id === projectId);
    if (p) { 
        p.budget = parseInt(newPrice); 
@@ -2281,14 +2284,14 @@ async function acceptNegotiation(projectId, newPrice, newDate) {
        await supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', projectId);
    }
    
-   // Send auto-confirmation in chat
    await sendMsg(CU.id, p.freelancerId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
    
    showToast('Budget & deadline updated!', 'ok');
-   cPage('home');
+   cPage('home', document.querySelector('#screen-creator [data-page="home"]'));
 }
 
-function rejectNegotiation(projectId, otherId) {
+function rejectNegotiation(e, projectId, otherId) {
+   if(e && e.target) e.target.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Processing...</span>`;
    sendMsg(CU.id, otherId, null, null, `❌ Offer Rejected. Let's discuss further.`);
    showToast('Offer rejected', 'info');
 }
@@ -2425,7 +2428,7 @@ function renderMsgs(msgs, myId) {
 
   const isCreator = CU.role === 'creator';
 
-  return msgs.map(m => {
+  return msgs.map((m, idx) => {
     const isMine    = String(m.from).toLowerCase() === String(myId).toLowerCase();
     const timeAlign = isMine ? 'text-align:right' : '';
     const flexAlign = isMine ? 'flex-end' : 'flex-start';
@@ -2458,7 +2461,7 @@ function renderMsgs(msgs, myId) {
       </div>`;
     }
 
-    // 🟢 2. Render Negotiation UI if message is a special negotiation request
+    // 🟢 2. Render Negotiation UI (Only show buttons if no reply has been given yet)
     if (m.text.startsWith('[NEGOTIATION_REQ]')) {
        const parts = m.text.split('|');
        const projId = parts[1];
@@ -2468,12 +2471,19 @@ function renderMsgs(msgs, myId) {
        
        let buttonsHtml = '';
        if (!isMine && isCreator) {
-          buttonsHtml = `
-             <div style="display:flex; gap:6px; margin-top:10px;">
-                <button class="btn btn-green-btn btn-xs" onclick="acceptNegotiation('${projId}', '${newPrice}', '${newDate}')">Accept Offer</button>
-                <button class="btn btn-danger btn-xs" style="border:1px solid var(--red); color:var(--red);" onclick="rejectNegotiation('${projId}', '${m.from}')">Reject</button>
-             </div>
-          `;
+          // Check if any message AFTER this one is a response to the negotiation
+          const hasResponded = msgs.slice(idx + 1).some(msg => String(msg.from).toLowerCase() === String(myId).toLowerCase() && (msg.text.includes('✅ Offer Accepted') || msg.text.includes('❌ Offer Rejected')));
+
+          if (hasResponded) {
+              buttonsHtml = `<div style="margin-top:10px; font-size:0.8rem; font-weight:600; color:var(--text-3);">Offer Responded</div>`;
+          } else {
+              buttonsHtml = `
+                 <div style="display:flex; gap:6px; margin-top:10px;">
+                    <button class="btn btn-green-btn btn-xs" onclick="acceptNegotiation(event, '${projId}', '${newPrice}', '${newDate}')">Accept Offer</button>
+                    <button class="btn btn-danger btn-xs" style="border:1px solid var(--red); color:var(--red);" onclick="rejectNegotiation(event, '${projId}', '${m.from}')">Reject</button>
+                 </div>
+              `;
+          }
        }
 
        return `
