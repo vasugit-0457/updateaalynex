@@ -1277,6 +1277,7 @@ async function loginSuccess(u) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
         syncFromSupabase(CU).then(() => {
+          // Check if we are currently NOT on the chat page before re-rendering everything
           const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
           const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
           
@@ -1289,7 +1290,7 @@ async function loginSuccess(u) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         
         // 🟢 FIX: Agar message humne khud bheja hai, toh ignore karo (race condition rokne ke liye)
-        if (payload.new && payload.new.sender_id === CU.id) return;
+        if (payload.new && String(payload.new.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
         syncFromSupabase(CU).then(() => {
            const el = document.getElementById('chat-msgs-el');
@@ -2247,6 +2248,7 @@ function fEarnings() {
    CHAT — SHARED
 ══════════════════════════════════════════════ */
 
+// 🟢 NEW: Update sidebar previews smoothly
 function updateChatSidebarPreviews() {
    document.querySelectorAll('.cc-item').forEach(el => {
       const uid = el.getAttribute('data-uid');
@@ -2308,6 +2310,7 @@ function buildChat(myId, otherDefaultId) {
   </div>`;
 }
 
+// 🟢 FIX: Messages styling updated to proper flex layouts to stop stretching
 function renderMsgs(msgs, myId) {
   if (!msgs || !msgs.length)
     return '<div style="text-align:center;color:var(--text-3);font-size:.78rem;padding:20px 0;">Start the conversation!</div>';
@@ -2315,46 +2318,47 @@ function renderMsgs(msgs, myId) {
   const isCreator = CU.role === 'creator';
 
   return msgs.map(m => {
-    const isMine    = m.from === myId;
+    // Exact match regardless of lowercase/uppercase format
+    const isMine    = String(m.from).toLowerCase() === String(myId).toLowerCase();
     const timeAlign = isMine ? 'text-align:right' : '';
+    const flexAlign = isMine ? 'flex-end' : 'flex-start';
 
     if (m.file_url) {
       const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '') || 'video';
       
-      // 🟢 Download restrictions logic
-      // If Freelancer sent it -> Creator cannot download
       const sentByFreelancer = !isMine && isCreator;
       const restrictDownloadAttr = sentByFreelancer ? 'controlsList="nodownload" oncontextmenu="return false;"' : '';
       
-      // If Creator sent it -> Freelancer CAN download
       const sentByCreator = !isMine && !isCreator;
       const downloadBtn = sentByCreator ? `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download Raw File</a>` : '';
 
       return `
-      <div class="msg-video ${isMine ? 'sent-video' : ''}">
-        <div class="msg-video-inner">
-          <div class="msg-video-label">
-            <div class="vico">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+      <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
+        <div class="msg-video ${isMine ? 'sent-video' : ''}">
+          <div class="msg-video-inner">
+            <div class="msg-video-label">
+              <div class="vico">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+              </div>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${fname}</span>
             </div>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${fname}</span>
+            <video class="msg-video-player" controls preload="metadata" src="${m.file_url}" ${restrictDownloadAttr}>
+              Your browser does not support the video tag.
+            </video>
+            <div class="msg-video-footer">
+              <span>${isMine ? 'You' : 'Sent'}</span>
+              <span>${fmtTime(m.time)}</span>
+            </div>
           </div>
-          <video class="msg-video-player" controls preload="metadata" src="${m.file_url}" ${restrictDownloadAttr}>
-            Your browser does not support the video tag.
-          </video>
-          <div class="msg-video-footer">
-            <span>${isMine ? 'You' : 'Sent'}</span>
-            <span>${fmtTime(m.time)}</span>
-          </div>
+          ${downloadBtn}
         </div>
-        ${downloadBtn}
       </div>`;
     }
 
     return `
-    <div>
+    <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
       <div class="msg ${isMine ? 'sent' : 'received'}">${m.text}</div>
-      <div class="msg-time" style="${timeAlign}">${fmtTime(m.time)}</div>
+      <div class="msg-time" style="${timeAlign}; width:100%; margin-top:2px;">${fmtTime(m.time)}</div>
     </div>`;
   }).join('');
 }
