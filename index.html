@@ -1287,10 +1287,18 @@ async function loginSuccess(u) {
         const newMsg = payload.new;
         if (!newMsg) return;
         
-        // Ignore if we sent it
+        // 1. Agar humne khud bheja hai toh ignore karo
         if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
-        const otherId = newMsg.sender_id;
+        // 2. Database se check karo ki ye message kis conversation ka hai
+        const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
+        if (!convo) return;
+        
+        // 3. Agar main is conversation ka hissa nahi hu, toh mere chat box me mat dikhao
+        if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
+
+        // 4. Sahi doosre bande ki ID nikalo
+        const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
         const key = [CU.id, otherId].sort().join('_');
         
         const allMsgs = DB.messages();
@@ -1308,10 +1316,11 @@ async function loginSuccess(u) {
             DB.saveMessages(allMsgs);
         }
 
+        // 5. Chat UI ko turant update kardo
         const el = document.getElementById('chat-msgs-el');
         if (el && currentChatUserId === otherId) {
             el.innerHTML = renderMsgs(allMsgs[key], CU.id);
-            el.scrollTop = el.scrollHeight;
+            el.scrollTop = el.scrollHeight; // Scroll to bottom
         }
         updateChatSidebarPreviews();
       }).subscribe();
