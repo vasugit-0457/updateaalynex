@@ -1632,13 +1632,15 @@ async function wfContent() {
 
   const proj = DB.projects().find(x => x.id === activeManageProjectId);
   const flId = proj ? proj.freelancerId : null;
+  const isCompleted = proj ? (proj.status === 'completed' || proj.paid) : false;
 
   if (wfStep === 4) return `
     <h3>Chat with ${selFreelancerName || 'Editor'}</h3>
     ${buildChat(CU.id, flId || '')}
+    ${!isCompleted ? `
     <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn btn-primary" onclick="wfN()">Go To Workflow Step &rarr;</button>
-    </div>`;
+    </div>` : ''}`;
 
   if (wfStep === 5) {
       if (proj && proj.rawShared) {
@@ -1816,9 +1818,14 @@ function downloadEditedVideo(projectId) {
 
 async function completePayment() {
   const p = DB.projects().find(x => x.id === activeManageProjectId);
-  if (p) { p.paid = true; p.status = 'completed'; DB.saveProjects(DB.projects()); }
-  if (supaClient && p) {
-    await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', p.id);
+  if (p) { 
+      p.paid = true; 
+      p.status = 'completed'; 
+      DB.saveProjects(DB.projects()); 
+      if (supaClient) {
+          await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', p.id);
+      }
+      await sendMsg(CU.id, p.freelancerId, null, null, '✅ Project Approved & Paid! Perfect video edit. Great working with you.');
   }
   showToast('Payment successful! Project completed! Video is now downloadable.', 'ok', '');
   cPage('projects', document.querySelector('[data-page="projects"]'));
@@ -2567,9 +2574,29 @@ function renderMsgs(msgs, myId) {
               downloadBtn = `<button class="btn btn-ghost btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="showToast('❌ You must Approve & Pay to download.', 'err')">⬇ Download Locked</button>`;
               
               if (isFinal) {
-                  actionBtns = `<button class="btn btn-green-btn btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="triggerApproveAndPay('${proj?.id}')">✅ Approve & Pay</button>`;
+                  actionBtns += `<button class="btn btn-green-btn btn-xs" style="margin-top:6px; font-size:0.65rem; margin-right:6px;" onclick="triggerApproveAndPay('${proj?.id}')">✅ Approve & Pay</button>`;
+                  
+                  const hasRequestedRevision = msgs.slice(idx + 1).some(msg => 
+                      String(msg.from).toLowerCase() === String(myId).toLowerCase() && 
+                      msg.text.includes('Needs Revision')
+                  );
+
+                  if (hasRequestedRevision) {
+                      actionBtns += `<span style="margin-top:6px; font-size:0.7rem; color:var(--yellow); display:inline-flex; align-items:center; padding:2px 4px;">🔄 Revision Requested</span>`;
+                  } else {
+                      actionBtns += `<button class="btn btn-danger btn-xs" style="margin-top:6px; font-size:0.65rem; border:1px solid var(--red); color:var(--red); background:transparent;" onclick="requestRevision('${m.from}')">🔄 Request Revision</button>`;
+                  }
               } else {
-                  actionBtns = `<button class="btn btn-danger btn-xs" style="margin-top:6px; font-size:0.65rem; border:1px solid var(--red); color:var(--red); background:transparent;" onclick="requestRevision('${m.from}')">🔄 Request Revision</button>`;
+                  const hasRequestedRevision = msgs.slice(idx + 1).some(msg => 
+                      String(msg.from).toLowerCase() === String(myId).toLowerCase() && 
+                      msg.text.includes('Needs Revision')
+                  );
+
+                  if (hasRequestedRevision) {
+                      actionBtns += `<span style="margin-top:6px; font-size:0.7rem; color:var(--yellow); display:inline-flex; align-items:center; padding:2px 4px;">🔄 Revision Requested</span>`;
+                  } else {
+                      actionBtns += `<button class="btn btn-danger btn-xs" style="margin-top:6px; font-size:0.65rem; border:1px solid var(--red); color:var(--red); background:transparent;" onclick="requestRevision('${m.from}')">🔄 Request Revision</button>`;
+                  }
               }
           } else {
               downloadBtn = `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download File</a>`;
@@ -2781,37 +2808,13 @@ function triggerApproveAndPay(projectId) {
         showToast('Project not found.', 'err', '');
         return;
     }
-    showModal('Confirm Payment', 'Are you sure you want to approve this final video and pay the freelancer? This will unlock the download.', () => {
-        processApproveAndPay(projectId);
+    showModal('Proceed to Payment', 'Are you sure you want to approve this video and proceed to the payment screen?', () => {
+        activeManageProjectId = projectId;
+        wfStep = 7;
+        cPage('new', document.querySelector('[data-page="new"]'));
     });
-    document.getElementById('modal-confirm').textContent = 'OK';
+    document.getElementById('modal-confirm').textContent = 'Proceed';
 }
-
-async function processApproveAndPay(projectId) {
-    const p = DB.projects().find(x => x.id === projectId);
-    if (p) { 
-        p.paid = true; 
-        p.status = 'completed'; 
-        DB.saveProjects(DB.projects()); 
-        if (supaClient) {
-            await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', p.id);
-        }
-        
-        await sendMsg(CU.id, p.freelancerId, null, null, '✅ Project Approved & Paid! Perfect video edit. Great working with you.');
-        
-        showToast('Payment successful! Video is now downloadable.', 'ok', '');
-        
-        // Refresh chat UI
-        const el = document.getElementById('chat-msgs-el');
-        if (el && currentChatUserId) {
-           const key = [CU.id, currentChatUserId].sort().join('_');
-           el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
-           el.scrollTop = el.scrollHeight;
-        }
-        updateChatSidebarPreviews();
-    }
-}
-
 
 /* ══════════════════════════════════════════════
    SHARED HELPERS
