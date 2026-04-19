@@ -592,7 +592,7 @@ h1 em{
   .two-col{grid-template-columns:1fr;}
   .form-row{grid-template-columns:1fr;}
   .hero{padding:36px 14px 20px;}
-  h1{letter-spacing:-1px;}
+   h1{letter-spacing:-1px;}
   .stats-bar{gap:0;}
   .stat{padding:12px 12px;}
   .chat-wrap{height:360px;}
@@ -1082,7 +1082,7 @@ function toggleSidebar(role) {
   const hb = document.getElementById(p+'-hamburger');
   const open = sb.classList.contains('mobile-open');
   if (open) { sb.classList.remove('mobile-open'); ov.classList.remove('show'); hb.classList.remove('open'); }
-  else       { sb.classList.add('mobile-open');    ov.classList.add('show');    hb.classList.add('open'); }
+  else      { sb.classList.add('mobile-open');    ov.classList.add('show');    hb.classList.add('open'); }
 }
 function closeSidebar(role) {
   const p = role[0];
@@ -1697,7 +1697,6 @@ async function wfContent() {
           <div class="pb"><div class="pf" style="width:100%;"></div></div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-ghost" onclick="wfB()">&larr; Request Revision</button>
           <button class="btn btn-primary" onclick="wfN()">Approve &amp; Pay &rarr;</button>
         </div>`;
   }
@@ -2553,15 +2552,25 @@ function renderMsgs(msgs, myId) {
       const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '').replace('Final Delivery: ', '').replace('Final Delivery', '') || 'video';
       
       let downloadBtn = '';
+      let actionBtns = '';
       let restrictDownloadAttr = '';
       
       if (!isMine && isCreator) {
-          const proj = DB.projects().find(p => p.creatorId === myId && p.freelancerId === m.from);
+          let proj = DB.projects().find(p => p.creatorId === myId && p.freelancerId === m.from && p.status !== 'completed');
+          if (!proj) proj = DB.projects().find(p => p.creatorId === myId && p.freelancerId === m.from);
+          
           const isPaid = proj ? proj.paid : false;
+          const isFinal = m.text && m.text.includes('Final Delivery');
           
           if (!isPaid) {
               restrictDownloadAttr = 'controlsList="nodownload" oncontextmenu="return false;"';
-              downloadBtn = `<button class="btn btn-ghost btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="showToast('❌ You must Approve & Pay in the Manage section before downloading.', 'err')">⬇ Download Locked</button>`;
+              downloadBtn = `<button class="btn btn-ghost btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="showToast('❌ You must Approve & Pay to download.', 'err')">⬇ Download Locked</button>`;
+              
+              if (isFinal) {
+                  actionBtns = `<button class="btn btn-green-btn btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="triggerApproveAndPay('${proj?.id}')">✅ Approve & Pay</button>`;
+              } else {
+                  actionBtns = `<button class="btn btn-danger btn-xs" style="margin-top:6px; font-size:0.65rem; border:1px solid var(--red); color:var(--red); background:transparent;" onclick="requestRevision('${m.from}')">🔄 Request Revision</button>`;
+              }
           } else {
               downloadBtn = `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download File</a>`;
           }
@@ -2587,7 +2596,10 @@ function renderMsgs(msgs, myId) {
               <span>${fmtTime(m.time)}</span>
             </div>
           </div>
-          ${downloadBtn}
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            ${downloadBtn}
+            ${actionBtns}
+          </div>
         </div>
       </div>`;
     }
@@ -2754,6 +2766,52 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
     }
   }
 }
+
+/* ══════════════════════════════════════════════
+   NEW FLOW ACTIONS (REVISION & APPROVE)
+══════════════════════════════════════════════ */
+
+function requestRevision(freelancerId) {
+    sendMsg(CU.id, freelancerId, null, null, '🔄 Needs Revision: Please check the video again and make the necessary changes.');
+    showToast('Revision requested!', 'info', '');
+}
+
+function triggerApproveAndPay(projectId) {
+    if (!projectId || projectId === 'undefined') {
+        showToast('Project not found.', 'err', '');
+        return;
+    }
+    showModal('Confirm Payment', 'Are you sure you want to approve this final video and pay the freelancer? This will unlock the download.', () => {
+        processApproveAndPay(projectId);
+    });
+    document.getElementById('modal-confirm').textContent = 'OK';
+}
+
+async function processApproveAndPay(projectId) {
+    const p = DB.projects().find(x => x.id === projectId);
+    if (p) { 
+        p.paid = true; 
+        p.status = 'completed'; 
+        DB.saveProjects(DB.projects()); 
+        if (supaClient) {
+            await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', p.id);
+        }
+        
+        await sendMsg(CU.id, p.freelancerId, null, null, '✅ Project Approved & Paid! Perfect video edit. Great working with you.');
+        
+        showToast('Payment successful! Video is now downloadable.', 'ok', '');
+        
+        // Refresh chat UI
+        const el = document.getElementById('chat-msgs-el');
+        if (el && currentChatUserId) {
+           const key = [CU.id, currentChatUserId].sort().join('_');
+           el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+           el.scrollTop = el.scrollHeight;
+        }
+        updateChatSidebarPreviews();
+    }
+}
+
 
 /* ══════════════════════════════════════════════
    SHARED HELPERS
