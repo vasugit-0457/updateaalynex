@@ -1,1 +1,2983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Aalynex</title>
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #F7F6F3;
+  --bg2: #EFEDE8;
+  --surface: #FFFFFF;
+  --surface2: #F9F8F6;
+  --glass: rgba(255,255,255,0.72);
+  --glass-strong: rgba(255,255,255,0.92);
+  --glass-border: rgba(0,0,0,0.07);
+  --glass-border-strong: rgba(0,0,0,0.12);
+  --blur: blur(20px) saturate(160%);
+  --blur-sm: blur(12px) saturate(140%);
+  --accent: #E05C2A;
+  --accent-glow: rgba(224,92,42,0.15);
+  --accent-soft: rgba(224,92,42,0.08);
+  --accent2: #7C3AED;
+  --accent2-soft: rgba(124,58,237,0.08);
+  --green: #16A34A;
+  --green-soft: rgba(22,163,74,0.08);
+  --blue: #1D4ED8;
+  --blue-soft: rgba(29,78,216,0.08);
+  --yellow: #D97706;
+  --red: #DC2626;
+  --text: #1A1917;
+  --text-2: rgba(26,25,23,0.65);
+  --text-3: rgba(26,25,23,0.42);
+  --text-4: rgba(26,25,23,0.22);
+  --creator: #16A34A;
+  --freelancer: #7C3AED;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --radius-lg: 20px;
+  --sidebar-w: 248px;
+  --nav-h: 62px;
+  --shadow-xs: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.05);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 3px 10px rgba(0,0,0,0.06);
+  --shadow-xl: 0 16px 48px rgba(0,0,0,0.11), 0 6px 16px rgba(0,0,0,0.06);
+}
 
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'DM Sans',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:-2;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% -5%, rgba(224,92,42,.06) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 105%, rgba(124,58,237,.05) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 60% at 50% 50%, rgba(29,78,216,.03) 0%,transparent 70%),
+    var(--bg);
+  pointer-events:none;
+}
+
+/* ── SVG ICON SYSTEM ── */
+.icon-svg {
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.icon-svg svg {width:100%;height:100%;}
+
+/* Nav icon container */
+.ni-icon {
+  width:18px;height:18px;
+  display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.ni-icon svg {width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Section card icons */
+.card-icon-img {
+  width:52px;height:52px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.card-icon-img svg {width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Role card icons */
+.role-icon-wrap {
+  width:56px;height:56px;border-radius:16px;
+  margin:0 auto 12px;
+  display:flex;align-items:center;justify-content:center;
+}
+.role-icon-wrap svg {width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+
+/* How-card icons */
+.how-card-icon-wrap {
+  width:56px;height:56px;border-radius:16px;
+  background:linear-gradient(135deg,rgba(224,92,42,.1),rgba(240,122,69,.05));
+  border:1px solid rgba(224,92,42,.15);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 14px;position:relative;z-index:1;
+}
+.how-card-icon-wrap svg {width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Why card icons */
+.why-icon-wrap {
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.why-icon-wrap svg {width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+.why-icon-wrap.ic-1{background:rgba(224,92,42,.1);border:1px solid rgba(224,92,42,.18);color:var(--accent);}
+.why-icon-wrap.ic-2{background:rgba(29,78,216,.08);border:1px solid rgba(29,78,216,.15);color:var(--blue);}
+.why-icon-wrap.ic-3{background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.15);color:var(--green);}
+
+/* f-avatar icon override */
+.f-card-icon {
+  width:44px;height:44px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:.95rem;font-family:'Outfit',sans-serif;color:#fff;
+}
+
+/* project icon images */
+.pico-icon {width:22px;height:22px;stroke:var(--text-3);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Social icons */
+.social-btn-icon {width:16px;height:16px;flex-shrink:0;}
+
+.screen{display:none;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+.glass{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-border);}
+.glass-strong{background:var(--glass-strong);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-border-strong);}
+
+/* ── NAV ── */
+nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:var(--nav-h);
+  background:rgba(247,246,243,0.88);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border-bottom:1px solid var(--glass-border);
+  position:sticky;top:0;z-index:200;
+  flex-shrink:0;gap:8px;
+  box-shadow:var(--shadow-xs);
+}
+.logo{
+  font-family:'Outfit',sans-serif;font-size:1.22rem;font-weight:800;
+  letter-spacing:-.5px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.logo-img{height:38px;width:auto;object-fit:contain;padding:6px;background:#fff;border-radius:8px;border:1px solid rgba(0,0,0,0.8);}
+.logo-icon{
+  width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,#fff,#f3f3f3);
+  display:flex;align-items:center;justify-content:center;font-size:.95rem;
+  box-shadow:0 2px 10px var(--accent-glow);flex-shrink:0;position:relative;
+}
+.logo-icon::after{content:'';position:absolute;inset:-1px;border-radius:10px;background:linear-gradient(135deg,rgba(224,92,42,.3),rgba(240,122,69,.1));z-index:-1;filter:blur(3px);}
+.logo span{color:var(--accent);}
+.logo-text{background:linear-gradient(90deg,#E05C2A,#F07A45);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700;}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.nav-greeting{font-size:.8rem;color:var(--text-3);white-space:nowrap;}
+.nav-greeting strong{color:var(--creator);}
+.nav-greeting{background:rgba(0,0,0,0.04);padding:6px 12px;border-radius:999px;border:1px solid var(--glass-border);}
+.nav-greeting-f strong{color:var(--freelancer);}
+.hamburger{
+  display:none;width:36px;height:36px;border-radius:8px;
+  background:var(--glass);border:1px solid var(--glass-border);
+  align-items:center;justify-content:center;cursor:pointer;
+  flex-direction:column;gap:4px;padding:9px;
+  backdrop-filter:var(--blur-sm);flex-shrink:0;box-shadow:var(--shadow-xs);
+}
+.hamburger span{display:block;height:1.5px;width:18px;background:var(--text);border-radius:2px;transition:all .3s;}
+.hamburger.open span:nth-child(1){transform:rotate(45deg) translate(4px,4px);}
+.hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0);}
+.hamburger.open span:nth-child(3){transform:rotate(-45deg) translate(4px,-4px);}
+
+/* ── BUTTONS ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 20px;border-radius:var(--radius-sm);border:none;
+  cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:500;
+  transition:all .2s cubic-bezier(.25,.46,.45,.94);letter-spacing:-.01em;white-space:nowrap;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#F07A45);color:#fff;
+  box-shadow:0 2px 8px var(--accent-glow);position:relative;overflow:hidden;
+}
+.btn-primary::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);transition:0.5s;}
+.btn-primary:hover::after{left:100%;}
+.btn-primary:hover{background:linear-gradient(135deg,#CB5224,#E36A35);box-shadow:0 4px 18px rgba(224,92,42,.30);transform:translateY(-1px);}
+.btn-ghost{background:var(--surface);backdrop-filter:var(--blur-sm);border:1px solid var(--glass-border-strong);color:var(--text);box-shadow:var(--shadow-xs);}
+.btn-ghost:hover{border-color:rgba(0,0,0,.18);background:var(--surface2);box-shadow:var(--shadow-sm);}
+.btn-green-btn{background:var(--green);color:#fff;font-weight:600;box-shadow:0 2px 8px rgba(22,163,74,.18);}
+.btn-green-btn:hover{background:#15803D;box-shadow:0 4px 14px rgba(22,163,74,.22);}
+.btn-purple{background:var(--accent2);color:#fff;box-shadow:0 2px 8px rgba(124,58,237,.18);}
+.btn-purple:hover{background:#6D28D9;box-shadow:0 4px 14px rgba(124,58,237,.22);}
+.btn-outline-creator{background:transparent;border:1px solid rgba(22,163,74,.3);color:var(--creator);}
+.btn-outline-creator:hover{background:var(--green-soft);}
+.btn-outline-f{background:transparent;border:1px solid rgba(124,58,237,.3);color:var(--freelancer);}
+.btn-outline-f:hover{background:var(--accent2-soft);}
+.btn-danger{background:transparent;border:1px solid rgba(220,38,38,.25);color:var(--red);}
+.btn-danger:hover{background:rgba(220,38,38,.06);}
+.btn-sm{padding:7px 14px;font-size:.8rem;}
+.btn-xs{padding:5px 11px;font-size:.75rem;}
+.full-btn{width:100%;}
+
+/* ── FORMS ── */
+.fg{margin-bottom:16px;position:relative;}
+.fg label{display:block;font-size:.75rem;color:var(--text-2);margin-bottom:6px;font-weight:500;letter-spacing:.02em;}
+.fg input,.fg select,.fg textarea{
+  width:100%;padding:11px 13px;background:var(--surface);
+  border:1px solid var(--glass-border-strong);border-radius:10px;
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;
+  box-shadow:var(--shadow-xs);transition:all 0.22s cubic-bezier(.25,.46,.45,.94);
+}
+.fg input:hover,.fg select:hover,.fg textarea:hover{border-color:rgba(0,0,0,.18);box-shadow:var(--shadow-sm);}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:rgba(224,92,42,.5);background:#fff;box-shadow:0 0 0 3px rgba(224,92,42,.1), var(--shadow-sm);transform:scale(1.015);}
+.fg input::placeholder{color:var(--text-3);opacity:.8;}
+.fg select option{background:#fff;color:var(--text);}
+.fg textarea{resize:vertical;min-height:80px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.input-error{border-color:rgba(220,38,38,.4)!important;}
+.field-err{font-size:.72rem;color:var(--red);margin-top:3px;}
+.otp-note{font-size:.72rem;color:var(--green);margin-top:3px;display:flex;align-items:center;gap:4px;}
+
+/* ── LANDING ── */
+.hero{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:72px 20px 48px;
+  position:relative;overflow:hidden;
+}
+.hero-glow{
+  position:absolute;width:560px;height:560px;border-radius:50%;
+  background:radial-gradient(circle,rgba(224,92,42,.08) 0%,transparent 70%);
+  top:-100px;left:50%;transform:translateX(-50%);pointer-events:none;
+}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 14px;
+  border-radius:99px;background:rgba(224,92,42,.08);
+  border:1px solid rgba(224,92,42,.2);color:var(--accent);font-size:.76rem;font-weight:500;
+  margin-bottom:22px;animation:fadeDown .5s ease both;box-shadow:var(--shadow-xs);
+}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+h1{
+  font-family:'Outfit',sans-serif;
+  font-size:clamp(2.2rem,5.5vw,4.4rem);
+  font-weight:800;line-height:1.05;letter-spacing:-2px;
+  margin-bottom:18px;animation:fadeDown .6s .08s ease both;color:var(--text);
+}
+h1 em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--accent),#F07A45);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero-sub{color:var(--text-2);font-size:1rem;max-width:500px;line-height:1.7;margin-bottom:36px;animation:fadeDown .6s .16s ease both;}
+.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;animation:fadeDown .6s .22s ease both;margin-bottom:48px;}
+.hero-btn{padding:13px 28px;font-size:.95rem;border-radius:12px;}
+
+/* Role Cards */
+.role-cards{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;animation:fadeUp .7s .3s ease both;}
+.role-card{
+  background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);padding:28px 28px 22px;min-width:190px;
+  text-align:center;transition:all .3s cubic-bezier(.25,.46,.45,.94);cursor:pointer;
+  box-shadow:var(--shadow-sm);
+}
+.role-card h3{font-family:'Outfit',sans-serif;font-size:.95rem;font-weight:600;margin-bottom:5px;color:var(--text);}
+.role-card p{color:var(--text-3);font-size:.79rem;line-height:1.5;}
+.role-card.cc .role-icon-wrap{background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.2);color:var(--creator);}
+.role-card.fc .role-icon-wrap{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);color:var(--freelancer);}
+.role-card.cc:hover{border-color:rgba(22,163,74,.3);transform:translateY(-5px);box-shadow:0 12px 32px rgba(22,163,74,.12), var(--shadow-md);}
+.role-card.fc:hover{border-color:rgba(124,58,237,.3);transform:translateY(-5px);box-shadow:0 12px 32px rgba(124,58,237,.12), var(--shadow-md);}
+
+/* HOW IT WORKS */
+.how-section{padding:64px 24px 48px;text-align:center;animation:fadeUp .7s .35s ease both;}
+.section-heading{font-family:'Outfit',sans-serif;font-size:clamp(1.55rem,3.5vw,2.2rem);font-weight:800;letter-spacing:-.5px;margin-bottom:10px;color:var(--text);}
+.section-heading em{font-style:normal;background:linear-gradient(135deg,var(--accent),#F07A45);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.section-sub{color:var(--text-3);font-size:.88rem;margin-bottom:36px;}
+.how-cards{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;max-width:860px;margin:0 auto;position:relative;}
+.how-card{
+  background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);padding:28px 24px 24px;flex:1;min-width:190px;max-width:240px;
+  text-align:center;transition:all .3s cubic-bezier(.25,.46,.45,.94);
+  position:relative;overflow:hidden;box-shadow:var(--shadow-sm);
+}
+.how-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius-lg);background:radial-gradient(circle at 50% 0%,rgba(224,92,42,.05) 0%,transparent 70%);opacity:0;transition:opacity .3s;}
+.how-card:hover{transform:translateY(-6px);border-color:rgba(224,92,42,.25);box-shadow:0 16px 40px rgba(224,92,42,.10), var(--shadow-md);}
+.how-card:hover::before{opacity:1;}
+.how-card-step{font-family:'Outfit',sans-serif;font-size:.98rem;font-weight:700;margin-bottom:5px;letter-spacing:-.2px;position:relative;z-index:1;color:var(--text);}
+.how-card-sub{color:var(--text-3);font-size:.78rem;line-height:1.5;position:relative;z-index:1;}
+.how-card-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),#F07A45);
+  color:#fff;font-size:.68rem;font-weight:800;
+  position:absolute;top:14px;right:16px;
+  box-shadow:0 2px 8px var(--accent-glow);
+}
+
+/* WHY AALYNEX */
+.why-section{padding:0 24px 64px;animation:fadeUp .7s .42s ease both;}
+.why-inner{max-width:860px;margin:0 auto;}
+.why-cards{display:flex;gap:14px;flex-direction:column;}
+.why-card{
+  animation:fadeUp .6s ease both;background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--radius);padding:18px 22px;display:flex;align-items:center;gap:16px;
+  transition:all .35s cubic-bezier(.25,.46,.45,.94);position:relative;overflow:hidden;box-shadow:var(--shadow-xs);
+}
+.why-card::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:0 2px 2px 0;opacity:0;transition:opacity .3s;}
+.why-card:hover{border-color:rgba(0,0,0,.1);transform:translateX(6px) scale(1.01);box-shadow:var(--shadow-md);}
+@media(hover:none){.why-card:active{transform:scale(0.97);box-shadow:var(--shadow-sm);}}
+.why-card:hover::after{opacity:1;}
+.why-card-text{flex:1;min-width:0;}
+.why-card-title{font-family:'Outfit',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:3px;letter-spacing:-.1px;color:var(--text);}
+.why-card-desc{color:var(--text-3);font-size:.78rem;line-height:1.5;}
+.landing-divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--glass-border-strong),transparent);margin:0 auto;max-width:860px;}
+.stats-bar{display:flex;gap:0;justify-content:center;border-top:1px solid var(--glass-border);flex-wrap:wrap;padding:0;background:var(--surface);}
+.stat{padding:18px 32px;text-align:center;border-right:1px solid var(--glass-border);flex:1;min-width:100px;}
+.stat:last-child{border-right:none;}
+.stat strong{display:block;font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:700;background:linear-gradient(135deg,var(--accent),#F07A45);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat span{color:var(--text-3);font-size:.75rem;}
+
+/* ── AUTH ── */
+.auth-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 16px;}
+.auth-box{background:var(--surface);border:1px solid var(--glass-border-strong);border-radius:var(--radius-lg);padding:36px;width:100%;max-width:440px;position:relative;overflow:hidden;box-shadow:var(--shadow-xl);}
+.auth-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:var(--radius-lg) var(--radius-lg) 0 0;}
+.auth-tabs{display:flex;margin-bottom:24px;background:var(--bg2);border-radius:var(--radius-sm);padding:3px;border:1px solid var(--glass-border);}
+.auth-tab{flex:1;padding:8px;text-align:center;border-radius:7px;cursor:pointer;font-size:.85rem;font-weight:500;color:var(--text-3);transition:all .2s;}
+.auth-tab.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-sm);}
+.role-select{display:flex;gap:9px;margin-bottom:20px;}
+.role-btn{flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border-strong);background:transparent;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.83rem;font-weight:500;color:var(--text-3);transition:all .2s;text-align:center;}
+.role-btn.ac{border-color:rgba(22,163,74,.35);color:var(--creator);background:var(--green-soft);}
+.role-btn.af{border-color:rgba(124,58,237,.35);color:var(--freelancer);background:var(--accent2-soft);}
+.upload-area{border:1.5px dashed rgba(0,0,0,.12);border-radius:var(--radius-sm);padding:16px;text-align:center;cursor:pointer;color:var(--text-3);font-size:.8rem;transition:all .2s;background:var(--bg2);}
+.upload-area:hover{border-color:rgba(124,58,237,.4);color:var(--text-2);}
+.form-footer{margin-top:14px;text-align:center;font-size:.8rem;color:var(--text-3);}
+.form-footer a{color:var(--accent);cursor:pointer;text-decoration:none;}
+.form-footer a:hover{text-decoration:underline;}
+.btn-loading{position:relative;pointer-events:none;opacity:.75;}
+.btn-loading::after{content:'';position:absolute;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;right:12px;top:50%;transform:translateY(-50%);}
+@keyframes spin{to{transform:translateY(-50%) rotate(360deg);}}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;top:72px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{background:var(--surface);border:1px solid var(--glass-border-strong);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:.84rem;min-width:240px;animation:toastIn .3s ease both;box-shadow:var(--shadow-lg);pointer-events:all;color:var(--text);}
+.toast.hide{animation:toastOut .3s ease both;}
+.toast-icon{font-size:1rem;flex-shrink:0;}
+@keyframes toastIn{from{opacity:0;transform:translateX(60px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateX(60px);}}
+
+/* ── DASHBOARD LAYOUT ── */
+.dash-layout{flex:1;display:flex;overflow:hidden;position:relative;}
+.sidebar-overlay{display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.25);backdrop-filter:blur(3px);}
+.sidebar-overlay.show{display:block;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--glass-border);
+  padding:20px 12px;display:flex;flex-direction:column;gap:2px;
+  overflow-y:auto;z-index:160;
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94);
+  box-shadow:var(--shadow-sm);
+}
+.sb-profile{background:var(--bg2);border:1px solid var(--glass-border);border-radius:var(--radius);padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:11px;}
+.sb-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;font-family:'Outfit',sans-serif;}
+.sb-av-creator{background:linear-gradient(135deg,var(--creator),#059669);color:#fff;}
+.sb-av-freelancer{background:linear-gradient(135deg,var(--freelancer),#6D28D9);color:#fff;}
+.sb-name{font-size:.85rem;font-weight:600;line-height:1.2;color:#111;}
+.sb-role{font-size:.7rem;color:#444;}
+.sb-section{font-size:.67rem;color:#666;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:12px 10px 5px;}
+.nav-item{
+  display:flex;align-items:center;gap:9px;padding:9px 11px;
+  border-radius:var(--radius-sm);cursor:pointer;color:#333;
+  font-size:.85rem;font-weight:500;transition:all .2s;
+}
+.nav-item:hover{background:var(--bg2);color:#111;}
+.nav-item.active{
+  background:rgba(224,92,42,.08);color:var(--accent);
+  border:1px solid rgba(224,92,42,.15);border-left:3px solid var(--accent);
+}
+.nav-item .ni{font-size:.95rem;width:18px;text-align:center;color:inherit;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:99px;min-width:18px;text-align:center;}
+.sb-logout{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--radius-sm);cursor:pointer;color:var(--red);font-size:.85rem;font-weight:500;transition:all .2s;margin-top:auto;border:1px solid rgba(220,38,38,.15);background:rgba(220,38,38,.04);}
+.sb-logout:hover{background:rgba(220,38,38,.08);border-color:rgba(220,38,38,.25);}
+
+/* ── DASH MAIN ── */
+.dash-main{flex:1;overflow-y:auto;padding:28px 28px;scroll-behavior:smooth;background:var(--bg);}
+.page-head{margin-bottom:22px;}
+.page-head h2{font-family:'Outfit',sans-serif;font-size:1.45rem;font-weight:700;letter-spacing:-.3px;color:var(--text);}
+.page-head p{color:var(--text-2);font-size:.85rem;margin-top:3px;}
+
+/* ── METRIC CARDS ── */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
+.mc{
+  background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-xs);transition:all .3s cubic-bezier(.25,.46,.45,.94);
+  animation:fadeUp 0.5s ease both;
+}
+.mc::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.6),transparent);transition:all 0.6s;}
+.mc:hover{border:1px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,linear-gradient(135deg,var(--accent),var(--accent2)) border-box;box-shadow:var(--shadow-md);transform:translateY(-2px);}
+@media(hover:hover){
+  .mc:hover::before{left:100%;}
+  .mc.a:hover{box-shadow:0 12px 32px rgba(224,92,42,.14);}
+  .mc.g:hover{box-shadow:0 12px 32px rgba(22,163,74,.14);}
+  .mc.p:hover{box-shadow:0 12px 32px rgba(124,58,237,.14);}
+  .mc.b:hover{box-shadow:0 12px 32px rgba(29,78,216,.14);}
+}
+@media(hover:none){.mc:active{transform:scale(0.96);box-shadow:var(--shadow-sm);}}
+.mc .label{font-size:.7rem;color:var(--text-3);margin-bottom:6px;letter-spacing:.02em;}
+.mc .value{font-family:'Outfit',sans-serif;font-size:1.65rem;font-weight:700;letter-spacing:-.5px;transition:transform .3s ease;}
+@media(hover:hover){.mc:hover .value{transform:translateY(-2px) scale(1.04);}}
+.mc .sub{font-size:.7rem;color:var(--text-3);margin-top:3px;}
+.mc.a{border-color:rgba(224,92,42,.2);background:rgba(224,92,42,.04);}
+.mc.a .value{color:var(--accent);}
+.mc.g{border-color:rgba(22,163,74,.2);background:rgba(22,163,74,.04);}
+.mc.g .value{color:var(--green);}
+.mc.p{border-color:rgba(124,58,237,.2);background:rgba(124,58,237,.04);}
+.mc.p .value{color:var(--accent2);}
+.mc.b{border-color:rgba(29,78,216,.2);background:rgba(29,78,216,.04);}
+.mc.b .value{color:var(--blue);}
+
+/* ── PROJECT CARDS ── */
+.section-title{font-family:'Outfit',sans-serif;font-size:.92rem;font-weight:600;margin-bottom:12px;letter-spacing:-.2px;color:var(--text);}
+.project-list{display:flex;flex-direction:column;gap:9px;}
+.pc{background:var(--surface);border:1px solid var(--glass-border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:13px;transition:all .2s;cursor:default;box-shadow:var(--shadow-xs);}
+.pc:hover{border-color:rgba(0,0,0,.1);transform:translateX(6px) scale(1.008);box-shadow:var(--shadow-md);}
+.pico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--bg2);flex-shrink:0;border:1px solid var(--glass-border);}
+.pinfo{flex:1;min-width:0;}
+.ptitle{font-weight:500;font-size:.875rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+.pmeta{font-size:.73rem;color:var(--text-3);}
+.pstatus{padding:3px 10px;border-radius:99px;font-size:.68rem;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.s-on{background:rgba(224,92,42,.1);color:var(--accent);}
+.s-co{background:rgba(22,163,74,.1);color:var(--green);}
+.s-pe{background:rgba(29,78,216,.1);color:var(--blue);}
+.s-wa{background:rgba(217,119,6,.1);color:var(--yellow);}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.det-card{background:var(--surface);border:1px solid var(--glass-border);border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow-xs);animation:fadeUp 0.5s ease both;transition:all .3s cubic-bezier(.25,.46,.45,.94);}
+.det-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:rgba(0,0,0,.1);}
+.det-card h4{font-family:'Outfit',sans-serif;font-size:.92rem;font-weight:600;margin-bottom:8px;color:var(--text);}
+.det-card p{font-size:.8rem;color:var(--text-2);line-height:1.6;}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--glass-border);font-size:.82rem;}
+.info-row:last-child{border:none;}
+.info-row .key{color:var(--text-3);}
+.pb{height:5px;background:rgba(0,0,0,.06);border-radius:99px;overflow:hidden;margin-top:8px;}
+.pf{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .6s ease;}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:.68rem;font-weight:600;background:var(--accent-soft);color:var(--accent);border:1px solid rgba(224,92,42,.18);}
+.tag.g{background:var(--green-soft);color:var(--green);border-color:rgba(22,163,74,.18);}
+.tag.pu{background:var(--accent2-soft);color:var(--accent2);border-color:rgba(124,58,237,.18);}
+.tag.b{background:var(--blue-soft);color:var(--blue);border-color:rgba(29,78,216,.18);}
+.alert{padding:11px 14px;border-radius:var(--radius-sm);font-size:.82rem;margin-bottom:13px;display:flex;align-items:flex-start;gap:8px;}
+.alert-s{background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);color:var(--green);}
+.alert-i{background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);color:var(--accent2);}
+.alert-w{background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.2);color:var(--yellow);}
+.alert-e{background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);color:var(--red);}
+
+/* ── WORKFLOW ── */
+.wf-stepper{display:flex;align-items:center;margin-bottom:24px;overflow-x:auto;padding-bottom:4px;gap:0;}
+.wf-stepper::-webkit-scrollbar{height:0;}
+.step{display:flex;align-items:center;}
+.step-dot{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--glass-border-strong);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:var(--text-4);flex-shrink:0;transition:all .3s;}
+.step-dot.done{background:var(--green);border-color:var(--green);color:#fff;}
+.step-dot.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 12px var(--accent-glow);}
+.step-line{width:32px;height:1.5px;background:rgba(0,0,0,.1);flex-shrink:0;}
+.step-line.done{background:var(--green);}
+.wf-body{background:var(--surface);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-sm);}
+.wf-body h3{font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;margin-bottom:16px;color:var(--text);}
+
+/* ── FREELANCER GRID ── */
+.f-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;}
+.f-card{background:var(--surface);border:1.5px solid var(--glass-border);border-radius:var(--radius);padding:14px;cursor:pointer;text-align:center;transition:all .2s;box-shadow:var(--shadow-xs);}
+.f-card:hover,.f-card.sel{border-color:rgba(224,92,42,.3);box-shadow:0 6px 20px rgba(224,92,42,.1), var(--shadow-sm);background:rgba(224,92,42,.03);}
+.f-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;font-family:'Outfit',sans-serif;color:#fff;}
+.f-name{font-size:.82rem;font-weight:600;margin-bottom:2px;color:var(--text);}
+.f-rate{font-size:.7rem;color:var(--accent);}
+.f-spec{font-size:.67rem;color:var(--text-3);}
+.stars{color:var(--yellow);font-size:.68rem;}
+.ct-list{display:flex;gap:8px;flex-wrap:wrap;}
+.ct-pill{padding:8px 16px;border-radius:99px;border:1px solid var(--glass-border-strong);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.8rem;color:var(--text-3);transition:all .2s;box-shadow:var(--shadow-xs);}
+.ct-pill.active{border-color:rgba(224,92,42,.35);color:var(--accent);background:var(--accent-soft);}
+
+/* ── CHAT ── */
+.chat-wrap{display:flex;height:440px;background:var(--surface);border:1px solid var(--glass-border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
+.chat-list{width:200px;border-right:1px solid var(--glass-border);overflow-y:auto;flex-shrink:0;background:var(--bg2);}
+.cc-item{padding:12px 13px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--glass-border);transition:background .2s;}
+.cc-item:hover,.cc-item.active{background:var(--surface);}
+.c-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),#6D28D9);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.78rem;flex-shrink:0;color:#fff;}
+.cc-name{font-size:.8rem;font-weight:500;margin-bottom:1px;color:var(--text);}
+.cc-prev{font-size:.67rem;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+.chat-area{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--surface);}
+.ch-header{padding:12px 16px;border-bottom:1px solid var(--glass-border);font-weight:500;font-size:.85rem;display:flex;align-items:center;gap:8px;background:var(--bg2);color:var(--text);}
+.online-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px rgba(22,163,74,.5);}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--bg);}
+.msg{max-width:68%;padding:8px 12px;border-radius:10px;font-size:.8rem;line-height:1.5;word-break:break-word;}
+.msg-time{font-size:.6rem;color:var(--text-4);margin-top:2px;}
+.msg.received{background:var(--surface);border:1px solid var(--glass-border);border-radius:2px 10px 10px 10px;align-self:flex-start;color:var(--text);box-shadow:var(--shadow-xs);}
+.msg.sent{background:var(--accent);color:#fff;border-radius:10px 2px 10px 10px;align-self:flex-end;}
+.msg.sent .msg-time{color:rgba(255,255,255,.55);}
+.msg-video{max-width:72%;align-self:flex-start;}
+.msg-video.sent-video{align-self:flex-end;}
+.msg-video-inner{background:var(--surface);border:1px solid var(--glass-border);border-radius:12px;overflow:hidden;transition:border-color .2s;box-shadow:var(--shadow-xs);}
+.msg-video.sent-video .msg-video-inner{background:rgba(224,92,42,.06);border-color:rgba(224,92,42,.2);}
+.msg-video-inner:hover{border-color:rgba(0,0,0,.18);}
+.msg-video-label{display:flex;align-items:center;gap:7px;padding:9px 12px;font-size:.76rem;font-weight:500;color:var(--text-2);border-bottom:1px solid var(--glass-border);}
+.msg-video-label .vico{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#F07A45);display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0;}
+.msg-video-player{display:block;width:100%;max-width:280px;max-height:160px;object-fit:cover;background:#000;}
+.msg-video-footer{padding:6px 12px;font-size:.65rem;color:var(--text-3);display:flex;justify-content:space-between;align-items:center;}
+.upload-area-lg{border:1.5px dashed rgba(0,0,0,.12);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;margin:12px 0;display:block;background:var(--bg2);}
+.upload-area-lg:hover{border-color:rgba(224,92,42,.4);background:rgba(224,92,42,.02);}
+.upload-area-lg.has-file{border-color:rgba(22,163,74,.4);background:rgba(22,163,74,.03);}
+.upload-icon{font-size:2.2rem;margin-bottom:8px;}
+.upload-label{font-weight:500;font-size:.9rem;margin-bottom:4px;color:var(--text);}
+.upload-sub{font-size:.76rem;color:var(--text-3);}
+.upload-progress-wrap{margin:10px 0;display:none;}
+.upload-progress-wrap.show{display:block;}
+.upload-progress-bar{height:4px;background:rgba(0,0,0,.07);border-radius:99px;overflow:hidden;}
+.upload-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .3s ease;}
+.upload-progress-label{font-size:.72rem;color:var(--text-3);margin-top:5px;text-align:center;}
+.star-rating{display:flex;gap:4px;font-size:1.6rem;cursor:pointer;margin:7px 0;}
+.star-rating span{color:rgba(0,0,0,.1);transition:color .15s,transform .15s;}
+.star-rating span:hover{transform:scale(1.1);}
+.star-rating span.lit{color:var(--yellow);}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.25);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--glass-border-strong);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:420px;box-shadow:var(--shadow-xl);animation:modalIn .25s ease both;}
+@keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(8px);}to{opacity:1;transform:none;}}
+.modal h3{font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:600;margin-bottom:16px;color:var(--text);}
+.modal-footer{display:flex;gap:10px;margin-top:18px;justify-content:flex-end;}
+
+@keyframes fadeDown{from{opacity:0;transform:translateY(-12px);}to{opacity:1;transform:none;}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.fade-in{animation:fadeIn .3s ease both;}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:190;background:rgba(255,255,255,.95);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-top:1px solid var(--glass-border);box-shadow:0 -4px 20px rgba(0,0,0,.06);padding:8px 4px max(8px, env(safe-area-inset-bottom));gap:0;}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;color:var(--text-3);font-size:.58rem;position:relative;}
+.bn-item .bn-icon{font-size:1.15rem;transition:transform .2s;}
+.bn-item.active{color:var(--accent);}
+.bn-item.active .bn-icon{transform:translateY(-1px);}
+.bn-badge{position:absolute;top:3px;right:calc(50% - 14px);background:var(--accent);color:#fff;font-size:.55rem;font-weight:700;padding:1px 4px;border-radius:99px;min-width:14px;text-align:center;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.2);}
+.divider{display:flex;align-items:center;gap:12px;margin:14px 0;color:var(--text-4);font-size:.75rem;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--glass-border);}
+.chat-inp-bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--glass-border);background:var(--surface); align-items: center;}
+.chat-inp{flex:1;padding:8px 12px;background:var(--bg2);border:1px solid var(--glass-border-strong);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:border .2s;}
+.chat-inp:focus{border-color:rgba(224,92,42,.4);background:#fff;box-shadow:0 0 0 2px rgba(224,92,42,.08);}
+.chat-inp::placeholder{color:var(--text-3);}
+
+/* ── SOCIAL / FOLLOW ── */
+.social-btn{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;border:1px solid var(--glass-border-strong);background:var(--surface);font-size:.85rem;color:var(--text-2);text-decoration:none;transition:all .25s ease;box-shadow:var(--shadow-xs);}
+.social-btn svg{width:16px;height:16px;}
+.social-btn:hover{transform:translateY(-3px) scale(1.04);border-color:rgba(224,92,42,.4);color:var(--accent);background:rgba(224,92,42,.06);box-shadow:0 8px 22px rgba(224,92,42,.12), var(--shadow-sm);}
+.follow-section{margin-top:40px;border-top:1px solid var(--glass-border);text-align:center;padding:40px 20px;background:var(--surface);}
+.follow-title{font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:18px;color:var(--text);}
+.social-links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:18px;}
+.social-links a{padding:8px 16px;border-radius:999px;border:1px solid var(--glass-border-strong);background:var(--surface);font-size:.85rem;color:var(--text-2);cursor:pointer;transition:all .2s;text-decoration:none;box-shadow:var(--shadow-xs);}
+.social-links a:hover{border-color:rgba(224,92,42,.3);color:var(--accent);background:rgba(224,92,42,.05);box-shadow:var(--shadow-sm);}
+.follow-bottom{font-size:.8rem;color:var(--text-3);}
+
+/* ── BOTTOM NAV ICON SIZING ── */
+.bn-icon-svg {display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;}
+.bn-icon-svg svg {width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+
+/* ── MOBILE RESPONSIVE ── */
+@media(max-width:768px){
+  :root{--nav-h:54px;--sidebar-w:260px;}
+  nav{padding:0 14px;gap:6px;}
+  .logo{font-size:1.1rem;}
+  .logo-icon{width:28px;height:28px;font-size:.82rem;}
+  .nav-greeting{display:none !important;}
+  .nav-right .btn-danger{display:none !important;}
+  .hamburger{display:flex;}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%);padding-top:calc(var(--nav-h) + 10px);box-shadow:4px 0 24px rgba(0,0,0,.12);}
+  .sidebar.mobile-open{transform:translateX(0);}
+  .sidebar-overlay{display:none;}
+  .sidebar-overlay.show{display:block;}
+  .dash-main{padding:14px 12px 84px;}
+  .bottom-nav{display:flex;}
+  .two-col{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .hero{padding:36px 14px 20px;}
+   h1{letter-spacing:-1px;}
+  .stats-bar{gap:0;}
+  .stat{padding:12px 12px;}
+  .chat-wrap{height:360px;}
+  .chat-list{width:0;min-width:0;overflow:hidden;border:none;}
+  .cards-grid{grid-template-columns:1fr 1fr;}
+  .f-grid{grid-template-columns:1fr 1fr;}
+  .auth-box{padding:22px 16px;}
+  .hero-cta .hero-btn{padding:11px 18px;font-size:.88rem;}
+  .toast-wrap{right:10px;left:10px;}
+  .toast{min-width:unset;}
+  .wf-body{padding:18px 14px;}
+  .msg-video-player{max-width:200px;}
+  .how-section{padding:44px 16px 32px;}
+  .why-section{padding:0 16px 44px;}
+  .how-cards{gap:12px;}
+  .how-card{min-width:140px;max-width:100%;padding:20px 16px 18px;}
+  .how-cards::before{display:none;}
+  .section-heading{font-size:1.4rem;}
+}
+@media(max-width:380px){
+  .cards-grid{grid-template-columns:1fr;}
+  .role-cards{flex-direction:column;align-items:center;}
+  .role-card{width:100%;max-width:300px;}
+  .hero-cta{flex-direction:column;align-items:stretch;}
+  .how-cards{flex-direction:column;align-items:center;}
+  .how-card{width:100%;max-width:300px;}
+}
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<div id="screen-landing" class="screen active">
+  <nav>
+    <div class="logo">
+      <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
+    <div class="nav-right">
+      <button class="btn btn-ghost btn-sm" onclick="goAuth('login')">Login</button>
+      <button class="btn btn-primary btn-sm" onclick="goAuth('signup')">Get Started</button>
+    </div>
+  </nav>
+  <div class="hero">
+    <div class="hero-glow"></div>
+    <h1>Connect <em>Creators</em><br/>with Pro Editors</h1>
+    <p class="hero-sub">Post Your Video Project, Find Expert Freelance Editors, Chat In Real-Time And Get Polished Content — Delivered Fast.</p>
+    <div class="hero-cta">
+      <button class="btn btn-primary hero-btn" onclick="goAuth('signup','creator')">I'm a Creator &rarr;</button>
+      <button class="btn btn-ghost hero-btn" style="border-color:rgba(124,58,237,.3);color:var(--freelancer);" onclick="goAuth('signup','freelancer')">I'm a Freelancer &rarr;</button>
+    </div>
+    <div class="role-cards">
+      <div class="role-card cc" onclick="goAuth('signup','creator')">
+        <div class="role-icon-wrap">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+        </div>
+        <h3>For Creators</h3>
+        <p>Post Projects, Choose Editors, Receive Polished Videos.</p>
+      </div>
+      <div class="role-card fc" onclick="goAuth('signup','freelancer')">
+        <div class="role-icon-wrap">
+          <svg viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>
+        </div>
+        <h3>For Editors</h3>
+        <p>Browse Projects, Set Your Budget, Grow Your Portfolio.</p>
+      </div>
+    </div>
+  </div>
+
+  <section class="how-section">
+    <div class="section-heading">How <em>Aalynex</em> Works</div>
+    <p class="section-sub">Three Simple Steps To Get Your Video Edited By A Pro</p>
+    <div class="how-cards">
+      <div class="how-card">
+        <span class="how-card-num">1</span>
+        <div class="how-card-icon-wrap">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+        </div>
+        <div class="how-card-step">Post Project</div>
+        <div class="how-card-sub">Upload Your Video Brief, Set Your Budget And Describe What You Need</div>
+      </div>
+      <div class="how-card">
+        <span class="how-card-num">2</span>
+        <div class="how-card-icon-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div class="how-card-step">Choose Editor</div>
+        <div class="how-card-sub">Browse Verified Freelancers, Compare Ratings And Select The Best One</div>
+      </div>
+      <div class="how-card">
+        <span class="how-card-num">3</span>
+        <div class="how-card-icon-wrap">
+          <svg viewBox="0 0 24 24"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </div>
+        <div class="how-card-step">Get Final Video</div>
+        <div class="how-card-sub">Review, Approve And Receive Your Polished Edited Content — Delivered Fast</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="why-section">
+    <div class="why-inner">
+      <div class="section-heading" style="text-align:center;margin-bottom:8px;">Why <em>Aalynex</em>?</div>
+      <p class="section-sub" style="text-align:center;">Built For Creators Who Move Fast And Editors Who Deliver Quality</p>
+      <div class="why-cards">
+        <div class="why-card">
+          <div class="why-icon-wrap ic-1">
+            <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="why-card-text">
+            <div class="why-card-title">Fast Turnaround</div>
+            <div class="why-card-desc">Get Videos Edited Within Your Desired Timeframe — From 24 Hours To Custom Deadlines</div>
+          </div>
+        </div>
+        <div class="why-card">
+          <div class="why-icon-wrap ic-2">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="why-card-text">
+            <div class="why-card-title">Direct Editor Chat</div>
+            <div class="why-card-desc">Chat Directly With Your Editor In Real-Time — No Middlemen, No Delays, Total Clarity</div>
+          </div>
+        </div>
+        <div class="why-card">
+          <div class="why-icon-wrap ic-3">
+            <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <div class="why-card-text">
+            <div class="why-card-title">100% Secure Payments</div>
+            <div class="why-card-desc">Funds Are Held In Escrow And Released Only When You Approve The Final Edit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <section class="follow-section">
+      <div class="follow-title">Follow Us On</div>
+      <div class="social-links">
+        <a href="https://youtube.com/@aalynex?si=tRi-d7DgXJtOYoTX" target="_blank" class="social-btn">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 15l5-3-5-3v6z"/><path fill="currentColor" d="M21.5 6.3s-.2-1.5-.9-2.2c-.8-.9-1.8-.9-2.2-.9C15.8 3 12 3 12 3s-3.8 0-6.4.2c-.4 0-1.4 0-2.2.9-.7.7-.9 2.2-.9 2.2S2.3 8 2.3 9.7v1.6c0 1.7.2 3.4.2 3.4s.2 1.5.9 2.2c.8.9 1.9.8 2.4.9C7.2 18 12 18 12 18s3.8 0 6.4-.2c.4 0 1.4 0 2.2-.9.7-.7.9-2.2.9-2.2s.2-1.7.2-3.4V9.7c0-1.7-.2-3.4-.2-3.4z"/></svg>
+          YouTube
+        </a>
+        <a href="https://www.instagram.com/aalynex?igsh=MTlzZDV2NTBmaGxkdA==" target="_blank" class="social-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          Instagram
+        </a>
+        <a href="https://facebook.com" target="_blank" class="social-btn">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 22v-9h3l1-4h-4V7c0-1 0-2 2-2h2V2h-3c-3 0-4 2-4 5v2H7v4h3v9h3z"/></svg>
+          Facebook
+        </a>
+        <a href="https://twitter.com" target="_blank" class="social-btn">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M22 5.8c-.7.3-1.4.5-2.2.6.8-.5 1.3-1.2 1.6-2-.8.5-1.6.8-2.5 1-1.5-1.6-4.2-1.4-5.6.3-1 1.2-1.2 2.8-.6 4.2-3.3-.2-6.3-1.8-8.3-4.4-1.1 1.8-.5 4.1 1.3 5.2-.6 0-1.2-.2-1.7-.5 0 2 1.4 3.8 3.4 4.2-.5.1-1 .2-1.5.1.4 1.6 2 2.8 3.7 2.8-1.5 1.2-3.3 1.8-5.2 1.8H2c1.9 1.2 4.1 1.9 6.3 1.9 7.5 0 11.6-6.3 11.6-11.7v-.5c.8-.5 1.5-1.2 2.1-2z"/></svg>
+          Twitter
+        </a>
+      </div>
+      <div class="follow-bottom">Trusted By Creators Worldwide</div>
+    </section>
+  </section>
+</div>
+
+<div id="screen-auth" class="screen">
+  <nav>
+    <div class="logo">
+      <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
+    <div class="nav-right">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-landing')">&larr; Back</button>
+    </div>
+  </nav>
+  <div class="auth-wrap">
+    <div class="auth-box fade-in">
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</div>
+        <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</div>
+      </div>
+      <div id="form-login">
+        <div class="role-select">
+          <div class="role-btn ac" id="lr-c" onclick="setLRole('creator')">Creator</div>
+          <div class="role-btn" id="lr-f" onclick="setLRole('freelancer')">Freelancer</div>
+        </div>
+        <div class="fg"><label>Email Address</label><input type="email" id="login-email" placeholder="you@example.com"/></div>
+        <div class="fg"><label>Password</label><input type="password" id="login-pw" placeholder="Enter your password"/></div>
+        <div id="login-err" class="alert alert-e" style="display:none;"></div>
+        <button class="btn btn-primary full-btn" style="margin-top:10px;" id="login-btn" onclick="doLogin()">Login &rarr;</button>
+        <div class="divider">or</div>
+        <div class="form-footer">Don't have an account? <a onclick="switchTab('signup')">Sign up free</a></div>
+      </div>
+      <div id="form-signup" style="display:none;">
+        <div class="role-select">
+          <div class="role-btn ac" id="sr-c" onclick="setSRole('creator')">Creator</div>
+          <div class="role-btn" id="sr-f" onclick="setSRole('freelancer')">Freelancer</div>
+        </div>
+        <div class="form-row">
+          <div class="fg"><label>Full Name</label><input type="text" id="su-name" placeholder="Your full name"/></div>
+          <div class="fg"><label>Phone</label><input type="tel" id="su-phone" placeholder="+91 9XXXXXXX"/></div>
+        </div>
+        <div class="fg">
+          <label>Email Address</label>
+          <input type="email" id="su-email" placeholder="you@example.com"/>
+          <div class="otp-note">Verification email will be sent</div>
+        </div>
+        <div class="fg"><label>Password</label><input type="password" id="su-pw" placeholder="Min 6 characters"/></div>
+        <div class="fg"><label>Profession</label>
+          <select id="su-profession">
+            <option>Content Creator</option><option>Influencer</option>
+            <option>YouTuber</option><option>Brand</option>
+            <option>Video Editor</option><option>Motion Designer</option>
+          </select>
+        </div>
+        <div id="su-creator-extra">
+          <div class="fg"><label>Primary Platform</label>
+            <select id="su-platform"><option>YouTube</option><option>Instagram</option><option>TikTok</option><option>LinkedIn</option><option>Multiple</option></select>
+          </div>
+        </div>
+        <div id="su-freelancer-extra" style="display:none;">
+          <div class="upload-area" onclick="showToast('File upload — integrate cloud storage in production','info','')">Upload Resume / Portfolio (PDF)</div>
+        </div>
+        <div id="signup-err" class="alert alert-e" style="display:none;margin-top:8px;"></div>
+        <button class="btn btn-primary full-btn" style="margin-top:14px;" id="signup-btn" onclick="doSignup()">Create Account &rarr;</button>
+        <div class="form-footer" style="margin-top:12px;">Already have an account? <a onclick="switchTab('login')">Log in</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-creator" class="screen">
+  <nav>
+    <div class="logo">
+      <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
+    <div class="nav-right">
+      <span class="nav-greeting" id="c-nav-greeting">Hi, <strong id="c-nav-name"></strong></span>
+      <div class="hamburger" id="c-hamburger" onclick="toggleSidebar('creator')">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </nav>
+  <div class="dash-layout">
+    <div class="sidebar-overlay" id="c-overlay" onclick="closeSidebar('creator')"></div>
+    <aside class="sidebar" id="c-sidebar">
+      <div class="sb-profile">
+        <div class="sb-avatar sb-av-creator" id="c-sb-avatar"></div>
+        <div><div class="sb-name" id="c-sb-name"></div><div class="sb-role" id="c-sb-role"></div></div>
+      </div>
+      <div class="sb-section">Account</div>
+      <div class="nav-item" data-page="profile" onclick="cPage('profile',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span></span> Profile
+      </div>
+      <div class="sb-section">Main</div>
+      <div class="nav-item active" data-page="home" onclick="cPage('home',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span></span> Dashboard
+      </div>
+      <div class="nav-item" data-page="new" onclick="cPage('new',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span></span> Post / Manage
+      </div>
+      <div class="nav-item" data-page="projects" onclick="cPage('projects',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span></span> My Projects
+      </div>
+      <div class="sb-section">Work</div>
+      <div class="nav-item" data-page="chat" onclick="cPage('chat',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span></span> Messages <span class="nav-badge" id="c-msg-badge" style="display:none;">1</span>
+      </div>
+      <div class="nav-item" data-page="payment" onclick="cPage('payment',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span></span> Payments
+      </div>
+      <div class="nav-item" data-page="rate" onclick="cPage('rate',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span></span> Rate Freelancer
+      </div>
+      <div class="sb-logout" onclick="logout()">
+        <span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> Logout
+      </div>
+    </aside>
+    <main class="dash-main" id="c-main"></main>
+  </div>
+  <nav class="bottom-nav" id="c-bottom-nav">
+    <div class="bn-item active" onclick="cPageMobile('home',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Home
+    </div>
+    <div class="bn-item" onclick="cPageMobile('new',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>Post
+    </div>
+    <div class="bn-item" onclick="cPageMobile('projects',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>Projects
+    </div>
+    <div class="bn-item" onclick="cPageMobile('chat',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>Chat
+    </div>
+    <div class="bn-item" onclick="cPageMobile('payment',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>Pay
+    </div>
+  </nav>
+</div>
+
+<div id="screen-freelancer" class="screen">
+  <nav>
+    <div class="logo">
+      <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
+      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+    </div>
+    <div class="nav-right">
+      <span class="nav-greeting nav-greeting-f" id="f-nav-greeting">Hi, <strong id="f-nav-name"></strong></span>
+      <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+      <div class="hamburger" id="f-hamburger" onclick="toggleSidebar('freelancer')">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </nav>
+  <div class="dash-layout">
+    <div class="sidebar-overlay" id="f-overlay" onclick="closeSidebar('freelancer')"></div>
+    <aside class="sidebar" id="f-sidebar">
+      <div class="sb-profile">
+        <div class="sb-avatar sb-av-freelancer" id="f-sb-avatar"></div>
+        <div><div class="sb-name" id="f-sb-name"></div><div class="sb-role" id="f-sb-role"></div></div>
+      </div>
+      <div class="sb-section">Main</div>
+      <div class="nav-item active" data-page="home" onclick="fPage('home',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span></span> Dashboard
+      </div>
+      <div class="nav-item" data-page="browse" onclick="fPage('browse',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span></span> Browse Projects
+      </div>
+      <div class="nav-item" data-page="ongoing" onclick="fPage('ongoing',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><polyline points="13 2 13 9 20 9"/><path d="M21 3L13 11"/><path d="M20 20H4a2 2 0 0 1-2-2V6"/></svg></span></span> Ongoing
+      </div>
+      <div class="sb-section">Work</div>
+      <div class="nav-item" data-page="chat" onclick="fPage('chat',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span></span> Messages <span class="nav-badge" id="f-msg-badge" style="display:none;">1</span>
+      </div>
+      <div class="nav-item" data-page="negotiate" onclick="fPage('negotiate',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></span> Negotiate
+      </div>
+      <div class="nav-item" data-page="upload" onclick="fPage('upload',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></span></span> Upload Work
+      </div>
+      <div class="sb-section">Account</div>
+      <div class="nav-item" data-page="earnings" onclick="fPage('earnings',this)">
+        <span class="ni"><span class="ni-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span></span> Earnings
+      </div>
+      <div class="sb-logout" onclick="logout()">
+        <span class="ni-icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> Logout
+      </div>
+    </aside>
+    <main class="dash-main" id="f-main"></main>
+  </div>
+  <nav class="bottom-nav" id="f-bottom-nav">
+    <div class="bn-item active" onclick="fPageMobile('home',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Home
+    </div>
+    <div class="bn-item" onclick="fPageMobile('browse',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>Browse
+    </div>
+    <div class="bn-item" onclick="fPageMobile('ongoing',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><polyline points="13 2 13 9 20 9"/><path d="M21 3L13 11"/><path d="M20 20H4a2 2 0 0 1-2-2V6"/></svg></span>Ongoing
+    </div>
+    <div class="bn-item" onclick="fPageMobile('chat',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>Chat
+    </div>
+    <div class="bn-item" onclick="fPageMobile('upload',this)">
+      <span class="bn-icon bn-icon-svg"><svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></span>Upload
+    </div>
+  </nav>
+</div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal" id="modal-inner">
+    <h3 id="modal-title">Confirm</h3>
+    <p id="modal-body" style="font-size:.85rem;color:var(--text-2);"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="modal-confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ══════════════════════════════════════════════
+   SUPABASE INIT
+══════════════════════════════════════════════ */
+const SUPABASE_URL = "https://sfzbrygqpodjinhpagaz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_h1rmGWdbBlMWPhkKugtOQw_6tP5ArtI";
+
+let supaClient;
+try {
+  if (!window.supabaseClient) {
+    supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    window.supabaseClient = supaClient;
+  } else {
+    supaClient = window.supabaseClient;
+  }
+  console.log("✅ Supabase client initialized");
+} catch(e) {
+  console.warn("Supabase init failed:", e);
+  supaClient = null;
+}
+
+/* ══════════════════════════════════════════════
+   DATABASE HANDLER
+══════════════════════════════════════════════ */
+const MemDB = { users: [], projects: [], msgs: {}, currentUser: null };
+
+const DB = {
+  users()           { return MemDB.users; },
+  saveUsers(data)   { MemDB.users = data; },
+  projects()        { return MemDB.projects; },
+  saveProjects(data){ MemDB.projects = data; },
+  messages()        { return MemDB.msgs; },
+  saveMessages(data){ MemDB.msgs = data; },
+
+  currentUser()          { return MemDB.currentUser || null; },
+  setCurrentUser(data)   { MemDB.currentUser = data; },
+  logout() {
+    MemDB.currentUser = null;
+    MemDB.users       = [];
+    MemDB.projects    = [];
+    MemDB.msgs        = {};
+  }
+};
+
+/* ══════════════════════════════════════════════
+   GLOBAL STATE
+══════════════════════════════════════════════ */
+let CU = null;
+let wfStep = 0, selContent = '', selFreelancerName = null;
+let selFreelancerIds = []; 
+let activeManageProjectId = null; 
+let newProjectDraft = {}; 
+let currentChatUserId = null; 
+
+/* ══════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════ */
+function uid()  { return 'u' + Date.now() + Math.random().toString(36).slice(2,7); }
+function pid() { 
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+function fmt(n) { return new Intl.NumberFormat('en-IN').format(n); }
+function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short' }); }
+function fmtTime(t) { return new Date(t).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }); }
+function fmtFileSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  if (bytes < 1024*1024*1024) return (bytes/(1024*1024)).toFixed(1) + ' MB';
+  return (bytes/(1024*1024*1024)).toFixed(2) + ' GB';
+}
+
+function showToast(msg, type = 'ok', icon = '') {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  const colors = { ok:'var(--green)', err:'var(--red)', info:'var(--accent)', warn:'var(--yellow)' };
+  t.className = 'toast';
+  t.innerHTML = `<span class="toast-icon" style="color:${colors[type]||colors.ok}">${icon}</span><span>${msg}</span>`;
+  wrap.appendChild(t);
+  setTimeout(() => { t.classList.add('hide'); setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+function showModal(title, body, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  document.getElementById('modal-bg').classList.add('show');
+  document.getElementById('modal-confirm').onclick = () => { closeModal(); onConfirm(); };
+}
+function closeModal() { document.getElementById('modal-bg').classList.remove('show'); }
+
+/* ══════════════════════════════════════════════
+   SCREEN & SIDEBAR CONTROL
+══════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function goAuth(tab, role) {
+  showScreen('screen-auth');
+  switchTab(tab);
+  if (role) { tab === 'signup' ? setSRole(role) : setLRole(role); }
+}
+function toggleSidebar(role) {
+  const p = role[0];
+  const sb = document.getElementById(p+'-sidebar');
+  const ov = document.getElementById(p+'-overlay');
+  const hb = document.getElementById(p+'-hamburger');
+  const open = sb.classList.contains('mobile-open');
+  if (open) { sb.classList.remove('mobile-open'); ov.classList.remove('show'); hb.classList.remove('open'); }
+  else      { sb.classList.add('mobile-open');    ov.classList.add('show');    hb.classList.add('open'); }
+}
+function closeSidebar(role) {
+  const p = role[0];
+  document.getElementById(p+'-sidebar').classList.remove('mobile-open');
+  document.getElementById(p+'-overlay').classList.remove('show');
+  document.getElementById(p+'-hamburger').classList.remove('open');
+}
+
+/* ══════════════════════════════════════════════
+   AUTH
+══════════════════════════════════════════════ */
+let loginRole = 'creator', signupRole = 'creator';
+
+function switchTab(t) {
+  document.getElementById('form-login').style.display  = t === 'login'  ? '' : 'none';
+  document.getElementById('form-signup').style.display = t === 'signup' ? '' : 'none';
+  document.getElementById('tab-login').className  = 'auth-tab' + (t==='login'  ? ' active' : '');
+  document.getElementById('tab-signup').className = 'auth-tab' + (t==='signup' ? ' active' : '');
+  document.getElementById('login-err').style.display  = 'none';
+  document.getElementById('signup-err').style.display = 'none';
+}
+function setLRole(r) {
+  loginRole = r;
+  document.getElementById('lr-c').className = 'role-btn' + (r==='creator'    ? ' ac' : '');
+  document.getElementById('lr-f').className = 'role-btn' + (r==='freelancer' ? ' af' : '');
+}
+function setSRole(r) {
+  signupRole = r;
+  document.getElementById('sr-c').className = 'role-btn' + (r==='creator'    ? ' ac' : '');
+  document.getElementById('sr-f').className = 'role-btn' + (r==='freelancer' ? ' af' : '');
+  document.getElementById('su-creator-extra').style.display  = r==='creator'    ? '' : 'none';
+  document.getElementById('su-freelancer-extra').style.display = r==='freelancer' ? '' : 'none';
+}
+
+function setBtn(id, loading, text) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  if (loading) { btn.classList.add('btn-loading'); btn.disabled = true; btn.textContent = text || '...'; }
+  else         { btn.classList.remove('btn-loading'); btn.disabled = false; }
+}
+
+async function doLogin() {
+  const email  = document.getElementById('login-email').value.trim();
+  const pw     = document.getElementById('login-pw').value;
+  const errEl  = document.getElementById('login-err');
+  errEl.style.display = 'none';
+
+  if (!email || !pw) { errEl.textContent = 'Please fill in all fields.'; errEl.style.display = 'flex'; return; }
+
+  setBtn('login-btn', true, 'Logging in…');
+
+  if (supaClient) {
+    try {
+      const { data, error } = await supaClient.auth.signInWithPassword({ email, password: pw });
+      if (!error && data.user) {
+        const { data: profile, error: pErr } = await supaClient.from('profiles').select('*').eq('id', data.user.id).single();
+        if (!pErr && profile) {
+          const u = {
+            id: profile.id,
+            name: profile.name || email.split('@')[0],
+            email: data.user.email,
+            phone: profile.phone || '',
+            role: profile.role || loginRole,
+            profession: profile.profession || '',
+            platform: profile.platform || '',
+            avatar: (profile.name || email).charAt(0).toUpperCase(),
+            createdAt: new Date(profile.created_at).getTime()
+          };
+          setBtn('login-btn', false);
+          loginSuccess(u);
+          showToast('Welcome back, ' + u.name.split(' ')[0] + '!', 'ok', '');
+          return;
+        } else {
+          const name = email.split('@')[0];
+          await supaClient.from('profiles').insert({
+            id: data.user.id, name, role: loginRole,
+            profession: '', platform: '', avatar: name.charAt(0).toUpperCase()
+          });
+          const u = {
+            id: data.user.id, name, email, phone: '',
+            role: loginRole, profession: '', platform: '',
+            avatar: name.charAt(0).toUpperCase(), createdAt: Date.now()
+          };
+          setBtn('login-btn', false);
+          loginSuccess(u);
+          showToast('Welcome, ' + u.name + '!', 'ok', '');
+          return;
+        }
+      } else {
+        setBtn('login-btn', false);
+        errEl.textContent = error?.message || 'Invalid email or password.';
+        errEl.style.display = 'flex';
+        return;
+      }
+    } catch(e) { console.warn('Supabase login error:', e); }
+  }
+
+  setBtn('login-btn', false);
+  errEl.textContent = 'Login failed. Please check your connection and try again.';
+  errEl.style.display = 'flex';
+}
+
+async function doSignup() {
+  const name       = document.getElementById('su-name').value.trim();
+  const phone      = document.getElementById('su-phone').value.trim();
+  const email      = document.getElementById('su-email').value.trim();
+  const pw         = document.getElementById('su-pw').value;
+  const profession = document.getElementById('su-profession').value;
+  const platform   = document.getElementById('su-platform')?.value || '';
+  const errEl      = document.getElementById('signup-err');
+
+  errEl.style.display = 'none';
+  if (!name || !email || !pw) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'flex'; return; }
+  if (pw.length < 6)          { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'flex'; return; }
+
+  setBtn('signup-btn', true, 'Creating account...');
+
+  if (supaClient) {
+    try {
+      const { data, error: authError } = await supaClient.auth.signUp({
+        email, password: pw,
+        options: { data: { name, phone, role: signupRole, profession, platform } }
+      });
+      if (authError) { errEl.textContent = authError.message; errEl.style.display = 'flex'; setBtn('signup-btn', false); return; }
+
+      const authUser = data.user || (await supaClient.auth.getUser()).data.user;
+      if (authUser) {
+        const { error: profileError } = await supaClient.from('profiles').upsert({
+          id: authUser.id, name, phone, role: signupRole, profession, platform,
+          avatar: name.charAt(0).toUpperCase()
+        }, { onConflict: 'id' });
+      }
+
+      const u = {
+        id: authUser?.id || uid(), name, email, phone,
+        role: signupRole, profession, platform,
+        avatar: name.charAt(0).toUpperCase(), createdAt: Date.now()
+      };
+
+      const users = DB.users();
+      if (!users.find(x => x.id === u.id)) users.push({ ...u });
+      DB.saveUsers(users);
+
+      setBtn('signup-btn', false);
+
+      if (!data.session) {
+        showToast('Account created! Please confirm your email.', 'info', '');
+        switchTab('login');
+        document.getElementById('login-email').value = email;
+      } else {
+        loginSuccess(u);
+        showToast('Welcome, ' + name.split(' ')[0] + '!', 'ok', '');
+      }
+    } catch(e) {
+      errEl.textContent = 'Something went wrong. Please try again.';
+      errEl.style.display = 'flex';
+      setBtn('signup-btn', false);
+    }
+    return;
+  }
+
+  setBtn('signup-btn', false);
+  errEl.textContent = 'Signup requires a connection. Please try again.';
+  errEl.style.display = 'flex';
+}
+
+async function loginSuccess(u) {
+  CU = u;
+  DB.setCurrentUser(u); 
+
+  if (u.role === 'creator') {
+    document.getElementById('c-nav-name').textContent  = u.name.split(' ')[0];
+    document.getElementById('c-sb-name').textContent   = u.name;
+    document.getElementById('c-sb-avatar').textContent = u.avatar || u.name.charAt(0).toUpperCase();
+    document.getElementById('c-sb-role').textContent   = 'Creator · ' + (u.platform || '');
+    showScreen('screen-creator');
+    renderC('home');
+  } else {
+    document.getElementById('f-nav-name').textContent  = u.name.split(' ')[0];
+    document.getElementById('f-sb-name').textContent   = u.name;
+    document.getElementById('f-sb-avatar').textContent = u.avatar || u.name.charAt(0).toUpperCase();
+    document.getElementById('f-sb-role').textContent   = 'Freelancer · ' + (u.profession || '');
+    showScreen('screen-freelancer');
+    renderF('home');
+  }
+  await syncFromSupabase(u);
+
+  // 🟢 SMOOTH REAL-TIME SYSTEM
+  if (supaClient) {
+    supaClient.channel('public:projects')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
+        syncFromSupabase(CU).then(() => {
+          const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
+          const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
+          if (CU.role === 'creator' && cPageActive !== 'chat') renderC(cPageActive || 'home');
+          else if (CU.role === 'freelancer' && fPageActive !== 'chat') renderF(fPageActive || 'home');
+        });
+      }).subscribe();
+
+    supaClient.channel('public:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        const newMsg = payload.new;
+        if (!newMsg) return;
+        
+        if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+
+        const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
+        if (!convo) return;
+        
+        if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
+
+        const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
+        const key = [CU.id, otherId].sort().join('_');
+        
+        const allMsgs = DB.messages();
+        if (!allMsgs[key]) allMsgs[key] = [];
+        
+        const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
+        
+        if (!exists) {
+            allMsgs[key].push({
+                from: newMsg.sender_id,
+                text: newMsg.text,
+                file_url: newMsg.file_url || null,
+                time: new Date(newMsg.created_at).getTime()
+            });
+            DB.saveMessages(allMsgs);
+        }
+
+        const el = document.getElementById('chat-msgs-el');
+        if (el && currentChatUserId === otherId) {
+            el.innerHTML = renderMsgs(allMsgs[key], CU.id);
+            el.scrollTop = el.scrollHeight; // Scroll to bottom
+        }
+        updateChatSidebarPreviews();
+      }).subscribe();
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SUPABASE SYNC
+══════════════════════════════════════════════ */
+async function syncFromSupabase(u) {
+  if (!supaClient) return;
+  try {
+    const { data: profiles } = await supaClient.from('profiles').select('*');
+    if (profiles && profiles.length) {
+      const localUsers = DB.users();
+      profiles.forEach(p => {
+        const exists = localUsers.find(x => x.id === p.id);
+        const mapped = {
+          id: p.id, name: p.name || 'User', email: '', phone: p.phone || '',
+          role: p.role || 'creator', profession: p.profession || '',
+          platform: p.platform || '', avatar: (p.name || 'U').charAt(0).toUpperCase(),
+          createdAt: new Date(p.created_at).getTime()
+        };
+        if (!exists) localUsers.push(mapped); else Object.assign(exists, mapped);
+      });
+      DB.saveUsers(localUsers);
+    }
+
+    const { data: projects } = await supaClient.from('projects').select('*');
+    if (projects && projects.length) {
+      const mapped = projects.map(p => ({
+        id: p.id, creatorId: p.creator_id, freelancerId: p.freelancer_id || null,
+        invited_freelancers: p.invited_freelancers || [], 
+        title: p.title || '', description: p.description || '', budget: p.budget || 0,
+        contentType: p.content_type || '', deadline: p.deadline || '', priority: p.priority || 'Normal',
+        status: p.status || 'open', rawShared: p.raw_shared || false,
+        editedUploaded: p.edited_uploaded || false, paid: p.paid || false,
+        rating: p.rating || 0, review: p.review || '', createdAt: new Date(p.created_at).getTime()
+      }));
+      DB.saveProjects(mapped);
+    }
+
+    const { data: convos } = await supaClient.from('conversations')
+      .select('*')
+      .or(`user1_id.eq.${u.id},user2_id.eq.${u.id}`);
+
+    if (convos && convos.length > 0) {
+      const convoIds = convos.map(c => c.id);
+      
+      const { data: messages } = await supaClient.from('messages')
+        .select('*')
+        .in('conversation_id', convoIds)
+        .order('created_at', { ascending: true });
+
+      if (messages && messages.length > 0) {
+        const msgMap = {};
+        messages.forEach(m => {
+          const c = convos.find(x => x.id === m.conversation_id);
+          if (c) {
+            const otherId = c.user1_id === u.id ? c.user2_id : c.user1_id;
+            const key = [u.id, otherId].sort().join('_');
+            
+            if (!msgMap[key]) msgMap[key] = [];
+            msgMap[key].push({
+              from: m.sender_id, 
+              text: m.text,
+              file_url: m.file_url || null,
+              time: new Date(m.created_at).getTime()
+            });
+          }
+        });
+        DB.saveMessages(msgMap);
+      }
+    }
+  } catch(e) {
+    console.warn('Sync failed, using in-memory data:', e);
+  }
+}
+
+function logout() {
+  showModal('Log Out', 'Are you sure you want to log out?', async () => {
+    if (supaClient) {
+      try { await supaClient.auth.signOut(); } catch(e) {}
+    }
+    CU = null; activeManageProjectId = null; currentChatUserId = null;
+    DB.logout();
+    showScreen('screen-landing');
+    showToast('Logged out successfully', 'info', '');
+  });
+}
+
+/* ══════════════════════════════════════════════
+   CREATOR PAGES
+══════════════════════════════════════════════ */
+function cPage(p, el) {
+  document.querySelectorAll('#screen-creator .nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  closeSidebar('creator');
+  
+  if (p === 'new') { 
+    if(!activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; newProjectDraft = {}; }
+  } else {
+    activeManageProjectId = null; 
+  }
+  
+  renderC(p);
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
+}
+
+function cPageMobile(p, el) {
+  document.querySelectorAll('#c-bottom-nav .bn-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('#c-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
+  
+  if (p === 'new' && !activeManageProjectId) { wfStep = 0; selContent = ''; selFreelancerIds = []; newProjectDraft = {}; }
+  if (p !== 'new') activeManageProjectId = null;
+  
+  renderC(p);
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
+}
+
+function renderC(p) {
+  const m = document.getElementById('c-main');
+  if      (p === 'home')     m.innerHTML = cHome();
+  else if (p === 'new')      m.innerHTML = cNew();
+  else if (p === 'projects') m.innerHTML = cProjects();
+  else if (p === 'chat')     m.innerHTML = cChat();
+  else if (p === 'payment')  m.innerHTML = cPayment();
+  else if (p === 'rate')     m.innerHTML = cRate();
+  else if (p === 'profile')  m.innerHTML = cProfile();
+  
+  if (p !== 'chat') {
+     m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
+  }
+}
+
+function manageProject(pid) {
+  const p = DB.projects().find(x => x.id === pid);
+  if(!p) return;
+  activeManageProjectId = pid;
+  selFreelancerIds = p.invited_freelancers || [];
+  selFreelancerName = DB.users().find(u => u.id === p.freelancerId)?.name;
+  selContent = p.contentType;
+  
+  if (p.status === 'open') { showToast('Waiting for freelancers to accept...', 'info'); return; }
+  
+  if (p.status === 'ongoing' && !p.rawShared) wfStep = 4; // Chat / Share Raw
+  else if (p.status === 'ongoing' && p.rawShared && !p.editedUploaded) wfStep = 6; // Skip directly to wait/review
+  else if (p.status === 'ongoing' && p.editedUploaded) wfStep = 6; // Review
+  else if (p.status === 'completed' && !p.paid) wfStep = 7; // Pay
+  else wfStep = 7; 
+  
+  cPage('new', document.querySelector('[data-page="new"]'));
+}
+
+function cHome() {
+  const projs  = DB.projects().filter(p => p.creatorId === CU.id);
+  const active = projs.filter(p => p.status === 'ongoing').length;
+  const done   = projs.filter(p => p.status === 'completed').length;
+  const spent  = projs.filter(p => p.paid).reduce((s,p) => s + p.budget, 0);
+  const recent = projs.slice(-4).reverse();
+  
+  return `
+  <div class="page-head"><h2>Dashboard</h2><p>Overview of your creator activity</p></div>
+  <div class="cards-grid">
+    <div class="mc a"><div class="label">Active Projects</div><div class="value">${active}</div><div class="sub">Currently ongoing</div></div>
+    <div class="mc g"><div class="label">Completed</div><div class="value">${done}</div><div class="sub">All time</div></div>
+    <div class="mc p"><div class="label">Total Spent</div><div class="value">₹${fmt(spent)}</div><div class="sub">Across all projects</div></div>
+    <div class="mc b"><div class="label">Total Projects</div><div class="value">${projs.length}</div><div class="sub">Ever posted</div></div>
+  </div>
+  <div class="section-title">Recent Projects</div>
+  <div class="project-list">
+    ${recent.length
+      ? recent.map(p => `
+          <div class="pc" style="cursor:pointer;" onclick="manageProject('${p.id}')">
+            <div class="pico">${contentIconSvg(p.contentType)}</div>
+            <div class="pinfo">
+              <div class="ptitle">${p.title}</div>
+              <div class="pmeta">${p.freelancerId ? 'Editor assigned' : 'Waiting for acceptance'} · ₹${fmt(p.budget)}</div>
+            </div>
+            <div class="pstatus ${statusClass(p.status)}">${statusLabel(p.status)}</div>
+          </div>
+        `).join('')
+      : '<div style="color:var(--text-3);font-size:.85rem;padding:16px 0;">No projects yet — post your first one!</div>'}
+  </div>
+  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="activeManageProjectId=null; cPage('new',null)">+ Post New Project</button>
+    <button class="btn btn-ghost" onclick="cPage('projects',null)">View All Projects &rarr;</button>
+  </div>`;
+}
+
+function cNew() {
+  const steps = ['Details','Content','Deadline','Freelancer','Chat','Raw Video','Review','Payment'];
+
+  const stepper = steps.map((s, i) => `
+    <div class="step">
+      <div class="step-dot ${wfStep === i ? 'active' : (wfStep > i ? 'done' : '')}">
+        ${wfStep > i ? '✓' : (i + 1)}
+      </div>
+      ${i < steps.length - 1 ? `<div class="step-line ${wfStep > i ? 'done' : ''}"></div>` : ''}
+    </div>
+  `).join('');
+
+  const html = `
+    <div class="page-head"><h2>${activeManageProjectId ? 'Manage Project' : 'Post a New Project'}</h2></div>
+    <div class="wf-stepper">${stepper}</div>
+    <div class="wf-body" id="wf-body"></div>`;
+
+  setTimeout(async () => {
+    const el = document.getElementById("wf-body");
+    if (el) el.innerHTML = await wfContent();
+  }, 0);
+
+  return html;
+}
+
+async function wfContent() {
+  if (wfStep === 0) return `
+    <h3>Project Details</h3>
+    <div class="fg"><label>Project Title *</label><input id="wf-title" value="${newProjectDraft.title || ''}" placeholder="e.g. YouTube Vlog Edit – Travel Series EP5"/></div>
+    <div class="fg"><label>Description</label><textarea id="wf-desc" placeholder="Describe what you need edited…">${newProjectDraft.desc || ''}</textarea></div>
+    <div class="fg"><label>Budget (₹) *</label><input id="wf-budget" type="number" value="${newProjectDraft.budget || ''}" placeholder="5000" min="100"/></div>
+    <button class="btn btn-primary" onclick="wfN()">Next &rarr;</button>`;
+
+  if (wfStep === 1) return `
+    <h3>Choose Content Type</h3>
+    <div class="ct-list" style="margin-bottom:18px;">
+      ${['YouTube Long-form','Instagram Reel','YouTube Shorts','TikTok','LinkedIn Video','Brand Video','Documentary','Podcast Edit']
+          .map(t => `<div class="ct-pill${t===selContent?' active':''}" onclick="selCT('${t}')">${t}</div>`).join('')}
+    </div>
+    ${selContent ? `<div class="alert alert-s">Selected: <strong>${selContent}</strong></div>` : ''}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
+      <button class="btn btn-primary" onclick="wfN()">Next &rarr;</button>
+    </div>`;
+
+  if (wfStep === 2) return `
+    <h3>Set Deadline &amp; Priority</h3>
+    <div class="fg"><label>Deadline Date *</label><input type="date" id="wf-deadline" value="${newProjectDraft.deadline || ''}" min="${new Date().toISOString().split('T')[0]}"/></div>
+    <div class="fg"><label>Priority Level</label>
+      <select id="wf-priority">
+        <option ${newProjectDraft.priority === 'Normal' ? 'selected' : ''}>Normal</option>
+        <option ${newProjectDraft.priority === 'Urgent (+20% budget)' ? 'selected' : ''}>Urgent (+20% budget)</option>
+        <option ${newProjectDraft.priority === 'Flexible' ? 'selected' : ''}>Flexible</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
+      <button class="btn btn-primary" onclick="wfN()">Next &rarr;</button>
+    </div>`;
+
+  if (wfStep === 3) {
+    let editors = [];
+    if (supaClient) {
+      try {
+        const { data, error } = await supaClient.from("profiles").select("*").eq("role", "freelancer");
+        if (!error && data) editors = data;
+      } catch (e) {}
+    }
+    if (!editors || editors.length === 0) editors = DB.users().filter(u => u.role === "freelancer");
+
+    return `
+    <h3>Choose Editors to Request</h3>
+    <p style="color:var(--text-3);font-size:.8rem;margin-bottom:14px;">Select multiple freelancers. First to accept gets the job!</p>
+    <div class="f-grid">
+      ${(editors && editors.length > 0) ? editors.map(f => `
+        <div class="f-card${selFreelancerIds.includes(f.id)?' sel':''}" onclick="selFL('${f.id}','${f.name}')">
+          <div class="f-avatar">${f.avatar || 'F'}</div>
+          <div class="f-name">${f.name}</div>
+          <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <div class="f-rate">4.9 &middot; ₹2,500+</div>
+          <div class="f-spec">${f.profession || 'Editor'}</div>
+        </div>`).join('') : `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors available.</div>`}
+    </div><br/>
+    ${selFreelancerIds.length > 0 ? `<div class="alert alert-s">Selected: <strong>${selFreelancerIds.length} Editors</strong></div>` : ''}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
+      <button class="btn btn-primary" onclick="wfN()">Send Requests &amp; Post &rarr;</button>
+    </div>`;
+  }
+
+  const proj = DB.projects().find(x => x.id === activeManageProjectId);
+  const flId = proj ? proj.freelancerId : null;
+  const isCompleted = proj ? (proj.status === 'completed' || proj.paid) : false;
+
+  if (wfStep === 4) return `
+    <h3>Chat with ${selFreelancerName || 'Editor'}</h3>
+    ${buildChat(CU.id, flId || '')}
+    ${!isCompleted ? `
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="wfN()">Go To Workflow Step &rarr;</button>
+    </div>` : ''}`;
+
+  if (wfStep === 5) {
+      if (proj && proj.rawShared) {
+        return `
+        <h3>Raw Video Shared</h3>
+        <div class="alert alert-s">You have already shared the raw video in Chat. Proceed to the next step.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
+          <button class="btn btn-primary" onclick="wfN()">Next Step &rarr;</button>
+        </div>`;
+      }
+      return `
+        <h3>Share Raw Video</h3>
+        <div class="alert alert-i">Upload your raw footage here OR directly inside the Chat menu!</div>
+        <label class="upload-area-lg" for="raw-video-input" id="raw-drop-zone">
+          <div class="upload-icon" id="raw-upload-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          </div>
+          <div class="upload-label" id="raw-file-label">Drag &amp; drop or click to select video</div>
+          <div class="upload-sub">MP4, MOV, AVI &middot; Up to 10 GB</div>
+          <input type="file" id="raw-video-input" accept="video/*" style="display:none;" onchange="onRawFileSelect(this)"/>
+        </label>
+        <div class="upload-progress-wrap" id="upload-progress-wrap">
+          <div class="upload-progress-bar"><div class="upload-progress-fill" id="upload-progress-fill"></div></div>
+          <div class="upload-progress-label" id="upload-progress-label">Uploading…</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+          <button class="btn btn-ghost" onclick="wfB()" id="raw-back-btn">&larr; Back</button>
+          <button class="btn btn-primary" id="raw-video-btn" onclick="uploadAndSendVideo()">Mark as Sent &rarr;</button>
+        </div>`;
+  }
+
+  if (wfStep === 6) {
+      if (proj && !proj.editedUploaded) {
+          return `
+          <h3>Receive &amp; Review Edited Video</h3>
+          <div class="alert alert-i">Waiting for <strong>${selFreelancerName || 'Your editor'}</strong> to upload the final edited video. You will be notified in chat once it's ready.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="wfB()">&larr; Back</button>
+          </div>`;
+      }
+      return `
+        <h3>Receive &amp; Review Edited Video</h3>
+        <div class="alert alert-s"><strong>${selFreelancerName || 'Your editor'}</strong> has uploaded the edited video!</div>
+        <div style="background:var(--bg2);border:1px solid var(--glass-border);border-radius:var(--radius);padding:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <div style="font-size:1.8rem;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:500;font-size:.88rem;color:var(--text);">Final_Delivered_Video</div>
+              <div style="color:var(--text-3);font-size:.75rem;">Requires Payment to Download</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="downloadEditedVideo('${activeManageProjectId}')">Download</button>
+          </div>
+          <div class="pb"><div class="pf" style="width:100%;"></div></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="wfN()">Approve &amp; Pay &rarr;</button>
+        </div>`;
+  }
+
+  if (wfStep === 7) return `
+    <h3>Complete Payment &amp; Rate</h3>
+    <div class="two-col">
+      <div>
+        <div class="section-title">Payment Summary</div>
+        <div class="det-card" style="margin-bottom:14px;">
+          <div class="info-row"><span class="key">Editor</span><span>${selFreelancerName || '—'}</span></div>
+          <div class="info-row"><span class="key">Content Type</span><span>${selContent || '—'}</span></div>
+          <div class="info-row"><span class="key">Base Amount</span><span id="pay-base">₹—</span></div>
+          <div class="info-row"><span class="key">Platform Fee (5%)</span><span id="pay-fee">₹—</span></div>
+          <div class="info-row" style="font-weight:600;"><span style="color:var(--accent);">Total</span><span id="pay-total" style="color:var(--accent);">₹—</span></div>
+        </div>
+        <div class="fg"><label>Payment Method</label>
+          <select><option>UPI (Razorpay)</option><option>Net Banking</option><option>Credit/Debit Card</option></select>
+        </div>
+        <button class="btn btn-green-btn full-btn" onclick="startPaymentFlow()">Pay Now &rarr;</button>
+      </div>
+      <div>
+        <div class="section-title">Rate ${selFreelancerName || 'the Editor'}</div>
+        <div class="det-card">
+          <p style="margin-bottom:10px;">How was your experience?</p>
+          <div class="star-rating" id="sr1">${[1,2,3,4,5].map(n => `<span onclick="rateStar('sr1',${n})">&#9733;</span>`).join('')}</div>
+          <div class="fg" style="margin-top:10px;"><label>Write a Review</label><input id="review-text" placeholder="Amazing work, delivered on time!"/></div>
+          <button class="btn btn-primary full-btn" onclick="submitReview()">Submit Review</button>
+        </div>
+      </div>
+    </div>`;
+
+  return '';
+}
+
+function onRawFileSelect(input) {
+  const zone  = document.getElementById('raw-drop-zone');
+  const label = document.getElementById('raw-file-label');
+  const icon  = document.getElementById('raw-upload-icon');
+  if (input.files && input.files[0]) {
+    const f = input.files[0];
+    label.textContent = `${f.name}  (${fmtFileSize(f.size)})`;
+    icon.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>';
+    zone.classList.add('has-file');
+  } else {
+    label.textContent = 'Drag & drop or click to select video';
+    icon.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>';
+    zone.classList.remove('has-file');
+  }
+}
+
+async function uploadAndSendVideo() {
+  const fileInput = document.getElementById('raw-video-input');
+  const btn       = document.getElementById('raw-video-btn');
+  const backBtn   = document.getElementById('raw-back-btn');
+  const progWrap  = document.getElementById('upload-progress-wrap');
+  const progFill  = document.getElementById('upload-progress-fill');
+  const progLabel = document.getElementById('upload-progress-label');
+
+  if (!fileInput || !fileInput.files || !fileInput.files.length) { showToast('Please select a video file first', 'err', ''); return; }
+  const file = fileInput.files[0];
+  const MAX_SIZE = 10 * 1024 * 1024 * 1024;
+  if (file.size > MAX_SIZE) { showToast('File too large. Maximum size is 10 GB.', 'err', ''); return; }
+
+  const proj = DB.projects().find(x => x.id === activeManageProjectId);
+  const flId = proj?.freelancerId;
+  if (!flId) { showToast('No freelancer assigned yet.', 'err', ''); return; }
+
+  btn.disabled    = true; btn.textContent = 'Uploading…'; btn.classList.add('btn-loading');
+  if (backBtn) backBtn.disabled = true;
+  if (progWrap) { progWrap.classList.add('show'); progFill.style.width = '0%'; progLabel.textContent = 'Preparing upload…'; }
+
+  let fileUrl = null;
+  try {
+    if (supaClient) {
+      if (progLabel) progLabel.textContent = 'Uploading to cloud…';
+      if (progFill)  progFill.style.width  = '20%';
+      const path = `raw/${CU.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const { data: uploadData, error: uploadError } =
+        await supaClient.storage.from('videos').upload(path, file, { cacheControl:'3600', upsert:false });
+      if (uploadError) { throw uploadError; }
+      if (progFill) progFill.style.width = '60%';
+      const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
+      fileUrl = urlData?.publicUrl || null;
+      if (progFill) progFill.style.width = '70%';
+    } else { fileUrl = null; if (progFill) progFill.style.width = '70%'; }
+
+    if (progLabel) progLabel.textContent = 'Sending to chat…';
+    
+    await sendMsg(CU.id, flId, fileUrl, file.name);
+    
+    if (supaClient) await supaClient.from('projects').update({ raw_shared: true }).eq('id', proj.id);
+    proj.rawShared = true; DB.saveProjects(DB.projects());
+
+    if (progFill)  progFill.style.width  = '100%';
+    if (progLabel) progLabel.textContent = 'Done!';
+    showToast('Video sent to editor!', 'ok', '');
+    
+    cPage('projects', document.querySelector('[data-page="projects"]'));
+  } catch(err) {
+    showToast('Upload failed.', 'err', '');
+    if (btn) { btn.disabled = false; btn.textContent = 'Mark as Sent →'; btn.classList.remove('btn-loading'); }
+    if (backBtn) backBtn.disabled = false;
+    if (progWrap) progWrap.classList.remove('show');
+  }
+}
+
+function downloadEditedVideo(projectId) {
+  const p = DB.projects().find(x => x.id === projectId);
+  if (!p) return;
+  if (!p.paid) {
+    showToast('❌ You must Approve & Pay before downloading the final video.', 'err', '');
+  } else {
+    showToast('✅ Secure Download Started', 'info', '');
+  }
+}
+
+// ==========================================
+// RAZORPAY INTEGRATION LOGIC (NEW ADDITION)
+// ==========================================
+let currentPayProjId = null;
+let currentPayAmount = 0;
+
+function startPaymentFlow() {
+    const p = DB.projects().find(x => x.id === activeManageProjectId);
+    if (!p) return;
+    
+    currentPayProjId = p.id;
+    const fee = Math.round(p.budget * 0.05);
+    currentPayAmount = p.budget + fee; // Calculates total including 5% platform fee
+    
+    document.getElementById('rzp-proj-name').innerText = "Payment for: " + p.title;
+    document.getElementById('rzp-proj-amount').innerText = "₹" + fmt(currentPayAmount);
+    document.getElementById('aalynex-razorpay-modal').style.display = 'flex';
+}
+
+function closeRazorpayModal() {
+    document.getElementById('aalynex-razorpay-modal').style.display = 'none';
+}
+
+async function processRazorpay() {
+    const btn = document.getElementById('rzp-proceed-btn');
+    btn.innerText = "Processing...";
+    btn.disabled = true;
+
+    const p = DB.projects().find(x => x.id === currentPayProjId);
+
+    // RAZORPAY CONFIGURATION
+    var options = {
+        "key": "rzp_test_SfF1eVKxwzgE6a", // 🔴 PASTE YOUR TEST/LIVE KEY HERE
+        "amount": currentPayAmount * 100, // Razorpay takes amount in Paise (₹1 = 100 paise)
+        "currency": "INR",
+        "name": "Aalynex",
+        "description": "Payment for " + p.title,
+        "handler": async function (response) {
+            closeRazorpayModal();
+            await finalizePaymentSuccess(response, p);
+        },
+        "theme": { "color": "#1D4ED8" }
+    };
+    
+    var rzp = new Razorpay(options);
+    rzp.on('payment.failed', function (response){
+        alert("Payment Failed: " + response.error.description);
+        btn.innerText = "Yes, Proceed";
+        btn.disabled = false;
+    });
+    rzp.open();
+}
+
+async function finalizePaymentSuccess(rzpResponse, proj) {
+    showToast('Verifying payment...', 'info');
+    
+    if (supaClient) {
+        await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', proj.id);
+        
+        await supaClient.from('payments').insert([{
+            project_id: proj.id,
+            creator_id: proj.creatorId,
+            freelancer_id: proj.freelancerId,
+            razorpay_payment_id: rzpResponse.razorpay_payment_id,
+            amount: currentPayAmount,
+            status: 'paid'
+        }]);
+    }
+
+    proj.paid = true;
+    proj.status = 'completed';
+    DB.saveProjects(DB.projects());
+
+    await sendMsg(
+        CU.id, 
+        proj.freelancerId, 
+        null, 
+        null, 
+        `✅ Payment of ₹${fmt(currentPayAmount)} processed via Razorpay! The project is officially complete and money is secured.`
+    );
+    
+    document.getElementById('rzp-proceed-btn').innerText = "Yes, Proceed";
+    document.getElementById('rzp-proceed-btn').disabled = false;
+
+    showToast('Payment successful! Project completed!', 'ok', '');
+    cPage('projects', document.querySelector('[data-page="projects"]'));
+}
+// ==========================================
+
+
+function wfN() {
+  if (wfStep===0) { 
+    const t = document.getElementById('wf-title')?.value?.trim();
+    const b = document.getElementById('wf-budget')?.value;
+    const desc = document.getElementById('wf-desc')?.value || '';
+    if(!t){ showToast('Please enter a project title','err',''); return; } 
+    if(!b||b<100){ showToast('Please enter a valid budget (min ₹100)','err',''); return; } 
+    
+    newProjectDraft.title = t;
+    newProjectDraft.budget = parseInt(b);
+    newProjectDraft.desc = desc;
+  }
+  
+  if (wfStep===1 && !selContent)  { showToast('Please select a content type','err',''); return; }
+  
+  if (wfStep===2) { 
+    const deadlineVal = document.getElementById('wf-deadline')?.value;
+    const priorityVal = document.getElementById('wf-priority')?.value || 'Normal';
+    if (!deadlineVal) { showToast('Please select a deadline','err',''); return; } 
+    
+    newProjectDraft.deadline = deadlineVal;
+    newProjectDraft.priority = priorityVal;
+  }
+  
+  if (wfStep === 3) {
+    if (selFreelancerIds.length === 0) { showToast('Select at least one editor', 'err', ''); return; }
+    
+    setBtn('signup-btn', true, 'Posting...');
+
+    const newP = { 
+        id: pid(), creatorId: CU.id, 
+        title: newProjectDraft.title, 
+        description: newProjectDraft.desc, 
+        budget: newProjectDraft.budget, 
+        contentType: selContent, 
+        deadline: newProjectDraft.deadline, 
+        priority: newProjectDraft.priority, 
+        freelancerId: null, 
+        invited_freelancers: selFreelancerIds, status: 'open', rawShared: false, 
+        editedUploaded: false, paid: false, rating: 0, review: '', createdAt: Date.now() 
+    };
+    
+    const projs = DB.projects(); projs.push(newP); DB.saveProjects(projs);
+    
+    if (supaClient) {
+      supaClient.from('projects').insert({
+        id: newP.id, creator_id: CU.id, freelancer_id: null,
+        invited_freelancers: selFreelancerIds, 
+        title: newP.title, 
+        description: newP.description, 
+        budget: newP.budget, 
+        content_type: newP.contentType, 
+        deadline: newP.deadline, 
+        priority: newP.priority, 
+        status: 'open',
+        raw_shared: false, edited_uploaded: false, paid: false
+      }).then(({error}) => { 
+        if(error) {
+          showToast('DB Error: ' + error.message, 'err', '');
+          const revertedProjs = DB.projects().filter(x => x.id !== newP.id);
+          DB.saveProjects(revertedProjs);
+        } else {
+          showToast('Project Requests Sent! Waiting for a freelancer.', 'ok', '');
+          activeManageProjectId = null;
+          cPage('projects', document.querySelector('[data-page="projects"]'));
+        }
+      });
+      return;
+    }
+    
+    showToast('Project Requests Sent locally.', 'ok', '');
+    activeManageProjectId = null;
+    cPage('projects', document.querySelector('[data-page="projects"]'));
+    return;
+  }
+  
+  // Skip logic: if going from 4 to 5, but raw is shared, jump to 6
+  if (wfStep === 4) {
+     const p = DB.projects().find(x => x.id === activeManageProjectId);
+     if (p && p.rawShared) wfStep = 6;
+     else wfStep = 5;
+  } else {
+     wfStep = Math.min(wfStep+1, 7);
+  }
+
+  document.getElementById('c-main').innerHTML = cNew();
+  
+  if (wfStep === 7) {
+      setTimeout(() => {
+        const p = DB.projects().find(x => x.id === activeManageProjectId);
+        if(!p) return;
+        const fee = Math.round(p.budget * 0.05);
+        document.getElementById('pay-base').textContent = '₹'+fmt(p.budget); 
+        document.getElementById('pay-fee').textContent = '₹'+fmt(fee); 
+        document.getElementById('pay-total').textContent = '₹'+fmt(p.budget+fee);
+      }, 50);
+  }
+}
+
+function wfB() { 
+  if (wfStep === 6) {
+     const p = DB.projects().find(x => x.id === activeManageProjectId);
+     if (p && p.rawShared) wfStep = 4; // jump back to chat
+     else wfStep = 5;
+  } else {
+     wfStep = Math.max(wfStep-1, 0); 
+  }
+  document.getElementById('c-main').innerHTML = cNew(); 
+}
+function selCT(t) { selContent = t; document.getElementById('c-main').innerHTML = cNew(); }
+
+function selFL(id, name) { 
+  if (selFreelancerIds.includes(id)) {
+      selFreelancerIds = selFreelancerIds.filter(x => x !== id);
+  } else {
+      selFreelancerIds.push(id);
+  }
+  document.getElementById('c-main').innerHTML = cNew(); 
+}
+
+function cProjects() {
+  const projs = DB.projects().filter(p => p.creatorId === CU.id);
+  return `
+  <div class="page-head"><h2>My Projects</h2><p>All ${projs.length} projects you've posted</p></div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    ${['All','Open','Ongoing','Completed'].map(f => `<button class="btn btn-ghost btn-sm" onclick="filterProjects('${f.toLowerCase()}')">${f}</button>`).join('')}
+  </div>
+  <div class="project-list" id="proj-list">
+    ${projs.length
+      ? projs.slice().reverse().map(p => `
+          <div class="pc" style="cursor:pointer;" onclick="manageProject('${p.id}')">
+            <div class="pico">${contentIconSvg(p.contentType)}</div>
+            <div class="pinfo">
+                <div class="ptitle">${p.title}</div>
+                <div class="pmeta">₹${fmt(p.budget)} · Due ${fmtDate(p.deadline)} · ${p.contentType}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                <div class="pstatus ${statusClass(p.status)}">
+                   ${p.status === 'open' ? '🔒 Waiting' : statusLabel(p.status)}
+                </div>
+                ${p.status !== 'open' ? `<button class="btn btn-primary btn-xs">Manage</button>` : ''}
+            </div>
+          </div>`).join('')
+      : '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;text-align:center;">No projects yet. <a style="color:var(--accent);cursor:pointer;" onclick="cPage(\'new\',null)">Post your first &rarr;</a></div>'}
+  </div>`;
+}
+function filterProjects(f) {
+  const projs    = DB.projects().filter(p => p.creatorId === CU.id);
+  const filtered = f === 'all' ? projs : projs.filter(p => p.status === f);
+  document.getElementById('proj-list').innerHTML = filtered.length
+    ? filtered.slice().reverse().map(p => `
+          <div class="pc" style="cursor:pointer;" onclick="manageProject('${p.id}')">
+            <div class="pico">${contentIconSvg(p.contentType)}</div>
+            <div class="pinfo">
+                <div class="ptitle">${p.title}</div>
+                <div class="pmeta">₹${fmt(p.budget)} · ${p.contentType}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                <div class="pstatus ${statusClass(p.status)}">${p.status === 'open' ? '🔒 Waiting' : statusLabel(p.status)}</div>
+                ${p.status !== 'open' ? `<button class="btn btn-primary btn-xs">Manage</button>` : ''}
+            </div>
+          </div>`).join('')
+    : '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No projects in this category.</div>';
+}
+
+function cChat() {
+  const myProjects = DB.projects().filter(p => (p.creatorId === CU.id || p.freelancerId === CU.id) && p.status !== 'open');
+  const relatedUserIds = [...new Set(myProjects.map(p => p.creatorId === CU.id ? p.freelancerId : p.creatorId).filter(id => id))];
+  
+  let defaultOther = currentChatUserId;
+  if (!defaultOther || !relatedUserIds.includes(defaultOther)) {
+      defaultOther = relatedUserIds[0] || ''; 
+  }
+  currentChatUserId = defaultOther;
+
+  return `<div class="page-head"><h2>Messages</h2><p>Chat with your editors</p></div>${buildChat(CU.id, defaultOther)}`;
+}
+
+function cPayment() {
+  const projs   = DB.projects().filter(p => p.creatorId === CU.id);
+  const paid    = projs.filter(p => p.paid).reduce((s,p) => s+p.budget, 0);
+  const pending = projs.filter(p => !p.paid && p.status==='completed').reduce((s,p) => s+p.budget, 0);
+  return `
+  <div class="page-head"><h2>Payments</h2></div>
+  <div class="cards-grid">
+    <div class="mc a"><div class="label">Pending</div><div class="value">₹${fmt(pending)}</div></div>
+    <div class="mc g"><div class="label">Total Paid</div><div class="value">₹${fmt(paid)}</div></div>
+    <div class="mc"><div class="label">Projects</div><div class="value">${projs.length}</div></div>
+  </div>
+  <div class="section-title">Transactions</div>
+  <div class="project-list">
+    ${projs.length
+      ? projs.map(p => `
+          <div class="pc">
+            <div class="pico"><svg class="pico-icon" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+            <div class="pinfo"><div class="ptitle">${p.title}</div><div class="pmeta">₹${fmt(p.budget)} · ${fmtDate(p.createdAt)}</div></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="pstatus ${p.paid?'s-co':'s-pe'}">${p.paid?'Paid':'Pending'}</div>
+              ${!p.paid && p.status==='completed' ? `<button class="btn btn-green-btn btn-xs" onclick="manageProject('${p.id}')">Pay Now</button>` : ''}
+            </div>
+          </div>`).join('')
+      : '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No transactions yet.</div>'}
+  </div>`;
+}
+
+function submitReview() { showToast('Review submitted! Thank you', 'ok', ''); }
+
+function cRate() {
+  const projs = DB.projects().filter(p => p.creatorId===CU.id && p.status==='completed' && p.rating===0);
+  return `
+  <div class="page-head"><h2>Rate Freelancers</h2></div>
+  ${projs.length
+    ? projs.map(p => `
+        <div class="det-card">
+          <h4>${p.title}</h4><p>Completed &middot; ₹${fmt(p.budget)}</p>
+          <div class="star-rating" id="sr-${p.id}">${[1,2,3,4,5].map(n => `<span onclick="rateStar('sr-${p.id}',${n})">&#9733;</span>`).join('')}</div>
+          <div class="fg" style="margin-top:10px;"><label>Write a Review</label><input id="rev-${p.id}" placeholder="Great work!"/></div>
+          <button class="btn btn-primary btn-sm" onclick="saveRating('${p.id}')">Submit Rating</button>
+        </div>`).join('')
+    : '<div class="alert alert-i">You\'ve rated all completed projects!</div>'}`;
+}
+function saveRating(pid) {
+  const rating = document.querySelectorAll(`#sr-${pid} span.lit`).length;
+  if (!rating) { showToast('Please select a star rating', 'err', ''); return; }
+  const projs = DB.projects(), p = projs.find(x => x.id === pid);
+  if (p) { p.rating = rating; p.review = document.getElementById('rev-'+pid)?.value || ''; DB.saveProjects(projs); }
+  showToast(`Rating submitted! ${rating} stars`, 'ok', ''); renderC('rate');
+}
+
+function cProfile() {
+  const u = CU;
+  return `
+  <div class="page-head"><h2>My Profile</h2></div>
+  <div class="two-col">
+    <div class="det-card">
+      <h4>Personal Info</h4>
+      <div class="fg"><label>Full Name</label><input id="prof-name" value="${u.name}"/></div>
+      <div class="fg"><label>Email</label><input value="${u.email}" disabled style="opacity:.5;"/></div>
+      <div class="fg"><label>Phone</label><input id="prof-phone" value="${u.phone||''}"/></div>
+      <div class="fg"><label>Primary Platform</label>
+        <select id="prof-platform">${['YouTube','Instagram','TikTok','LinkedIn','Multiple'].map(p => `<option${u.platform===p?' selected':''}>${p}</option>`).join('')}</select>
+      </div>
+      <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+    </div>
+    <div class="det-card">
+      <h4>Account Stats</h4>
+      ${[['Projects Posted', DB.projects().filter(p=>p.creatorId===CU.id).length],
+         ['Completed',       DB.projects().filter(p=>p.creatorId===CU.id&&p.status==='completed').length],
+         ['Member Since',    new Date(u.createdAt).toLocaleDateString('en-IN',{month:'long',year:'numeric'})],
+         ['Role',            u.role.charAt(0).toUpperCase()+u.role.slice(1)]]
+        .map(([k,v]) => `<div class="info-row"><span class="key">${k}</span><span>${v}</span></div>`).join('')}
+    </div>
+  </div>`;
+}
+function saveProfile() {
+  const name = document.getElementById('prof-name')?.value?.trim();
+  if (!name) { showToast('Name cannot be empty', 'err', ''); return; }
+  const phone    = document.getElementById('prof-phone')?.value?.trim();
+  const platform = document.getElementById('prof-platform')?.value;
+  const users = DB.users(), u = users.find(x => x.id === CU.id);
+  if (u) { u.name = name; u.phone = phone; u.platform = platform; u.avatar = name.charAt(0).toUpperCase(); DB.saveUsers(users); }
+  CU = {...CU, name, phone, platform}; DB.setCurrentUser(CU);
+  document.getElementById('c-nav-name').textContent  = name.split(' ')[0];
+  document.getElementById('c-sb-name').textContent   = name;
+  document.getElementById('c-sb-avatar').textContent = name.charAt(0).toUpperCase();
+  if (supaClient && CU.id) {
+    supaClient.from('profiles').update({ name, phone, platform }).eq('id', CU.id).then(() => {});
+  }
+  showToast('Profile updated', 'ok', '');
+}
+
+/* ══════════════════════════════════════════════
+   FREELANCER PAGES
+══════════════════════════════════════════════ */
+function fPage(p, el) {
+  document.querySelectorAll('#screen-freelancer .nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  closeSidebar('freelancer');
+  
+  renderF(p);
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
+}
+
+function fPageMobile(p, el) {
+  document.querySelectorAll('#f-bottom-nav .bn-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('#f-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === p); });
+  
+  renderF(p);
+  if (supaClient && CU) {
+     syncFromSupabase(CU).then(() => {
+        if (p === 'chat') {
+           const el = document.getElementById('chat-msgs-el');
+           if (el && currentChatUserId) {
+              const key = [CU.id, currentChatUserId].sort().join('_');
+              el.innerHTML = renderMsgs(DB.messages()[key] || [], CU.id);
+              el.scrollTop = el.scrollHeight;
+           }
+           updateChatSidebarPreviews();
+        } else {
+           renderC(p);
+        }
+     });
+  }
+}
+
+function renderF(p) {
+  const m = document.getElementById('f-main');
+  if      (p === 'home')     m.innerHTML = fHome();
+  else if (p === 'browse')   m.innerHTML = fBrowse();
+  else if (p === 'ongoing')  m.innerHTML = fOngoing();
+  else if (p === 'chat')  {
+    const myProjects = DB.projects().filter(p => (p.creatorId === CU.id || p.freelancerId === CU.id) && p.status !== 'open');
+    const relatedUserIds = [...new Set(myProjects.map(p => p.creatorId === CU.id ? p.freelancerId : p.creatorId).filter(id => id))];
+    
+    let defaultOther = currentChatUserId;
+    if (!defaultOther || !relatedUserIds.includes(defaultOther)) {
+        defaultOther = relatedUserIds[0] || ''; 
+    }
+    currentChatUserId = defaultOther;
+
+    m.innerHTML = `<div class="page-head"><h2>Messages</h2></div>${buildChat(CU.id, defaultOther)}`;
+  }
+  else if (p === 'negotiate') m.innerHTML = fNegotiate();
+  else if (p === 'upload')    m.innerHTML = fUpload();
+  else if (p === 'earnings')  m.innerHTML = fEarnings();
+  
+  if (p !== 'chat') {
+     m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
+  }
+}
+
+function fHome() {
+  const projs    = DB.projects().filter(p => p.freelancerId === CU.id);
+  const earned   = projs.filter(p => p.paid).reduce((s,p) => s+p.budget, 0);
+  const openProjs= DB.projects().filter(p => p.status === 'open' && (p.invited_freelancers||[]).includes(CU.id)); 
+  return `
+  <div class="page-head"><h2>Dashboard</h2><p>Your freelancing overview</p></div>
+  <div class="cards-grid">
+    <div class="mc a"><div class="label">Ongoing</div><div class="value">${projs.filter(p=>p.status==='ongoing').length}</div></div>
+    <div class="mc g"><div class="label">Total Earned</div><div class="value">₹${fmt(earned)}</div></div>
+    <div class="mc p"><div class="label">Completed</div><div class="value">${projs.filter(p=>p.status==='completed').length}</div></div>
+    <div class="mc b"><div class="label">Requests</div><div class="value">${openProjs.length}</div></div>
+  </div>
+  <div class="section-title">Your Ongoing Projects</div>
+  <div class="project-list">
+    ${projs.filter(p=>p.status==='ongoing').map(p => { const c=DB.users().find(u=>u.id===p.creatorId); return pRow(contentIconSvg(p.contentType), p.title, `From ${c?.name||'Creator'} · ₹${fmt(p.budget)}`, statusClass(p.status), statusLabel(p.status)); }).join('')
+      || '<div style="color:var(--text-3);font-size:.85rem;padding:16px 0;">No ongoing projects. <a style="color:var(--accent);cursor:pointer;" onclick="fPage(\'browse\',null)">Browse open projects &rarr;</a></div>'}
+  </div>
+  <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-purple" onclick="fPage('browse',null)">Browse Requests</button>
+    <button class="btn btn-ghost"  onclick="fPage('ongoing',null)">Manage Ongoing &rarr;</button>
+  </div>`;
+}
+
+function fBrowse() {
+  const open = DB.projects().filter(p => p.status === 'open' && (p.invited_freelancers||[]).includes(CU.id));
+  return `
+  <div class="page-head"><h2>Project Requests</h2><p>${open.length} request${open.length!==1?'s':''} waiting for you</p></div>
+  <div class="project-list">
+    ${open.length
+      ? open.map(p => { const c = DB.users().find(u => u.id === p.creatorId); return `
+          <div class="pc">
+            <div class="pico">${contentIconSvg(p.contentType)}</div>
+            <div class="pinfo">
+              <div class="ptitle">${p.title}</div>
+              <div class="pmeta">By ${c?.name||'Creator'} · <strong style="color:var(--accent)">₹${fmt(p.budget)}</strong> · Due ${fmtDate(p.deadline)}</div>
+              <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;">
+                <span class="tag">${p.contentType}</span><span class="tag b">${p.priority}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+              <button class="btn btn-primary btn-sm" onclick="acceptProject('${p.id}')">Accept First</button>
+              <button class="btn btn-ghost btn-sm"   onclick="viewProject('${p.id}')">View</button>
+            </div>
+          </div>`;}).join('')
+      : '<div class="alert alert-i">No project requests right now. Wait for creators to invite you!</div>'}
+  </div>`;
+}
+
+async function acceptProject(id) {
+  if (supaClient) {
+      const { data, error } = await supaClient.from('projects')
+        .update({ freelancer_id: CU.id, status: 'ongoing' })
+        .eq('id', id).is('freelancer_id', null).select();
+
+      if (error || !data || data.length === 0) {
+        showToast('Project already taken by another freelancer!', 'err', '');
+        renderF('browse');
+        return;
+      }
+  }
+  
+  const projs = DB.projects(), p = projs.find(x => x.id === id);
+  if (p) { 
+      if (p.freelancerId) { showToast('Project already taken!', 'err', ''); renderF('browse'); return; }
+      p.freelancerId = CU.id; p.status = 'ongoing'; DB.saveProjects(projs); 
+  }
+  
+  showToast('Project accepted! Chat activated.', 'ok', ''); 
+  renderF('ongoing');
+}
+
+function viewProject(id) {
+  const p = DB.projects().find(x => x.id === id); if (!p) return;
+  showModal(p.title, `Budget: ₹${fmt(p.budget)} · ${p.contentType} · Deadline: ${fmtDate(p.deadline)}\n${p.description||''}`, () => { acceptProject(id); });
+  document.getElementById('modal-confirm').textContent = 'Accept Project';
+}
+
+function fOngoing() {
+  const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
+  return `
+  <div class="page-head"><h2>Ongoing Projects</h2></div>
+  ${projs.length
+    ? projs.map(p => {
+        const c    = DB.users().find(u => u.id === p.creatorId);
+        const prog = p.rawShared ? (p.editedUploaded ? 100 : 65) : 20;
+        return `
+        <div class="det-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <h4>${p.title}</h4><div class="pstatus s-on">In Progress</div>
+          </div>
+          <div class="info-row"><span class="key">Client</span><span>${c?.name||'Creator'}</span></div>
+          <div class="info-row"><span class="key">Budget</span><span>₹${fmt(p.budget)}</span></div>
+          <div class="info-row"><span class="key">Raw Video</span>
+            <span>${p.rawShared ? '<span class="tag g">Received</span>' : '<span class="tag b">Waiting</span>'}</span>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-3);margin-bottom:4px;">
+              <span>Progress</span><span>${prog}%</span>
+            </div>
+            <div class="pb"><div class="pf" style="width:${prog}%;"></div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+            <button class="btn btn-outline-f btn-sm" onclick="fPage('chat',null)">Chat</button>
+            <button class="btn btn-primary btn-sm"   onclick="fPage('upload',null)">Upload Final</button>
+            <button class="btn btn-ghost btn-sm"     onclick="fPage('negotiate',null)">Negotiate</button>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="alert alert-i">No ongoing projects.</div>'}`;
+}
+
+function fNegotiate() {
+  const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
+  return `
+  <div class="page-head"><h2>Negotiate Price &amp; Deadline</h2></div>
+  ${projs.length
+    ? projs.map(p => `
+        <div class="det-card">
+          <h4>${p.title}</h4>
+          <p>Client's offer: <strong>₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}</p>
+          <div class="two-col" style="margin-top:14px;">
+            <div class="fg"><label>Your Counter-Price (₹)</label><input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget*1.15)}"/></div>
+            <div class="fg"><label>Proposed Deadline</label><input type="date" id="neg-date-${p.id}" value="${new Date(Date.now()+7*86400000).toISOString().split('T')[0]}"/></div>
+          </div>
+          <div class="fg"><label>Message to Client</label><input id="neg-msg-${p.id}" placeholder="I can complete this at the revised price…"/></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm"    onclick="sendCounter('${p.id}')">Send Counter-Offer</button>
+            <button class="btn btn-green-btn btn-sm"  onclick="showToast('Accepted at original terms!','ok','')">Accept Original</button>
+          </div>
+        </div>`).join('')
+    : '<div class="alert alert-i">No projects to negotiate right now.</div>'}`;
+}
+function sendCounter(id) {
+  const price = document.getElementById('neg-price-'+id)?.value, date = document.getElementById('neg-date-'+id)?.value;
+  if (!price || !date) { showToast('Fill in all fields', 'err', ''); return; }
+  
+  const proj = DB.projects().find(x=>x.id===id);
+  if(proj) {
+     const msg = `[NEGOTIATION_REQ]|${proj.id}|${price}|${date}|${document.getElementById('neg-msg-'+id)?.value}`;
+     sendMsg(CU.id, proj.creatorId, null, null, msg);
+  }
+  
+  showToast(`Counter-offer sent: ₹${fmt(price)}`, 'ok', '');
+}
+
+async function acceptNegotiation(btn, projectId, newPrice, newDate, otherId) {
+   btn.disabled = true;
+   btn.innerText = "Processing...";
+   if (btn.nextElementSibling) btn.nextElementSibling.style.display = 'none';
+   
+   const projs = DB.projects(), p = projs.find(x => x.id === projectId);
+   if (p) { 
+       p.budget = parseInt(newPrice); 
+       p.deadline = newDate;
+       DB.saveProjects(projs); 
+   }
+   
+   if (supaClient) {
+       await supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', projectId);
+   }
+   
+   await sendMsg(CU.id, otherId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
+   showToast('Budget & deadline updated!', 'ok');
+   
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Offer Accepted</span>`;
+}
+
+function rejectNegotiation(btn, projectId, otherId) {
+   btn.disabled = true;
+   btn.innerText = "Processing...";
+   if (btn.previousElementSibling) btn.previousElementSibling.style.display = 'none';
+
+   sendMsg(CU.id, otherId, null, null, `❌ Offer Rejected. Let's discuss further.`);
+   showToast('Offer rejected', 'info');
+
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Offer Rejected</span>`;
+}
+
+function onFinalFileSelect(input, pid) {
+  const zone  = document.getElementById('final-drop-zone-' + pid);
+  const label = document.getElementById('final-file-label-' + pid);
+  const icon  = document.getElementById('final-upload-icon-' + pid);
+  if (input.files && input.files[0]) {
+    const f = input.files[0];
+    label.textContent = `${f.name}  (${fmtFileSize(f.size)})`;
+    icon.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>';
+    zone.classList.add('has-file');
+  } else {
+    label.textContent = 'Drag & drop your final edited video or click to browse';
+    icon.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>';
+    zone.classList.remove('has-file');
+  }
+}
+
+async function uploadFinalVideo(pid) {
+  const fileInput = document.getElementById('final-video-input-' + pid);
+  const btn       = document.getElementById('final-video-btn-' + pid);
+  const progWrap  = document.getElementById('final-progress-wrap-' + pid);
+  const progFill  = document.getElementById('final-progress-fill-' + pid);
+  const note      = document.getElementById('final-note-' + pid)?.value || '';
+
+  if (!fileInput || !fileInput.files || !fileInput.files.length) { showToast('Please select a final video file first', 'err', ''); return; }
+  const file = fileInput.files[0];
+  const MAX_SIZE = 10 * 1024 * 1024 * 1024;
+  if (file.size > MAX_SIZE) { showToast('File too large. Maximum size is 10 GB.', 'err', ''); return; }
+
+  const proj = DB.projects().find(x => x.id === pid);
+  if (!proj) return;
+
+  btn.disabled = true; btn.textContent = 'Uploading…'; btn.classList.add('btn-loading');
+  if (progWrap) { progWrap.classList.add('show'); progFill.style.width = '0%'; }
+
+  let fileUrl = null;
+  try {
+    if (supaClient) {
+      if (progFill) progFill.style.width = '20%';
+      const path = `final/${CU.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const { data: uploadData, error: uploadError } =
+        await supaClient.storage.from('videos').upload(path, file, { cacheControl:'3600', upsert:false });
+      if (uploadError) throw uploadError;
+      if (progFill) progFill.style.width = '60%';
+      const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
+      fileUrl = urlData?.publicUrl || null;
+      if (progFill) progFill.style.width = '80%';
+    }
+
+    if (supaClient) await supaClient.from('projects').update({ edited_uploaded: true }).eq('id', proj.id);
+    proj.editedUploaded = true; 
+    DB.saveProjects(DB.projects());
+
+    const msgText = note ? `Final Delivery: ${note}` : `Final Delivery`;
+    await sendMsg(CU.id, proj.creatorId, fileUrl, file.name, msgText);
+
+    if (progFill) progFill.style.width = '100%';
+    showToast('Final video uploaded and sent to creator!', 'ok', '');
+    fPage('upload', document.querySelector('[data-page="upload"]'));
+  } catch(err) {
+    showToast('Upload failed.', 'err', '');
+    if (btn) { btn.disabled = false; btn.textContent = 'Upload Final Video →'; btn.classList.remove('btn-loading'); }
+    if (progWrap) progWrap.classList.remove('show');
+  }
+}
+
+function fUpload() {
+  const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
+  return `
+  <div class="page-head"><h2>Upload Edited Video</h2></div>
+  <div class="alert alert-i">Upload final video here OR securely inside the Chat menu!</div>
+  ${projs.length
+    ? projs.map(p => `
+        <div class="det-card">
+          <h4>Upload for: ${p.title}</h4>
+          <label class="upload-area-lg" for="final-video-input-${p.id}" id="final-drop-zone-${p.id}">
+            <div class="upload-icon" id="final-upload-icon-${p.id}">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            </div>
+            <div class="upload-label" id="final-file-label-${p.id}">Drag & drop your final edited video or click to browse</div>
+            <div class="upload-sub">MP4, MOV &middot; Up to 10 GB</div>
+            <input type="file" id="final-video-input-${p.id}" accept="video/*" style="display:none;" onchange="onFinalFileSelect(this, '${p.id}')"/>
+          </label>
+          <div class="upload-progress-wrap" id="final-progress-wrap-${p.id}">
+            <div class="upload-progress-bar"><div class="upload-progress-fill" id="final-progress-fill-${p.id}"></div></div>
+          </div>
+          <div class="fg"><label>Version Notes</label><input id="final-note-${p.id}" placeholder="v1 – Color graded, audio synced…"/></div>
+          <button class="btn btn-primary" id="final-video-btn-${p.id}" onclick="uploadFinalVideo('${p.id}')">Upload Final Video &rarr;</button>
+        </div>`).join('')
+    : '<div class="alert alert-i">No projects ready for upload.</div>'}`;
+}
+
+function fEarnings() {
+  const projs    = DB.projects().filter(p => p.freelancerId === CU.id);
+  const received = projs.filter(p => p.paid).reduce((s,p) => s+p.budget, 0);
+  const pending  = projs.filter(p => !p.paid && p.status==='completed').reduce((s,p) => s+p.budget, 0);
+  return `
+  <div class="page-head"><h2>Earnings</h2></div>
+  <div class="cards-grid">
+    <div class="mc g"><div class="label">Total Received</div><div class="value">₹${fmt(received)}</div></div>
+    <div class="mc a"><div class="label">Pending Payout</div><div class="value">₹${fmt(pending)}</div></div>
+    <div class="mc"><div class="label">Projects</div><div class="value">${projs.length}</div></div>
+  </div>
+  <div class="section-title">Transaction History</div>
+  <div class="project-list">
+    ${projs.length
+      ? projs.map(p => { const c = DB.users().find(u => u.id === p.creatorId); return `
+          <div class="pc">
+            <div class="pico"><svg class="pico-icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div class="pinfo"><div class="ptitle">${p.title}</div><div class="pmeta">From ${c?.name||'Creator'} · ${fmtDate(p.createdAt)}</div></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="font-weight:600;font-size:.9rem;">₹${fmt(p.budget)}</div>
+              <div class="pstatus ${p.paid?'s-co':'s-pe'}">${p.paid?'Received':'Pending'}</div>
+            </div>
+          </div>`;}).join('')
+      : '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No transactions yet.</div>'}
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════
+   CHAT — SHARED
+══════════════════════════════════════════════ */
+
+function updateChatSidebarPreviews() {
+   document.querySelectorAll('.cc-item').forEach(el => {
+      const uid = el.getAttribute('data-uid');
+      if(uid) {
+         const key = [CU.id, uid].sort().join('_');
+         const msgs = DB.messages()[key] || [];
+         const last = msgs[msgs.length-1];
+         let previewText = 'No messages yet';
+         if (last) {
+            if (last.file_url) previewText = 'Video Attachment';
+            else if (last.text.startsWith('[NEGOTIATION_REQ]')) previewText = 'New Negotiation Offer';
+            else previewText = last.text;
+         }
+         const prevEl = el.querySelector('.cc-prev');
+         if(prevEl) prevEl.textContent = previewText;
+      }
+   });
+}
+
+function buildChat(myId, otherDefaultId) {
+  const myProjects = DB.projects().filter(p => (p.creatorId === myId || p.freelancerId === myId) && p.status !== 'open');
+  const relatedUserIds = [...new Set(myProjects.map(p => p.creatorId === myId ? p.freelancerId : p.creatorId).filter(id => id))];
+  const allUsers = DB.users().filter(u => relatedUserIds.includes(u.id));
+
+  const conversations = allUsers.map(u => {
+    const key  = [myId, u.id].sort().join('_');
+    const msgs = DB.messages()[key] || [];
+    const last = msgs[msgs.length-1];
+    return { user: u, key, msgs, last };
+  });
+  const activeConvo = conversations.find(c => c.user.id === otherDefaultId) || conversations[0];
+  const activeKey   = activeConvo?.key || (otherDefaultId ? [myId, otherDefaultId].sort().join('_') : '');
+
+  return `
+  <div class="chat-wrap">
+    <div class="chat-list">
+      ${conversations.map(c => `
+        <div class="cc-item${c.key===activeKey?' active':''}" data-uid="${c.user.id}" onclick="switchChat('${myId}','${c.user.id}')">
+          <div class="c-av">${c.user.avatar}</div>
+          <div style="min-width:0;">
+            <div class="cc-name">${c.user.name}</div>
+            <div class="cc-prev">${c.last?.file_url ? 'Video Attachment' : (c.last?.text?.includes('[NEGOTIATION') ? 'New Offer' : (c.last?.text || 'No messages yet'))}</div>
+          </div>
+        </div>`).join('') || `<div style="padding:14px;font-size:.78rem;color:var(--text-3);">You must accept a project first</div>`}
+    </div>
+    <div class="chat-area">
+      ${activeConvo ? `
+        <div class="ch-header">
+          <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${activeConvo.user.avatar}</div>
+          <div class="online-dot"></div>
+          <span>${activeConvo.user.name}</span>
+        </div>
+        <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(activeConvo.msgs, myId)}</div>
+        <div class="chat-inp-bar">
+          <label for="chat-upload-${activeConvo.user.id}" style="cursor:pointer; display:flex; align-items:center; margin-right:4px; color:var(--text-3); transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-3)'">
+             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </label>
+          <input type="file" id="chat-upload-${activeConvo.user.id}" accept="video/*" style="display:none;" onchange="handleChatUpload(this, '${myId}', '${activeConvo.user.id}')"/>
+          <input class="chat-inp" id="chat-inp-el" placeholder="Type a message…"
+            onkeydown="if(event.key==='Enter')sendMsg('${myId}','${activeConvo.user.id}')"/>
+          <button class="btn btn-primary btn-sm" onclick="sendMsg('${myId}','${activeConvo.user.id}')">Send</button>
+        </div>`
+      : '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:.85rem;">No active conversations</div>'}
+    </div>
+  </div>`;
+}
+
+function renderMsgs(msgs, myId) {
+  if (!msgs || !msgs.length)
+    return '<div style="text-align:center;color:var(--text-3);font-size:.78rem;padding:20px 0;">Start the conversation!</div>';
+
+  const isCreator = CU.role === 'creator';
+
+  return msgs.map((m, idx) => {
+    const isMine    = String(m.from).toLowerCase() === String(myId).toLowerCase();
+    const timeAlign = isMine ? 'text-align:right' : '';
+    const flexAlign = isMine ? 'flex-end' : 'flex-start';
+
+    if (m.file_url) {
+      const fname = m.text.replace('Raw Video: ', '').replace('Video: ', '').replace('Final Delivery: ', '').replace('Final Delivery', '') || 'video';
+      
+      let downloadBtn = '';
+      let actionBtns = '';
+      let restrictDownloadAttr = '';
+      
+      if (!isMine && isCreator) {
+          let proj = DB.projects().find(p => p.creatorId === myId && p.freelancerId === m.from && p.status !== 'completed');
+          if (!proj) proj = DB.projects().find(p => p.creatorId === myId && p.freelancerId === m.from);
+          
+          const isPaid = proj ? proj.paid : false;
+          const isFinal = m.text && m.text.includes('Final Delivery');
+          
+          if (!isPaid) {
+              restrictDownloadAttr = 'controlsList="nodownload" oncontextmenu="return false;"';
+              downloadBtn = `<button class="btn btn-ghost btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="showToast('❌ You must Approve & Pay to download.', 'err')">⬇ Download Locked</button>`;
+              
+              if (isFinal) {
+                  // ONLY Approve & Pay for Final Delivery
+                  actionBtns += `<button class="btn btn-green-btn btn-xs" style="margin-top:6px; font-size:0.65rem; margin-right:6px;" onclick="triggerApproveAndPay('${proj?.id}')">✅ Approve & Pay</button>`;
+              } else {
+                  // ONLY Request Revision for non-final videos sent in chat
+                  const hasRequestedRevision = msgs.slice(idx + 1).some(msg => 
+                      String(msg.from).toLowerCase() === String(myId).toLowerCase() && 
+                      msg.text.includes('Needs Revision')
+                  );
+
+                  if (hasRequestedRevision) {
+                      actionBtns += `<span style="margin-top:6px; font-size:0.7rem; color:var(--yellow); display:inline-flex; align-items:center; padding:2px 4px;">🔄 Revision Requested</span>`;
+                  } else {
+                      actionBtns += `<button class="btn btn-danger btn-xs" style="margin-top:6px; font-size:0.65rem; border:1px solid var(--red); color:var(--red); background:transparent;" onclick="requestRevision('${m.from}')">🔄 Request Revision</button>`;
+                  }
+              }
+          } else {
+              downloadBtn = `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download File</a>`;
+          }
+      } else {
+          downloadBtn = `<a href="${m.file_url}" target="_blank" download class="btn btn-ghost btn-xs" style="margin-top:6px; display:inline-block; font-size:0.65rem;">⬇ Download File</a>`;
+      }
+
+      return `
+      <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
+        <div class="msg-video ${isMine ? 'sent-video' : ''}">
+          <div class="msg-video-inner">
+            <div class="msg-video-label">
+              <div class="vico">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>
+              </div>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${fname}</span>
+            </div>
+            <video class="msg-video-player" controls preload="metadata" src="${m.file_url}" ${restrictDownloadAttr}>
+              Your browser does not support the video tag.
+            </video>
+            <div class="msg-video-footer">
+              <span>${isMine ? 'You' : 'Sent'}</span>
+              <span>${fmtTime(m.time)}</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            ${downloadBtn}
+            ${actionBtns}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    if (m.text.startsWith('[NEGOTIATION_REQ]')) {
+       const parts = m.text.split('|');
+       const projId = parts[1];
+       const newPrice = parts[2];
+       const newDate = parts[3];
+       const note = parts[4] || '';
+       
+       let buttonsHtml = '';
+       if (!isMine && isCreator) {
+          const hasResponded = msgs.slice(idx + 1).some(msg => String(msg.from).toLowerCase() === String(myId).toLowerCase() && (msg.text.includes('✅ Offer Accepted') || msg.text.includes('❌ Offer Rejected')));
+
+          if (hasResponded) {
+              buttonsHtml = `<div style="margin-top:10px; font-size:0.8rem; font-weight:600; color:var(--text-3);">Offer Responded</div>`;
+          } else {
+              buttonsHtml = `
+                 <div style="display:flex; gap:6px; margin-top:10px;">
+                    <button class="btn btn-green-btn btn-xs" onclick="acceptNegotiation(this, '${projId}', '${newPrice}', '${newDate}', '${m.from}')">Accept Offer</button>
+                    <button class="btn btn-danger btn-xs" style="border:1px solid var(--red); color:var(--red);" onclick="rejectNegotiation(this, '${projId}', '${m.from}')">Reject</button>
+                 </div>
+              `;
+          }
+       }
+
+       return `
+       <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
+         <div class="msg ${isMine ? 'sent' : 'received'}" style="border:2px solid var(--accent); background: ${isMine ? 'var(--accent)' : 'var(--accent-soft)'};">
+           <strong style="display:block; margin-bottom:4px;">Negotiation Offer</strong>
+           <div>New Price: <strong>₹${fmt(newPrice)}</strong></div>
+           <div>New Deadline: <strong>${fmtDate(newDate)}</strong></div>
+           ${note ? `<div style="margin-top:6px; font-style:italic;">"${note}"</div>` : ''}
+           ${buttonsHtml}
+         </div>
+         <div class="msg-time" style="${timeAlign}; width:100%; margin-top:2px;">${fmtTime(m.time)}</div>
+       </div>`;
+    }
+
+    return `
+    <div style="display:flex; flex-direction:column; align-items:${flexAlign}; margin-bottom:8px; width:100%;">
+      <div class="msg ${isMine ? 'sent' : 'received'}">${m.text}</div>
+      <div class="msg-time" style="${timeAlign}; width:100%; margin-top:2px;">${fmtTime(m.time)}</div>
+    </div>`;
+  }).join('');
+}
+
+function switchChat(myId, otherId) {
+  currentChatUserId = otherId; 
+  const key   = [myId, otherId].sort().join('_');
+  const msgs  = DB.messages()[key] || [];
+  const other = DB.users().find(u => u.id === otherId);
+  document.querySelectorAll('.cc-item').forEach(el => el.classList.remove('active'));
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  const area = document.querySelector('.chat-area');
+  if (area && other) {
+    area.innerHTML = `
+      <div class="ch-header">
+        <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${other.avatar}</div>
+        <div class="online-dot"></div>
+        <span>${other.name}</span>
+      </div>
+      <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(msgs, myId)}</div>
+      <div class="chat-inp-bar">
+        <label for="chat-upload-${otherId}" style="cursor:pointer; display:flex; align-items:center; margin-right:4px; color:var(--text-3); transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-3)'">
+           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </label>
+        <input type="file" id="chat-upload-${otherId}" accept="video/*" style="display:none;" onchange="handleChatUpload(this, '${myId}', '${otherId}')"/>
+        <input class="chat-inp" id="chat-inp-el" placeholder="Type a message…"
+          onkeydown="if(event.key==='Enter')sendMsg('${myId}','${otherId}')"/>
+        <button class="btn btn-primary btn-sm" onclick="sendMsg('${myId}','${otherId}')">Send</button>
+      </div>`;
+    const el = document.getElementById('chat-msgs-el');
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+}
+
+async function handleChatUpload(input, myId, otherId) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const MAX_SIZE = 10 * 1024 * 1024 * 1024; // 10GB limit
+  if (file.size > MAX_SIZE) { showToast('File too large. Maximum size is 10 GB.', 'err'); return; }
+  
+  showToast('Uploading video attachment...', 'info');
+  
+  let fileUrl = null;
+  try {
+    if (supaClient) {
+      const path = `chat/${myId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const { data: uploadData, error } = await supaClient.storage.from('videos').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
+      fileUrl = urlData?.publicUrl || null;
+    }
+    
+    await sendMsg(myId, otherId, fileUrl, file.name);
+
+    // 🟢 Update project status correctly if raw/final shared from Chat
+    if (CU.role === 'creator') {
+        const p = DB.projects().find(x => x.creatorId === myId && x.freelancerId === otherId && x.status === 'ongoing');
+        if (p && !p.rawShared) {
+            p.rawShared = true; DB.saveProjects(DB.projects());
+            if (supaClient) supaClient.from('projects').update({ raw_shared: true }).eq('id', p.id);
+        }
+    } else if (CU.role === 'freelancer') {
+        const p = DB.projects().find(x => x.freelancerId === myId && x.creatorId === otherId && x.status === 'ongoing');
+        if (p && !p.editedUploaded) {
+            p.editedUploaded = true; DB.saveProjects(DB.projects());
+            if (supaClient) supaClient.from('projects').update({ edited_uploaded: true }).eq('id', p.id);
+        }
+    }
+
+    showToast('Video sent successfully!', 'ok');
+  } catch(e) {
+    showToast('Upload failed', 'err');
+  }
+  input.value = ''; // reset file input
+}
+
+async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName = null, overrideText = null) {
+  let text = '';
+  const inp = document.getElementById('chat-inp-el');
+  
+  if (overrideText) {
+    text = overrideText;
+  } else if (overrideFileUrl) {
+    text = 'Video: ' + overrideFileName;
+  } else {
+    if (!inp || !inp.value.trim()) return;
+    text = inp.value.trim(); 
+    inp.value = '';
+  }
+
+  const key = [myId, otherId].sort().join('_');
+  const allMsgs = DB.messages();
+  if (!allMsgs[key]) allMsgs[key] = [];
+  allMsgs[key].push({ from: myId, text: text, file_url: overrideFileUrl, time: Date.now() });
+  DB.saveMessages(allMsgs);
+
+  // Directly update chat UI for instant feel
+  const el = document.getElementById('chat-msgs-el');
+  if (el) { 
+      el.innerHTML = renderMsgs(allMsgs[key], myId); 
+      el.scrollTop = el.scrollHeight; 
+  }
+  updateChatSidebarPreviews();
+
+  if (supaClient) {
+    try {
+      const uid1 = [myId, otherId].sort()[0];
+      const uid2 = [myId, otherId].sort()[1];
+      let { data: convo } = await supaClient.from('conversations').select('id').eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
+      if (!convo) {
+        const { data: newC } = await supaClient.from('conversations').insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
+        convo = newC;
+      }
+      if (convo) {
+        await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
+      }
+    } catch(e) {
+       console.error(e);
+       showToast("Message failed to send.", "err");
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════
+   NEW FLOW ACTIONS (REVISION & APPROVE)
+══════════════════════════════════════════════ */
+
+function requestRevision(freelancerId) {
+    sendMsg(CU.id, freelancerId, null, null, '🔄 Needs Revision: Please check the video again and make the necessary changes.');
+    showToast('Revision requested!', 'info', '');
+}
+
+function triggerApproveAndPay(projectId) {
+    if (!projectId || projectId === 'undefined') {
+        showToast('Project not found.', 'err', '');
+        return;
+    }
+    showModal('Proceed to Payment', 'Are you sure you want to approve this video and proceed to the payment screen?', () => {
+        activeManageProjectId = projectId;
+        wfStep = 7;
+        cPage('new', document.querySelector('[data-page="new"]'));
+    });
+    document.getElementById('modal-confirm').textContent = 'Proceed';
+}
+
+/* ══════════════════════════════════════════════
+   SHARED HELPERS
+══════════════════════════════════════════════ */
+function pRow(ic, t, m, sc, sl) {
+  return `<div class="pc"><div class="pico">${ic}</div><div class="pinfo"><div class="ptitle">${t}</div><div class="pmeta">${m}</div></div><div class="pstatus ${sc}">${sl}</div></div>`;
+}
+function statusClass(s)  { return { open:'s-pe', ongoing:'s-on', completed:'s-co', cancelled:'s-wa' }[s] || 's-pe'; }
+function statusLabel(s)  { return { open:'Open', ongoing:'In Progress', completed:'Completed', cancelled:'Cancelled' }[s] || s; }
+
+function contentIconSvg(t) {
+  const icons = {
+    'YouTube Long-form': `<svg class="pico-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>`,
+    'Instagram Reel':    `<svg class="pico-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/></svg>`,
+    'YouTube Shorts':    `<svg class="pico-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+    'TikTok':            `<svg class="pico-icon" viewBox="0 0 24 24"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>`,
+    'LinkedIn Video':    `<svg class="pico-icon" viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>`,
+    'Brand Video':       `<svg class="pico-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    'Documentary':       `<svg class="pico-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>`,
+    'Podcast Edit':      `<svg class="pico-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`,
+  };
+  return icons[t] || `<svg class="pico-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="15" height="13" rx="2"/><polygon points="22 7 17 10 22 13 22 7"/></svg>`;
+}
+
+function contentIcon(t) { return contentIconSvg(t); }
+
+function rateStar(id, n) {
+  document.querySelectorAll('#'+id+' span').forEach((s, i) => s.className = i < n ? 'lit' : '');
+}
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+window.addEventListener('load', async () => {
+  if (supaClient) {
+    try {
+      const { data: { session } } = await supaClient.auth.getSession();
+      if (session) {
+        const { data: profile } = await supaClient
+          .from('profiles').select('*').eq('id', session.user.id).single();
+        if (profile) {
+          const u = {
+            id: profile.id,
+            name: profile.name || session.user.email.split('@')[0],
+            email: session.user.email,
+            phone: profile.phone || '',
+            role: profile.role || 'creator',
+            profession: profile.profession || '',
+            platform: profile.platform || '',
+            avatar: (profile.name || 'U').charAt(0).toUpperCase(),
+            createdAt: new Date(profile.created_at).getTime()
+          };
+          loginSuccess(u);
+          return;
+        }
+      }
+    } catch(e) {}
+  }
+
+  showScreen('screen-landing');
+
+  new MutationObserver(() => {
+    const el = document.getElementById('chat-msgs-el');
+    if (el) el.scrollTop = el.scrollHeight;
+  }).observe(document.body, { childList: true, subtree: true });
+});
+</script>
+<script>
+const logo = document.getElementById("logoDrag");
+logo.addEventListener("dragstart", (e) => {
+  e.dataTransfer.setData("text/uri-list", window.location.href);
+  e.dataTransfer.setData("text/plain", window.location.href);
+});
+</script>
+
+<style>
+  /* SCOPED CSS FOR PAYMENT MODAL */
+  #aalynex-razorpay-modal { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+  .rzp-box { background:var(--surface); padding:28px; border-radius:var(--radius-lg); width:90%; max-width:400px; text-align:center; box-shadow:var(--shadow-xl); border:1px solid var(--glass-border-strong); }
+  .rzp-title { font-family:'Outfit', sans-serif; font-size:1.2rem; font-weight:700; margin-bottom:8px; color:var(--text); }
+  .rzp-msg { font-size:0.85rem; color:var(--text-2); margin-bottom:20px; }
+  .rzp-amount { font-family:'Outfit', sans-serif; font-size:2.2rem; font-weight:800; color:var(--green); margin-bottom:24px; }
+  .rzp-btn-row { display:flex; gap:12px; }
+  .rzp-btn-cancel { flex:1; padding:12px; border-radius:var(--radius-sm); border:none; background:#f3f4f6; color:#333; font-weight:600; cursor:pointer; transition:0.2s; }
+  .rzp-btn-cancel:hover { background:#e5e7eb; }
+  .rzp-btn-proceed { flex:1; padding:12px; border-radius:var(--radius-sm); border:none; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; transition:0.2s; box-shadow:0 4px 12px rgba(29,78,216,0.3); }
+  .rzp-btn-proceed:hover { background:#1e40af; transform:translateY(-2px); }
+</style>
+
+<div id="aalynex-razorpay-modal">
+  <div class="rzp-box">
+    <div class="rzp-title">Confirm Payment</div>
+    <div class="rzp-msg" id="rzp-proj-name">Project Name</div>
+    <div class="rzp-amount" id="rzp-proj-amount">₹0</div>
+    <div class="rzp-btn-row">
+      <button class="rzp-btn-cancel" onclick="closeRazorpayModal()">Cancel</button>
+      <button class="rzp-btn-proceed" id="rzp-proceed-btn" onclick="processRazorpay()">Yes, Proceed</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+</body>
+</html>
