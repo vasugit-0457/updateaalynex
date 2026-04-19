@@ -1270,7 +1270,7 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM (NO DISAPPEARING MESSAGES)
+  // 🟢 SMOOTH REAL-TIME SYSTEM
   if (supaClient) {
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
@@ -1287,17 +1287,13 @@ async function loginSuccess(u) {
         const newMsg = payload.new;
         if (!newMsg) return;
         
-        // 1. Agar humne khud bheja hai toh ignore karo
         if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
-        // 2. Database se check karo ki ye message kis conversation ka hai
         const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
         if (!convo) return;
         
-        // 3. Agar main is conversation ka hissa nahi hu, toh mere chat box me mat dikhao
         if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
 
-        // 4. Sahi doosre bande ki ID nikalo
         const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
         const key = [CU.id, otherId].sort().join('_');
         
@@ -1316,7 +1312,6 @@ async function loginSuccess(u) {
             DB.saveMessages(allMsgs);
         }
 
-        // 5. Chat UI ko turant update kardo
         const el = document.getElementById('chat-msgs-el');
         if (el && currentChatUserId === otherId) {
             el.innerHTML = renderMsgs(allMsgs[key], CU.id);
@@ -1716,9 +1711,9 @@ async function wfContent() {
           <div class="info-row" style="font-weight:600;"><span style="color:var(--accent);">Total</span><span id="pay-total" style="color:var(--accent);">₹—</span></div>
         </div>
         <div class="fg"><label>Payment Method</label>
-          <select><option>UPI</option><option>Net Banking</option><option>Credit/Debit Card</option><option>Wallet</option></select>
+          <select><option>UPI (Razorpay)</option><option>Net Banking</option><option>Credit/Debit Card</option></select>
         </div>
-        <button class="btn btn-green-btn full-btn" onclick="completePayment()">Pay Now &rarr;</button>
+        <button class="btn btn-green-btn full-btn" onclick="startPaymentFlow()">Pay Now &rarr;</button>
       </div>
       <div>
         <div class="section-title">Rate ${selFreelancerName || 'the Editor'}</div>
@@ -1816,20 +1811,95 @@ function downloadEditedVideo(projectId) {
   }
 }
 
-async function completePayment() {
-  const p = DB.projects().find(x => x.id === activeManageProjectId);
-  if (p) { 
-      p.paid = true; 
-      p.status = 'completed'; 
-      DB.saveProjects(DB.projects()); 
-      if (supaClient) {
-          await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', p.id);
-      }
-      await sendMsg(CU.id, p.freelancerId, null, null, '✅ Project Approved & Paid! Perfect video edit. Great working with you.');
-  }
-  showToast('Payment successful! Project completed! Video is now downloadable.', 'ok', '');
-  cPage('projects', document.querySelector('[data-page="projects"]'));
+// ==========================================
+// RAZORPAY INTEGRATION LOGIC (NEW ADDITION)
+// ==========================================
+let currentPayProjId = null;
+let currentPayAmount = 0;
+
+function startPaymentFlow() {
+    const p = DB.projects().find(x => x.id === activeManageProjectId);
+    if (!p) return;
+    
+    currentPayProjId = p.id;
+    const fee = Math.round(p.budget * 0.05);
+    currentPayAmount = p.budget + fee; // Calculates total including 5% platform fee
+    
+    document.getElementById('rzp-proj-name').innerText = "Payment for: " + p.title;
+    document.getElementById('rzp-proj-amount').innerText = "₹" + fmt(currentPayAmount);
+    document.getElementById('aalynex-razorpay-modal').style.display = 'flex';
 }
+
+function closeRazorpayModal() {
+    document.getElementById('aalynex-razorpay-modal').style.display = 'none';
+}
+
+async function processRazorpay() {
+    const btn = document.getElementById('rzp-proceed-btn');
+    btn.innerText = "Processing...";
+    btn.disabled = true;
+
+    const p = DB.projects().find(x => x.id === currentPayProjId);
+
+    // RAZORPAY CONFIGURATION
+    var options = {
+        "key": "YOUR_RAZORPAY_KEY_ID", // 🔴 PASTE YOUR TEST/LIVE KEY HERE
+        "amount": currentPayAmount * 100, // Razorpay takes amount in Paise (₹1 = 100 paise)
+        "currency": "INR",
+        "name": "Aalynex",
+        "description": "Payment for " + p.title,
+        "handler": async function (response) {
+            closeRazorpayModal();
+            await finalizePaymentSuccess(response, p);
+        },
+        "theme": { "color": "#1D4ED8" }
+    };
+    
+    var rzp = new Razorpay(options);
+    rzp.on('payment.failed', function (response){
+        alert("Payment Failed: " + response.error.description);
+        btn.innerText = "Yes, Proceed";
+        btn.disabled = false;
+    });
+    rzp.open();
+}
+
+async function finalizePaymentSuccess(rzpResponse, proj) {
+    showToast('Verifying payment...', 'info');
+    
+    if (supaClient) {
+        await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', proj.id);
+        
+        await supaClient.from('payments').insert([{
+            project_id: proj.id,
+            creator_id: proj.creatorId,
+            freelancer_id: proj.freelancerId,
+            razorpay_payment_id: rzpResponse.razorpay_payment_id,
+            amount: currentPayAmount,
+            status: 'paid'
+        }]);
+    }
+
+    proj.paid = true;
+    proj.status = 'completed';
+    DB.saveProjects(DB.projects());
+
+    await sendMsg(
+        CU.id, 
+        proj.freelancerId, 
+        null, 
+        null, 
+        `✅ Payment of ₹${fmt(currentPayAmount)} processed via Razorpay! The project is officially complete and money is secured.`
+    );
+    
+    document.getElementById('rzp-proceed-btn').innerText = "Yes, Proceed";
+    document.getElementById('rzp-proceed-btn').disabled = false;
+
+    showToast('Payment successful! Project completed!', 'ok', '');
+    cPage('projects', document.querySelector('[data-page="projects"]'));
+}
+// ==========================================
+
 
 function wfN() {
   if (wfStep===0) { 
@@ -2880,5 +2950,34 @@ logo.addEventListener("dragstart", (e) => {
   e.dataTransfer.setData("text/plain", window.location.href);
 });
 </script>
+
+<style>
+  /* SCOPED CSS FOR PAYMENT MODAL */
+  #aalynex-razorpay-modal { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+  .rzp-box { background:var(--surface); padding:28px; border-radius:var(--radius-lg); width:90%; max-width:400px; text-align:center; box-shadow:var(--shadow-xl); border:1px solid var(--glass-border-strong); }
+  .rzp-title { font-family:'Outfit', sans-serif; font-size:1.2rem; font-weight:700; margin-bottom:8px; color:var(--text); }
+  .rzp-msg { font-size:0.85rem; color:var(--text-2); margin-bottom:20px; }
+  .rzp-amount { font-family:'Outfit', sans-serif; font-size:2.2rem; font-weight:800; color:var(--green); margin-bottom:24px; }
+  .rzp-btn-row { display:flex; gap:12px; }
+  .rzp-btn-cancel { flex:1; padding:12px; border-radius:var(--radius-sm); border:none; background:#f3f4f6; color:#333; font-weight:600; cursor:pointer; transition:0.2s; }
+  .rzp-btn-cancel:hover { background:#e5e7eb; }
+  .rzp-btn-proceed { flex:1; padding:12px; border-radius:var(--radius-sm); border:none; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; transition:0.2s; box-shadow:0 4px 12px rgba(29,78,216,0.3); }
+  .rzp-btn-proceed:hover { background:#1e40af; transform:translateY(-2px); }
+</style>
+
+<div id="aalynex-razorpay-modal">
+  <div class="rzp-box">
+    <div class="rzp-title">Confirm Payment</div>
+    <div class="rzp-msg" id="rzp-proj-name">Project Name</div>
+    <div class="rzp-amount" id="rzp-proj-amount">₹0</div>
+    <div class="rzp-btn-row">
+      <button class="rzp-btn-cancel" onclick="closeRazorpayModal()">Cancel</button>
+      <button class="rzp-btn-proceed" id="rzp-proceed-btn" onclick="processRazorpay()">Yes, Proceed</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
 </body>
 </html>
