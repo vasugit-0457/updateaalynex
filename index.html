@@ -1023,6 +1023,27 @@ let selFreelancerIds = [];
 let activeManageProjectId = null; 
 let newProjectDraft = {}; 
 let currentChatUserId = null; 
+let onlineUsers = new Set(); // 🟢 NAYA ADD KIYA: Online users ko track karne ke liye
+
+/* ══════════════════════════════════════════════
+   PRESENCE HELPER
+══════════════════════════════════════════════ */
+function updateChatHeaderPresence() {
+  const statusText = document.getElementById('chat-status-text');
+  const dot = document.getElementById('chat-online-dot');
+  
+  if (statusText && dot && currentChatUserId) {
+    if (onlineUsers.has(currentChatUserId)) {
+      statusText.textContent = 'Online';
+      statusText.style.color = 'var(--green)';
+      dot.style.background = 'var(--green)';
+    } else {
+      statusText.textContent = 'Offline';
+      statusText.style.color = 'var(--text-3)';
+      dot.style.background = 'var(--text-3)';
+    }
+  }
+}
 
 /* ══════════════════════════════════════════════
    UTILITIES
@@ -1291,7 +1312,6 @@ async function loginSuccess(u) {
         const newMsg = payload.new;
         if (!newMsg) return;
         
-        // Khud ka message ignore karein
         if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
         try {
@@ -1330,20 +1350,30 @@ async function loginSuccess(u) {
         }
       })
       .subscribe((status) => {
-        const statusText = document.getElementById('chat-status-text');
-        const dot = document.getElementById('chat-online-dot');
-        
-        if (status === 'SUBSCRIBED') {
-            if (statusText) { statusText.textContent = 'Online'; statusText.style.color = 'var(--green)'; }
-            if (dot) dot.style.background = 'var(--green)';
-        }
-        
         if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
-            if (dot) dot.style.background = 'var(--yellow)';
-            
             console.log("WebSocket Dropped. Attempting to reconnect...");
             setTimeout(() => chatChannel.subscribe(), 3000);
+        }
+      });
+
+    // 🟢 NAYA: Supabase Presence Channel (Saamne wale ka status check karne ke liye)
+    const presenceChannel = supaClient.channel('global_presence');
+    
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        onlineUsers.clear();
+        for (const id in state) {
+          if (state[id][0]?.user_id) {
+            onlineUsers.add(state[id][0].user_id);
+          }
+        }
+        updateChatHeaderPresence(); // UI update karein
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          // Jaise hi hum connect honge, hum sabko bata denge ki "Main Online Hoon"
+          await presenceChannel.track({ user_id: CU.id });
         }
       });
   }
@@ -2607,6 +2637,13 @@ function buildChat(myId, otherDefaultId) {
   const activeConvo = conversations.find(c => c.user.id === otherDefaultId) || conversations[0];
   const activeKey   = activeConvo?.key || (otherDefaultId ? [myId, otherDefaultId].sort().join('_') : '');
 
+  // Presence variables setup
+  const activeOtherId = activeConvo?.user?.id || otherDefaultId;
+  const isOnline = onlineUsers.has(activeOtherId);
+  const dotColor = isOnline ? 'var(--green)' : 'var(--text-3)';
+  const statusTxt = isOnline ? 'Online' : 'Offline';
+  const txtColor = isOnline ? 'var(--green)' : 'var(--text-3)';
+
   return `
   <div class="chat-wrap">
     <div class="chat-list">
@@ -2623,10 +2660,10 @@ function buildChat(myId, otherDefaultId) {
       ${activeConvo ? `
       <div class="ch-header">
           <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${activeConvo.user.avatar}</div>
-          <div class="online-dot" id="chat-online-dot"></div>
+          <div class="online-dot" id="chat-online-dot" style="background:${dotColor};"></div>
           <div style="display:flex; flex-direction:column; line-height:1.2;">
             <span>${activeConvo.user.name}</span>
-            <span id="chat-status-text" style="font-size:0.65rem; color:var(--green); font-weight:600;">Online</span>
+            <span id="chat-status-text" style="font-size:0.65rem; color:${txtColor}; font-weight:600;">${statusTxt}</span>
           </div>
         </div>
         <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(activeConvo.msgs, myId)}</div>
@@ -2774,14 +2811,20 @@ function switchChat(myId, otherId) {
   document.querySelectorAll('.cc-item').forEach(el => el.classList.remove('active'));
   if (event && event.currentTarget) event.currentTarget.classList.add('active');
   const area = document.querySelector('.chat-area');
+  
   if (area && other) {
+    const isOnline = onlineUsers.has(otherId);
+    const dotColor = isOnline ? 'var(--green)' : 'var(--text-3)';
+    const statusTxt = isOnline ? 'Online' : 'Offline';
+    const txtColor = isOnline ? 'var(--green)' : 'var(--text-3)';
+
     area.innerHTML = `
-    <div class="ch-header">
+      <div class="ch-header">
         <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${other.avatar}</div>
-        <div class="online-dot" id="chat-online-dot"></div>
+        <div class="online-dot" id="chat-online-dot" style="background:${dotColor};"></div>
         <div style="display:flex; flex-direction:column; line-height:1.2;">
           <span>${other.name}</span>
-          <span id="chat-status-text" style="font-size:0.65rem; color:var(--green); font-weight:600;">Online</span>
+          <span id="chat-status-text" style="font-size:0.65rem; color:${txtColor}; font-weight:600;">${statusTxt}</span>
         </div>
       </div>
       <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(msgs, myId)}</div>
@@ -2794,6 +2837,8 @@ function switchChat(myId, otherId) {
           onkeydown="if(event.key==='Enter')sendMsg('${myId}','${otherId}')"/>
         <button class="btn btn-primary btn-sm" onclick="sendMsg('${myId}','${otherId}')">Send</button>
       </div>`;
+    
+    updateChatHeaderPresence(); // 🟢 Chat open hote hi status check kare
     const el = document.getElementById('chat-msgs-el');
     if (el) el.scrollTop = el.scrollHeight;
   }
@@ -2947,6 +2992,7 @@ function contentIcon(t) { return contentIconSvg(t); }
 function rateStar(id, n) {
   document.querySelectorAll('#'+id+' span').forEach((s, i) => s.className = i < n ? 'lit' : '');
 }
+
 /* ══════════════════════════════════════════════
    NETWORK STATUS LISTENERS
 ══════════════════════════════════════════════ */
@@ -2962,8 +3008,9 @@ window.addEventListener('online', () => {
   const dot = document.getElementById('chat-online-dot');
   if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
   if (dot) dot.style.background = 'var(--yellow)';
-  // Jaise hi net aayega, Supabase auto-reconnect wala block apne aap isko "Online" kar dega.
+  // Jaise hi net aayega, Supabase auto-reconnect wala block apne aap isko "Online" kar dega ya presence refresh karega.
 });
+
 /* ══════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════ */
