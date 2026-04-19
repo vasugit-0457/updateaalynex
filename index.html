@@ -1330,8 +1330,18 @@ async function loginSuccess(u) {
         }
       })
       .subscribe((status) => {
-        // ⚠️ AUTO-RECONNECT LOGIC: Agar connection kill ho jaye toh wapas connect kare
+        const statusText = document.getElementById('chat-status-text');
+        const dot = document.getElementById('chat-online-dot');
+        
+        if (status === 'SUBSCRIBED') {
+            if (statusText) { statusText.textContent = 'Online'; statusText.style.color = 'var(--green)'; }
+            if (dot) dot.style.background = 'var(--green)';
+        }
+        
         if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
+            if (dot) dot.style.background = 'var(--yellow)';
+            
             console.log("WebSocket Dropped. Attempting to reconnect...");
             setTimeout(() => chatChannel.subscribe(), 3000);
         }
@@ -2611,10 +2621,13 @@ function buildChat(myId, otherDefaultId) {
     </div>
     <div class="chat-area">
       ${activeConvo ? `
-        <div class="ch-header">
+      <div class="ch-header">
           <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${activeConvo.user.avatar}</div>
-          <div class="online-dot"></div>
-          <span>${activeConvo.user.name}</span>
+          <div class="online-dot" id="chat-online-dot"></div>
+          <div style="display:flex; flex-direction:column; line-height:1.2;">
+            <span>${activeConvo.user.name}</span>
+            <span id="chat-status-text" style="font-size:0.65rem; color:var(--green); font-weight:600;">Online</span>
+          </div>
         </div>
         <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(activeConvo.msgs, myId)}</div>
         <div class="chat-inp-bar">
@@ -2763,10 +2776,13 @@ function switchChat(myId, otherId) {
   const area = document.querySelector('.chat-area');
   if (area && other) {
     area.innerHTML = `
-      <div class="ch-header">
+    <div class="ch-header">
         <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${other.avatar}</div>
-        <div class="online-dot"></div>
-        <span>${other.name}</span>
+        <div class="online-dot" id="chat-online-dot"></div>
+        <div style="display:flex; flex-direction:column; line-height:1.2;">
+          <span>${other.name}</span>
+          <span id="chat-status-text" style="font-size:0.65rem; color:var(--green); font-weight:600;">Online</span>
+        </div>
       </div>
       <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(msgs, myId)}</div>
       <div class="chat-inp-bar">
@@ -2931,7 +2947,23 @@ function contentIcon(t) { return contentIconSvg(t); }
 function rateStar(id, n) {
   document.querySelectorAll('#'+id+' span').forEach((s, i) => s.className = i < n ? 'lit' : '');
 }
+/* ══════════════════════════════════════════════
+   NETWORK STATUS LISTENERS
+══════════════════════════════════════════════ */
+window.addEventListener('offline', () => {
+  const statusText = document.getElementById('chat-status-text');
+  const dot = document.getElementById('chat-online-dot');
+  if (statusText) { statusText.textContent = 'Offline'; statusText.style.color = 'var(--red)'; }
+  if (dot) dot.style.background = 'var(--red)';
+});
 
+window.addEventListener('online', () => {
+  const statusText = document.getElementById('chat-status-text');
+  const dot = document.getElementById('chat-online-dot');
+  if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
+  if (dot) dot.style.background = 'var(--yellow)';
+  // Jaise hi net aayega, Supabase auto-reconnect wala block apne aap isko "Online" kar dega.
+});
 /* ══════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════ */
