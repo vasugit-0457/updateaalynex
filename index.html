@@ -1270,8 +1270,9 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM
+  // 🟢 SMOOTH REAL-TIME SYSTEM (UPDATED)
   if (supaClient) {
+    // Projects Channel
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
         syncFromSupabase(CU).then(() => {
@@ -1282,43 +1283,59 @@ async function loginSuccess(u) {
         });
       }).subscribe();
 
-    supaClient.channel('public:messages')
+    // Messages Channel
+    const chatChannel = supaClient.channel('realtime_messages');
+    
+    chatChannel
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
         const newMsg = payload.new;
         if (!newMsg) return;
         
+        // Khud ka message ignore karein
         if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
-        const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
-        if (!convo) return;
-        
-        if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
+        try {
+            const { data: convo, error } = await supaClient.from('conversations')
+                .select('*').eq('id', newMsg.conversation_id).single();
+            
+            if (error || !convo) return;
+            if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
 
-        const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
-        const key = [CU.id, otherId].sort().join('_');
-        
-        const allMsgs = DB.messages();
-        if (!allMsgs[key]) allMsgs[key] = [];
-        
-        const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
-        
-        if (!exists) {
-            allMsgs[key].push({
-                from: newMsg.sender_id,
-                text: newMsg.text,
-                file_url: newMsg.file_url || null,
-                time: new Date(newMsg.created_at).getTime()
-            });
-            DB.saveMessages(allMsgs);
-        }
+            const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
+            const key = [CU.id, otherId].sort().join('_');
+            
+            const allMsgs = DB.messages();
+            if (!allMsgs[key]) allMsgs[key] = [];
+            
+            const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
+            
+            if (!exists) {
+                allMsgs[key].push({
+                    from: newMsg.sender_id,
+                    text: newMsg.text,
+                    file_url: newMsg.file_url || null,
+                    time: new Date(newMsg.created_at).getTime()
+                });
+                DB.saveMessages(allMsgs);
+            }
 
-        const el = document.getElementById('chat-msgs-el');
-        if (el && currentChatUserId === otherId) {
-            el.innerHTML = renderMsgs(allMsgs[key], CU.id);
-            el.scrollTop = el.scrollHeight; // Scroll to bottom
+            const el = document.getElementById('chat-msgs-el');
+            if (el && currentChatUserId === otherId) {
+                el.innerHTML = renderMsgs(allMsgs[key], CU.id);
+                el.scrollTop = el.scrollHeight; // Scroll to bottom instantly
+            }
+            updateChatSidebarPreviews();
+        } catch (err) {
+            console.warn("Real-time chat processing delayed:", err);
         }
-        updateChatSidebarPreviews();
-      }).subscribe();
+      })
+      .subscribe((status) => {
+        // ⚠️ AUTO-RECONNECT LOGIC: Agar connection kill ho jaye toh wapas connect kare
+        if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            console.log("WebSocket Dropped. Attempting to reconnect...");
+            setTimeout(() => chatChannel.subscribe(), 3000);
+        }
+      });
   }
 }
 
@@ -2819,16 +2836,19 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
   } else {
     if (!inp || !inp.value.trim()) return;
     text = inp.value.trim(); 
-    inp.value = '';
+    inp.value = ''; // Input instantly clear karein UX ke liye
   }
 
+  // 1. UI me immediately dikhayein
   const key = [myId, otherId].sort().join('_');
   const allMsgs = DB.messages();
   if (!allMsgs[key]) allMsgs[key] = [];
-  allMsgs[key].push({ from: myId, text: text, file_url: overrideFileUrl, time: Date.now() });
+  
+  // Naya message push karein
+  const newMsgObj = { from: myId, text: text, file_url: overrideFileUrl, time: Date.now() };
+  allMsgs[key].push(newMsgObj);
   DB.saveMessages(allMsgs);
 
-  // Directly update chat UI for instant feel
   const el = document.getElementById('chat-msgs-el');
   if (el) { 
       el.innerHTML = renderMsgs(allMsgs[key], myId); 
@@ -2836,21 +2856,27 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
   }
   updateChatSidebarPreviews();
 
+  // 2. Supabase DB me save karein (With Error Handling)
   if (supaClient) {
     try {
       const uid1 = [myId, otherId].sort()[0];
       const uid2 = [myId, otherId].sort()[1];
-      let { data: convo } = await supaClient.from('conversations').select('id').eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
+      let { data: convo, error: convoErr } = await supaClient.from('conversations').select('id').eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
+      
       if (!convo) {
-        const { data: newC } = await supaClient.from('conversations').insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
+        const { data: newC, error: createErr } = await supaClient.from('conversations').insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
+        if (createErr) throw createErr;
         convo = newC;
       }
+      
       if (convo) {
-        await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
+        const { error: insertErr } = await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
+        if (insertErr) throw insertErr;
       }
     } catch(e) {
-       console.error(e);
-       showToast("Message failed to send.", "err");
+       console.error("Message DB Insert Failed:", e);
+       showToast("Message failed to sync with server. Please refresh.", "err");
+       // Backend me save nahi hua toh use UI se hatana achha hai ya warning dena
     }
   }
 }
