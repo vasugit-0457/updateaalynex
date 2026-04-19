@@ -2574,19 +2574,10 @@ function renderMsgs(msgs, myId) {
               downloadBtn = `<button class="btn btn-ghost btn-xs" style="margin-top:6px; font-size:0.65rem;" onclick="showToast('❌ You must Approve & Pay to download.', 'err')">⬇ Download Locked</button>`;
               
               if (isFinal) {
+                  // ONLY Approve & Pay for Final Delivery
                   actionBtns += `<button class="btn btn-green-btn btn-xs" style="margin-top:6px; font-size:0.65rem; margin-right:6px;" onclick="triggerApproveAndPay('${proj?.id}')">✅ Approve & Pay</button>`;
-                  
-                  const hasRequestedRevision = msgs.slice(idx + 1).some(msg => 
-                      String(msg.from).toLowerCase() === String(myId).toLowerCase() && 
-                      msg.text.includes('Needs Revision')
-                  );
-
-                  if (hasRequestedRevision) {
-                      actionBtns += `<span style="margin-top:6px; font-size:0.7rem; color:var(--yellow); display:inline-flex; align-items:center; padding:2px 4px;">🔄 Revision Requested</span>`;
-                  } else {
-                      actionBtns += `<button class="btn btn-danger btn-xs" style="margin-top:6px; font-size:0.65rem; border:1px solid var(--red); color:var(--red); background:transparent;" onclick="requestRevision('${m.from}')">🔄 Request Revision</button>`;
-                  }
               } else {
+                  // ONLY Request Revision for non-final videos sent in chat
                   const hasRequestedRevision = msgs.slice(idx + 1).some(msg => 
                       String(msg.from).toLowerCase() === String(myId).toLowerCase() && 
                       msg.text.includes('Needs Revision')
