@@ -1023,27 +1023,6 @@ let selFreelancerIds = [];
 let activeManageProjectId = null; 
 let newProjectDraft = {}; 
 let currentChatUserId = null; 
-let onlineUsers = new Set(); // 🟢 NAYA ADD KIYA: Online users ko track karne ke liye
-
-/* ══════════════════════════════════════════════
-   PRESENCE HELPER
-══════════════════════════════════════════════ */
-function updateChatHeaderPresence() {
-  const statusText = document.getElementById('chat-status-text');
-  const dot = document.getElementById('chat-online-dot');
-  
-  if (statusText && dot && currentChatUserId) {
-    if (onlineUsers.has(currentChatUserId)) {
-      statusText.textContent = 'Online';
-      statusText.style.color = 'var(--green)';
-      dot.style.background = 'var(--green)';
-    } else {
-      statusText.textContent = 'Offline';
-      statusText.style.color = 'var(--text-3)';
-      dot.style.background = 'var(--text-3)';
-    }
-  }
-}
 
 /* ══════════════════════════════════════════════
    UTILITIES
@@ -1291,99 +1270,80 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SINGLE CHANNEL REAL-TIME SYSTEM (100% BULLETPROOF)
+  // 🟢 MASTER REAL-TIME SYSTEM (NO CONNECTION-KILLER BUGS)
   if (supaClient && !window.realtimeInitialized) {
     window.realtimeInitialized = true; // Duplicate connection roke
-    
-    supaClient.removeAllChannels(); // Purane kachre ko saaf kare
 
-    // Ek hi master channel banayein
-    const masterChannel = supaClient.channel('aalynex_global_channel');
+    // Ek hi Master Channel banayein
+    const masterChannel = supaClient.channel('aalynex_master');
 
-    // 1. Listen to Projects
-    masterChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
-      console.log("Project Updated:", payload);
-      syncFromSupabase(CU).then(() => {
-        const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
-        const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
-        if (CU.role === 'creator' && cPageActive !== 'chat') renderC(cPageActive || 'home');
-        else if (CU.role === 'freelancer' && fPageActive !== 'chat') renderF(fPageActive || 'home');
-      });
-    });
+    masterChannel
+      // 1. Listen to Projects
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
+        syncFromSupabase(CU).then(() => {
+          const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
+          const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
+          if (CU.role === 'creator' && cPageActive !== 'chat') renderC(cPageActive || 'home');
+          else if (CU.role === 'freelancer' && fPageActive !== 'chat') renderF(fPageActive || 'home');
+        });
+      })
+      // 2. Listen to Messages
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        const newMsg = payload.new;
+        if (!newMsg) return;
+        if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
-    // 2. Listen to Messages
-    masterChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-      console.log("New Message Received:", payload);
-      const newMsg = payload.new;
-      if (!newMsg) return;
-      
-      if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+        try {
+            const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
+            if (!convo) return;
+            if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
 
-      try {
-          const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
-          if (!convo) return;
-          if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
+            const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
+            const key = [CU.id, otherId].sort().join('_');
+            
+            const allMsgs = DB.messages();
+            if (!allMsgs[key]) allMsgs[key] = [];
+            
+            const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
+            
+            if (!exists) {
+                allMsgs[key].push({
+                    from: newMsg.sender_id, text: newMsg.text, file_url: newMsg.file_url || null, time: new Date(newMsg.created_at).getTime()
+                });
+                DB.saveMessages(allMsgs);
+            }
 
-          const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
-          const key = [CU.id, otherId].sort().join('_');
-          
-          const allMsgs = DB.messages();
-          if (!allMsgs[key]) allMsgs[key] = [];
-          
-          const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
-          
-          if (!exists) {
-              allMsgs[key].push({
-                  from: newMsg.sender_id,
-                  text: newMsg.text,
-                  file_url: newMsg.file_url || null,
-                  time: new Date(newMsg.created_at).getTime()
-              });
-              DB.saveMessages(allMsgs);
-          }
-
-          if (currentChatUserId === otherId) {
-              const el = document.getElementById('chat-msgs-el');
-              if (el) {
-                  el.innerHTML = renderMsgs(allMsgs[key], CU.id);
-                  el.scrollTop = el.scrollHeight; 
-              }
-          }
-          updateChatSidebarPreviews();
-      } catch (err) {
-          console.warn("Chat sync issue:", err);
-      }
-    });
-
-    // 3. Listen to Presence (Online/Offline Track)
-    masterChannel.on('presence', { event: 'sync' }, () => {
-      const state = masterChannel.presenceState();
-      onlineUsers.clear();
-      for (const id in state) {
-        if (state[id][0]?.user_id) {
-          onlineUsers.add(state[id][0].user_id);
+            if (currentChatUserId === otherId) {
+                const el = document.getElementById('chat-msgs-el');
+                if (el) { el.innerHTML = renderMsgs(allMsgs[key], CU.id); el.scrollTop = el.scrollHeight; }
+            }
+            updateChatSidebarPreviews();
+        } catch (err) {}
+      })
+      // 3. Listen to Presence (Online/Offline)
+      .on('presence', { event: 'sync' }, () => {
+        const state = masterChannel.presenceState();
+        onlineUsers.clear();
+        for (const id in state) {
+          if (state[id][0]?.user_id) onlineUsers.add(state[id][0].user_id);
         }
-      }
-      updateChatHeaderPresence(); 
-    });
-
-    // 4. Subscribing EVERYTHING at once
-    masterChannel.subscribe(async (status) => {
-      console.log("Supabase Connection Status:", status);
-      const statusText = document.getElementById('chat-status-text');
-      const dot = document.getElementById('chat-online-dot');
-      
-      if (status === 'SUBSCRIBED') {
-          if (statusText) { statusText.textContent = 'Online'; statusText.style.color = 'var(--green)'; }
-          if (dot) dot.style.background = 'var(--green)';
-          
-          await masterChannel.track({ user_id: CU.id }); // Khud ko online declare karein
-      } 
-      else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
-          if (dot) dot.style.background = 'var(--yellow)';
-      }
-    });
+        updateChatHeaderPresence(); 
+      })
+      // 4. Finally, Subscribe and Track!
+      .subscribe(async (status) => {
+        const statusText = document.getElementById('chat-status-text');
+        const dot = document.getElementById('chat-online-dot');
+        
+        if (status === 'SUBSCRIBED') {
+            if (statusText) { statusText.textContent = 'Online'; statusText.style.color = 'var(--green)'; }
+            if (dot) dot.style.background = 'var(--green)';
+            await masterChannel.track({ user_id: CU.id }); // Khud ko online declare karein
+        } 
+        else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
+            if (dot) dot.style.background = 'var(--yellow)';
+        }
+      });
   }
 }
 
@@ -1776,9 +1736,9 @@ async function wfContent() {
           <div class="info-row" style="font-weight:600;"><span style="color:var(--accent);">Total</span><span id="pay-total" style="color:var(--accent);">₹—</span></div>
         </div>
         <div class="fg"><label>Payment Method</label>
-          <select><option>UPI (Razorpay)</option><option>Net Banking</option><option>Credit/Debit Card</option></select>
+          <select><option>UPI</option><option>Net Banking</option><option>Credit/Debit Card</option><option>Wallet</option></select>
         </div>
-        <button class="btn btn-green-btn full-btn" onclick="startPaymentFlow()">Pay Now &rarr;</button>
+        <button class="btn btn-green-btn full-btn" onclick="completePayment()">Pay Now &rarr;</button>
       </div>
       <div>
         <div class="section-title">Rate ${selFreelancerName || 'the Editor'}</div>
@@ -1876,95 +1836,20 @@ function downloadEditedVideo(projectId) {
   }
 }
 
-// ==========================================
-// RAZORPAY INTEGRATION LOGIC (NEW ADDITION)
-// ==========================================
-let currentPayProjId = null;
-let currentPayAmount = 0;
-
-function startPaymentFlow() {
-    const p = DB.projects().find(x => x.id === activeManageProjectId);
-    if (!p) return;
-    
-    currentPayProjId = p.id;
-    const fee = Math.round(p.budget * 0.05);
-    currentPayAmount = p.budget + fee; // Calculates total including 5% platform fee
-    
-    document.getElementById('rzp-proj-name').innerText = "Payment for: " + p.title;
-    document.getElementById('rzp-proj-amount').innerText = "₹" + fmt(currentPayAmount);
-    document.getElementById('aalynex-razorpay-modal').style.display = 'flex';
+async function completePayment() {
+  const p = DB.projects().find(x => x.id === activeManageProjectId);
+  if (p) { 
+      p.paid = true; 
+      p.status = 'completed'; 
+      DB.saveProjects(DB.projects()); 
+      if (supaClient) {
+          await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', p.id);
+      }
+      await sendMsg(CU.id, p.freelancerId, null, null, '✅ Project Approved & Paid! Perfect video edit. Great working with you.');
+  }
+  showToast('Payment successful! Project completed! Video is now downloadable.', 'ok', '');
+  cPage('projects', document.querySelector('[data-page="projects"]'));
 }
-
-function closeRazorpayModal() {
-    document.getElementById('aalynex-razorpay-modal').style.display = 'none';
-}
-
-async function processRazorpay() {
-    const btn = document.getElementById('rzp-proceed-btn');
-    btn.innerText = "Processing...";
-    btn.disabled = true;
-
-    const p = DB.projects().find(x => x.id === currentPayProjId);
-
-    // RAZORPAY CONFIGURATION
-    var options = {
-        "key": "rzp_test_SfF1eVKxwzgE6a", // 🔴 PASTE YOUR TEST/LIVE KEY HERE
-        "amount": currentPayAmount * 100, // Razorpay takes amount in Paise (₹1 = 100 paise)
-        "currency": "INR",
-        "name": "Aalynex",
-        "description": "Payment for " + p.title,
-        "handler": async function (response) {
-            closeRazorpayModal();
-            await finalizePaymentSuccess(response, p);
-        },
-        "theme": { "color": "#1D4ED8" }
-    };
-    
-    var rzp = new Razorpay(options);
-    rzp.on('payment.failed', function (response){
-        alert("Payment Failed: " + response.error.description);
-        btn.innerText = "Yes, Proceed";
-        btn.disabled = false;
-    });
-    rzp.open();
-}
-
-async function finalizePaymentSuccess(rzpResponse, proj) {
-    showToast('Verifying payment...', 'info');
-    
-    if (supaClient) {
-        await supaClient.from('projects').update({ paid: true, status: 'completed' }).eq('id', proj.id);
-        
-        await supaClient.from('payments').insert([{
-            project_id: proj.id,
-            creator_id: proj.creatorId,
-            freelancer_id: proj.freelancerId,
-            razorpay_payment_id: rzpResponse.razorpay_payment_id,
-            amount: currentPayAmount,
-            status: 'paid'
-        }]);
-    }
-
-    proj.paid = true;
-    proj.status = 'completed';
-    DB.saveProjects(DB.projects());
-
-    await sendMsg(
-        CU.id, 
-        proj.freelancerId, 
-        null, 
-        null, 
-        `✅ Payment of ₹${fmt(currentPayAmount)} processed via Razorpay! The project is officially complete and money is secured.`
-    );
-    
-    document.getElementById('rzp-proceed-btn').innerText = "Yes, Proceed";
-    document.getElementById('rzp-proceed-btn').disabled = false;
-
-    showToast('Payment successful! Project completed!', 'ok', '');
-    cPage('projects', document.querySelector('[data-page="projects"]'));
-}
-// ==========================================
-
 
 function wfN() {
   if (wfStep===0) { 
@@ -2645,13 +2530,6 @@ function buildChat(myId, otherDefaultId) {
   const activeConvo = conversations.find(c => c.user.id === otherDefaultId) || conversations[0];
   const activeKey   = activeConvo?.key || (otherDefaultId ? [myId, otherDefaultId].sort().join('_') : '');
 
-  // Presence variables setup
-  const activeOtherId = activeConvo?.user?.id || otherDefaultId;
-  const isOnline = onlineUsers.has(activeOtherId);
-  const dotColor = isOnline ? 'var(--green)' : 'var(--text-3)';
-  const statusTxt = isOnline ? 'Online' : 'Offline';
-  const txtColor = isOnline ? 'var(--green)' : 'var(--text-3)';
-
   return `
   <div class="chat-wrap">
     <div class="chat-list">
@@ -2666,13 +2544,10 @@ function buildChat(myId, otherDefaultId) {
     </div>
     <div class="chat-area">
       ${activeConvo ? `
-      <div class="ch-header">
+        <div class="ch-header">
           <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${activeConvo.user.avatar}</div>
-          <div class="online-dot" id="chat-online-dot" style="background:${dotColor};"></div>
-          <div style="display:flex; flex-direction:column; line-height:1.2;">
-            <span>${activeConvo.user.name}</span>
-            <span id="chat-status-text" style="font-size:0.65rem; color:${txtColor}; font-weight:600;">${statusTxt}</span>
-          </div>
+          <div class="online-dot"></div>
+          <span>${activeConvo.user.name}</span>
         </div>
         <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(activeConvo.msgs, myId)}</div>
         <div class="chat-inp-bar">
@@ -2819,21 +2694,12 @@ function switchChat(myId, otherId) {
   document.querySelectorAll('.cc-item').forEach(el => el.classList.remove('active'));
   if (event && event.currentTarget) event.currentTarget.classList.add('active');
   const area = document.querySelector('.chat-area');
-  
   if (area && other) {
-    const isOnline = onlineUsers.has(otherId);
-    const dotColor = isOnline ? 'var(--green)' : 'var(--text-3)';
-    const statusTxt = isOnline ? 'Online' : 'Offline';
-    const txtColor = isOnline ? 'var(--green)' : 'var(--text-3)';
-
     area.innerHTML = `
       <div class="ch-header">
         <div class="c-av" style="width:28px;height:28px;font-size:.7rem;">${other.avatar}</div>
-        <div class="online-dot" id="chat-online-dot" style="background:${dotColor};"></div>
-        <div style="display:flex; flex-direction:column; line-height:1.2;">
-          <span>${other.name}</span>
-          <span id="chat-status-text" style="font-size:0.65rem; color:${txtColor}; font-weight:600;">${statusTxt}</span>
-        </div>
+        <div class="online-dot"></div>
+        <span>${other.name}</span>
       </div>
       <div class="chat-msgs" id="chat-msgs-el">${renderMsgs(msgs, myId)}</div>
       <div class="chat-inp-bar">
@@ -2845,8 +2711,6 @@ function switchChat(myId, otherId) {
           onkeydown="if(event.key==='Enter')sendMsg('${myId}','${otherId}')"/>
         <button class="btn btn-primary btn-sm" onclick="sendMsg('${myId}','${otherId}')">Send</button>
       </div>`;
-    
-    updateChatHeaderPresence(); // 🟢 Chat open hote hi status check kare
     const el = document.getElementById('chat-msgs-el');
     if (el) el.scrollTop = el.scrollHeight;
   }
@@ -2905,19 +2769,16 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
   } else {
     if (!inp || !inp.value.trim()) return;
     text = inp.value.trim(); 
-    inp.value = ''; // Input instantly clear karein UX ke liye
+    inp.value = '';
   }
 
-  // 1. UI me immediately dikhayein
   const key = [myId, otherId].sort().join('_');
   const allMsgs = DB.messages();
   if (!allMsgs[key]) allMsgs[key] = [];
-  
-  // Naya message push karein
-  const newMsgObj = { from: myId, text: text, file_url: overrideFileUrl, time: Date.now() };
-  allMsgs[key].push(newMsgObj);
+  allMsgs[key].push({ from: myId, text: text, file_url: overrideFileUrl, time: Date.now() });
   DB.saveMessages(allMsgs);
 
+  // Directly update chat UI for instant feel
   const el = document.getElementById('chat-msgs-el');
   if (el) { 
       el.innerHTML = renderMsgs(allMsgs[key], myId); 
@@ -2925,27 +2786,21 @@ async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName =
   }
   updateChatSidebarPreviews();
 
-  // 2. Supabase DB me save karein (With Error Handling)
   if (supaClient) {
     try {
       const uid1 = [myId, otherId].sort()[0];
       const uid2 = [myId, otherId].sort()[1];
-      let { data: convo, error: convoErr } = await supaClient.from('conversations').select('id').eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
-      
+      let { data: convo } = await supaClient.from('conversations').select('id').eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
       if (!convo) {
-        const { data: newC, error: createErr } = await supaClient.from('conversations').insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
-        if (createErr) throw createErr;
+        const { data: newC } = await supaClient.from('conversations').insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
         convo = newC;
       }
-      
       if (convo) {
-        const { error: insertErr } = await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
-        if (insertErr) throw insertErr;
+        await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: overrideFileUrl });
       }
     } catch(e) {
-       console.error("Message DB Insert Failed:", e);
-       showToast("Message failed to sync with server. Please refresh.", "err");
-       // Backend me save nahi hua toh use UI se hatana achha hai ya warning dena
+       console.error(e);
+       showToast("Message failed to send.", "err");
     }
   }
 }
@@ -3002,24 +2857,6 @@ function rateStar(id, n) {
 }
 
 /* ══════════════════════════════════════════════
-   NETWORK STATUS LISTENERS
-══════════════════════════════════════════════ */
-window.addEventListener('offline', () => {
-  const statusText = document.getElementById('chat-status-text');
-  const dot = document.getElementById('chat-online-dot');
-  if (statusText) { statusText.textContent = 'Offline'; statusText.style.color = 'var(--red)'; }
-  if (dot) dot.style.background = 'var(--red)';
-});
-
-window.addEventListener('online', () => {
-  const statusText = document.getElementById('chat-status-text');
-  const dot = document.getElementById('chat-online-dot');
-  if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
-  if (dot) dot.style.background = 'var(--yellow)';
-  // Jaise hi net aayega, Supabase auto-reconnect wala block apne aap isko "Online" kar dega ya presence refresh karega.
-});
-
-/* ══════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════ */
 window.addEventListener('load', async () => {
@@ -3063,34 +2900,5 @@ logo.addEventListener("dragstart", (e) => {
   e.dataTransfer.setData("text/plain", window.location.href);
 });
 </script>
-
-<style>
-  /* SCOPED CSS FOR PAYMENT MODAL */
-  #aalynex-razorpay-modal { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; }
-  .rzp-box { background:var(--surface); padding:28px; border-radius:var(--radius-lg); width:90%; max-width:400px; text-align:center; box-shadow:var(--shadow-xl); border:1px solid var(--glass-border-strong); }
-  .rzp-title { font-family:'Outfit', sans-serif; font-size:1.2rem; font-weight:700; margin-bottom:8px; color:var(--text); }
-  .rzp-msg { font-size:0.85rem; color:var(--text-2); margin-bottom:20px; }
-  .rzp-amount { font-family:'Outfit', sans-serif; font-size:2.2rem; font-weight:800; color:var(--green); margin-bottom:24px; }
-  .rzp-btn-row { display:flex; gap:12px; }
-  .rzp-btn-cancel { flex:1; padding:12px; border-radius:var(--radius-sm); border:none; background:#f3f4f6; color:#333; font-weight:600; cursor:pointer; transition:0.2s; }
-  .rzp-btn-cancel:hover { background:#e5e7eb; }
-  .rzp-btn-proceed { flex:1; padding:12px; border-radius:var(--radius-sm); border:none; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; transition:0.2s; box-shadow:0 4px 12px rgba(29,78,216,0.3); }
-  .rzp-btn-proceed:hover { background:#1e40af; transform:translateY(-2px); }
-</style>
-
-<div id="aalynex-razorpay-modal">
-  <div class="rzp-box">
-    <div class="rzp-title">Confirm Payment</div>
-    <div class="rzp-msg" id="rzp-proj-name">Project Name</div>
-    <div class="rzp-amount" id="rzp-proj-amount">₹0</div>
-    <div class="rzp-btn-row">
-      <button class="rzp-btn-cancel" onclick="closeRazorpayModal()">Cancel</button>
-      <button class="rzp-btn-proceed" id="rzp-proceed-btn" onclick="processRazorpay()">Yes, Proceed</button>
-    </div>
-  </div>
-</div>
-
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
 </body>
 </html>
