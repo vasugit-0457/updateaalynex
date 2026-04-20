@@ -1291,91 +1291,99 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM (FIXED CLASH & INIT BUG)
-  if (supaClient) {
-    // Purane sabhi channels clear karein (Safe logic, no init bug)
-    supaClient.removeAllChannels();
-
-    // 1. Projects Channel
-    supaClient.channel('public:projects')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
-        syncFromSupabase(CU).then(() => {
-          const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
-          const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
-          if (CU.role === 'creator' && cPageActive !== 'chat') renderC(cPageActive || 'home');
-          else if (CU.role === 'freelancer' && fPageActive !== 'chat') renderF(fPageActive || 'home');
-        });
-      }).subscribe();
-
-    // 2. Messages Channel
-    const chatChannel = supaClient.channel('realtime_messages');
+  // 🟢 SINGLE CHANNEL REAL-TIME SYSTEM (100% BULLETPROOF)
+  if (supaClient && !window.realtimeInitialized) {
+    window.realtimeInitialized = true; // Duplicate connection roke
     
-    chatChannel
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-        const newMsg = payload.new;
-        if (!newMsg) return;
-        
-        if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+    supaClient.removeAllChannels(); // Purane kachre ko saaf kare
 
-        try {
-            const { data: convo, error } = await supaClient.from('conversations')
-                .select('*').eq('id', newMsg.conversation_id).single();
-            
-            if (error || !convo) return;
-            if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
+    // Ek hi master channel banayein
+    const masterChannel = supaClient.channel('aalynex_global_channel');
 
-            const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
-            const key = [CU.id, otherId].sort().join('_');
-            
-            const allMsgs = DB.messages();
-            if (!allMsgs[key]) allMsgs[key] = [];
-            
-            const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
-            
-            if (!exists) {
-                allMsgs[key].push({
-                    from: newMsg.sender_id,
-                    text: newMsg.text,
-                    file_url: newMsg.file_url || null,
-                    time: new Date(newMsg.created_at).getTime()
-                });
-                DB.saveMessages(allMsgs);
-            }
-
-            // Agar user usi chat me hai, tabhi scroll update karein
-            if (currentChatUserId === otherId) {
-                const el = document.getElementById('chat-msgs-el');
-                if (el) {
-                    el.innerHTML = renderMsgs(allMsgs[key], CU.id);
-                    el.scrollTop = el.scrollHeight; 
-                }
-            }
-            updateChatSidebarPreviews();
-        } catch (err) {
-            console.warn("Real-time chat processing delayed:", err);
-        }
-      })
-      .subscribe(); // ❌ Yahan se UI override block nikal diya gaya hai
-
-    // 3. Supabase Presence Channel (Only valid way to check online/offline)
-    const presenceChannel = supaClient.channel('global_presence');
-    
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
-        onlineUsers.clear();
-        for (const id in state) {
-          if (state[id][0]?.user_id) {
-            onlineUsers.add(state[id][0].user_id);
-          }
-        }
-        updateChatHeaderPresence(); // Ye automatically green ya grey karega
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ user_id: CU.id });
-        }
+    // 1. Listen to Projects
+    masterChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
+      console.log("Project Updated:", payload);
+      syncFromSupabase(CU).then(() => {
+        const cPageActive = document.querySelector('#screen-creator .nav-item.active')?.dataset?.page;
+        const fPageActive = document.querySelector('#screen-freelancer .nav-item.active')?.dataset?.page;
+        if (CU.role === 'creator' && cPageActive !== 'chat') renderC(cPageActive || 'home');
+        else if (CU.role === 'freelancer' && fPageActive !== 'chat') renderF(fPageActive || 'home');
       });
+    });
+
+    // 2. Listen to Messages
+    masterChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+      console.log("New Message Received:", payload);
+      const newMsg = payload.new;
+      if (!newMsg) return;
+      
+      if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
+
+      try {
+          const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
+          if (!convo) return;
+          if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
+
+          const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
+          const key = [CU.id, otherId].sort().join('_');
+          
+          const allMsgs = DB.messages();
+          if (!allMsgs[key]) allMsgs[key] = [];
+          
+          const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
+          
+          if (!exists) {
+              allMsgs[key].push({
+                  from: newMsg.sender_id,
+                  text: newMsg.text,
+                  file_url: newMsg.file_url || null,
+                  time: new Date(newMsg.created_at).getTime()
+              });
+              DB.saveMessages(allMsgs);
+          }
+
+          if (currentChatUserId === otherId) {
+              const el = document.getElementById('chat-msgs-el');
+              if (el) {
+                  el.innerHTML = renderMsgs(allMsgs[key], CU.id);
+                  el.scrollTop = el.scrollHeight; 
+              }
+          }
+          updateChatSidebarPreviews();
+      } catch (err) {
+          console.warn("Chat sync issue:", err);
+      }
+    });
+
+    // 3. Listen to Presence (Online/Offline Track)
+    masterChannel.on('presence', { event: 'sync' }, () => {
+      const state = masterChannel.presenceState();
+      onlineUsers.clear();
+      for (const id in state) {
+        if (state[id][0]?.user_id) {
+          onlineUsers.add(state[id][0].user_id);
+        }
+      }
+      updateChatHeaderPresence(); 
+    });
+
+    // 4. Subscribing EVERYTHING at once
+    masterChannel.subscribe(async (status) => {
+      console.log("Supabase Connection Status:", status);
+      const statusText = document.getElementById('chat-status-text');
+      const dot = document.getElementById('chat-online-dot');
+      
+      if (status === 'SUBSCRIBED') {
+          if (statusText) { statusText.textContent = 'Online'; statusText.style.color = 'var(--green)'; }
+          if (dot) dot.style.background = 'var(--green)';
+          
+          await masterChannel.track({ user_id: CU.id }); // Khud ko online declare karein
+      } 
+      else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
+          if (dot) dot.style.background = 'var(--yellow)';
+      }
+    });
   }
 }
 
