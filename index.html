@@ -1024,7 +1024,21 @@ let activeManageProjectId = null;
 let newProjectDraft = {}; 
 let currentChatUserId = null; 
 let onlineUsers = new Set();
-
+function updateChatHeaderPresence() {
+    if (!currentChatUserId) return;
+    const dot = document.getElementById('chat-online-dot');
+    const statusText = document.getElementById('chat-status-text');
+    if (!dot || !statusText) return;
+    if (onlineUsers.has(currentChatUserId)) {
+        dot.style.background = 'var(--green)';
+        statusText.textContent = 'Online';
+        statusText.style.color = 'var(--green)';
+    } else {
+        dot.style.background = 'var(--text-3)';
+        statusText.textContent = 'Offline';
+        statusText.style.color = 'var(--text-3)';
+    }
+}
 /* ══════════════════════════════════════════════
    UTILITIES
 ══════════════════════════════════════════════ */
