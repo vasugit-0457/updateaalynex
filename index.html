@@ -1810,17 +1810,26 @@ async function wfContent() {
         </div>`;
   }
 
-  if (wfStep === 7) return `
+if (wfStep === 7) {
+    // Project aur uski details dynamically fetch kar rahe hain
+    const p = DB.projects().find(x => x.id === activeManageProjectId);
+    const budget = p ? p.budget : 0;
+    const fee = Math.round(budget * 0.05);
+    const total = budget + fee;
+    const eName = selFreelancerName || (p ? DB.users().find(u => u.id === p.freelancerId)?.name : 'Editor');
+    const cType = selContent || (p ? p.contentType : 'Video');
+
+    return `
     <h3>Complete Payment &amp; Rate</h3>
     <div class="two-col">
       <div>
         <div class="section-title">Payment Summary</div>
         <div class="det-card" style="margin-bottom:14px;">
-          <div class="info-row"><span class="key">Editor</span><span>${selFreelancerName || '—'}</span></div>
-          <div class="info-row"><span class="key">Content Type</span><span>${selContent || '—'}</span></div>
-          <div class="info-row"><span class="key">Base Amount</span><span id="pay-base">₹—</span></div>
-          <div class="info-row"><span class="key">Platform Fee (5%)</span><span id="pay-fee">₹—</span></div>
-          <div class="info-row" style="font-weight:600;"><span style="color:var(--accent);">Total</span><span id="pay-total" style="color:var(--accent);">₹—</span></div>
+          <div class="info-row"><span class="key">Editor</span><span>${eName}</span></div>
+          <div class="info-row"><span class="key">Content Type</span><span>${cType}</span></div>
+          <div class="info-row"><span class="key">Base Amount</span><span id="pay-base">₹${fmt(budget)}</span></div>
+          <div class="info-row"><span class="key">Platform Fee (5%)</span><span id="pay-fee">₹${fmt(fee)}</span></div>
+          <div class="info-row" style="font-weight:600;"><span style="color:var(--accent);">Total</span><span id="pay-total" style="color:var(--accent);">₹${fmt(total)}</span></div>
         </div>
         <div class="fg"><label>Payment Method</label>
           <select><option>UPI</option><option>Net Banking</option><option>Credit/Debit Card</option><option>Wallet</option></select>
@@ -1828,7 +1837,7 @@ async function wfContent() {
         <button class="btn btn-green-btn full-btn" onclick="completePayment()">Pay Now &rarr;</button>
       </div>
       <div>
-        <div class="section-title">Rate ${selFreelancerName || 'the Editor'}</div>
+        <div class="section-title">Rate ${eName}</div>
         <div class="det-card">
           <p style="margin-bottom:10px;">How was your experience?</p>
           <div class="star-rating" id="sr1">${[1,2,3,4,5].map(n => `<span onclick="rateStar('sr1',${n})">&#9733;</span>`).join('')}</div>
@@ -1837,6 +1846,7 @@ async function wfContent() {
         </div>
       </div>
     </div>`;
+  }
 
   return '';
 }
