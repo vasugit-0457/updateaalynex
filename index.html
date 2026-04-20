@@ -1291,9 +1291,10 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM (PERFECTED)
-  if (supaClient && !window.realtimeInitialized) {
-    window.realtimeInitialized = true; // Taaki duplicate connection kabhi na bane
+  // 🟢 SMOOTH REAL-TIME SYSTEM (FIXED CLASH & INIT BUG)
+  if (supaClient) {
+    // Purane sabhi channels clear karein (Safe logic, no init bug)
+    supaClient.removeAllChannels();
 
     // 1. Projects Channel
     supaClient.channel('public:projects')
@@ -1341,32 +1342,22 @@ async function loginSuccess(u) {
                 DB.saveMessages(allMsgs);
             }
 
-            const el = document.getElementById('chat-msgs-el');
-            if (el && currentChatUserId === otherId) {
-                el.innerHTML = renderMsgs(allMsgs[key], CU.id);
-                el.scrollTop = el.scrollHeight; 
+            // Agar user usi chat me hai, tabhi scroll update karein
+            if (currentChatUserId === otherId) {
+                const el = document.getElementById('chat-msgs-el');
+                if (el) {
+                    el.innerHTML = renderMsgs(allMsgs[key], CU.id);
+                    el.scrollTop = el.scrollHeight; 
+                }
             }
             updateChatSidebarPreviews();
         } catch (err) {
             console.warn("Real-time chat processing delayed:", err);
         }
       })
-      .subscribe((status) => {
-        const statusText = document.getElementById('chat-status-text');
-        const dot = document.getElementById('chat-online-dot');
-        
-        if (status === 'SUBSCRIBED') {
-            if (statusText) { statusText.textContent = 'Online'; statusText.style.color = 'var(--green)'; }
-            if (dot) dot.style.background = 'var(--green)';
-        }
-        
-        if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
-            if (dot) dot.style.background = 'var(--yellow)';
-        }
-      });
+      .subscribe(); // ❌ Yahan se UI override block nikal diya gaya hai
 
-    // 3. Supabase Presence Channel (Online/Offline Track)
+    // 3. Supabase Presence Channel (Only valid way to check online/offline)
     const presenceChannel = supaClient.channel('global_presence');
     
     presenceChannel
@@ -1378,7 +1369,7 @@ async function loginSuccess(u) {
             onlineUsers.add(state[id][0].user_id);
           }
         }
-        updateChatHeaderPresence(); 
+        updateChatHeaderPresence(); // Ye automatically green ya grey karega
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
