@@ -1291,9 +1291,12 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-  // 🟢 SMOOTH REAL-TIME SYSTEM (UPDATED)
+// 🟢 SMOOTH REAL-TIME SYSTEM (FIXED WEBSOCKET ERROR)
   if (supaClient) {
-    // Projects Channel
+    // 1. Purane channels ko clear karein taaki duplicate connection na bane
+    supaClient.removeAllChannels();
+
+    // 2. Projects Channel
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
         syncFromSupabase(CU).then(() => {
@@ -1304,7 +1307,7 @@ async function loginSuccess(u) {
         });
       }).subscribe();
 
-    // Messages Channel
+    // 3. Messages Channel
     const chatChannel = supaClient.channel('realtime_messages');
     
     chatChannel
@@ -1342,7 +1345,7 @@ async function loginSuccess(u) {
             const el = document.getElementById('chat-msgs-el');
             if (el && currentChatUserId === otherId) {
                 el.innerHTML = renderMsgs(allMsgs[key], CU.id);
-                el.scrollTop = el.scrollHeight; // Scroll to bottom instantly
+                el.scrollTop = el.scrollHeight; 
             }
             updateChatSidebarPreviews();
         } catch (err) {
@@ -1350,13 +1353,22 @@ async function loginSuccess(u) {
         }
       })
       .subscribe((status) => {
+        const statusText = document.getElementById('chat-status-text');
+        const dot = document.getElementById('chat-online-dot');
+        
+        if (status === 'SUBSCRIBED') {
+            if (statusText) { statusText.textContent = 'Online'; statusText.style.color = 'var(--green)'; }
+            if (dot) dot.style.background = 'var(--green)';
+        }
+        
         if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            console.log("WebSocket Dropped. Attempting to reconnect...");
-            setTimeout(() => chatChannel.subscribe(), 3000);
+            if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
+            if (dot) dot.style.background = 'var(--yellow)';
+            // ❌ YAHAN SE MANUAL TIMEOUT HATA DIYA HAI. SUPABASE AB APNE AAP RECONNECT KAREGA.
         }
       });
 
-    // 🟢 NAYA: Supabase Presence Channel (Saamne wale ka status check karne ke liye)
+    // 4. Supabase Presence Channel (Saamne wale ka status check karne ke liye)
     const presenceChannel = supaClient.channel('global_presence');
     
     presenceChannel
@@ -1368,11 +1380,10 @@ async function loginSuccess(u) {
             onlineUsers.add(state[id][0].user_id);
           }
         }
-        updateChatHeaderPresence(); // UI update karein
+        updateChatHeaderPresence(); 
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Jaise hi hum connect honge, hum sabko bata denge ki "Main Online Hoon"
           await presenceChannel.track({ user_id: CU.id });
         }
       });
