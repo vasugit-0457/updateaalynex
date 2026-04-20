@@ -1291,12 +1291,11 @@ async function loginSuccess(u) {
   }
   await syncFromSupabase(u);
 
-// 🟢 SMOOTH REAL-TIME SYSTEM (FIXED WEBSOCKET ERROR)
-  if (supaClient) {
-    // 1. Purane channels ko clear karein taaki duplicate connection na bane
-    supaClient.removeAllChannels();
+  // 🟢 SMOOTH REAL-TIME SYSTEM (PERFECTED)
+  if (supaClient && !window.realtimeInitialized) {
+    window.realtimeInitialized = true; // Taaki duplicate connection kabhi na bane
 
-    // 2. Projects Channel
+    // 1. Projects Channel
     supaClient.channel('public:projects')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
         syncFromSupabase(CU).then(() => {
@@ -1307,7 +1306,7 @@ async function loginSuccess(u) {
         });
       }).subscribe();
 
-    // 3. Messages Channel
+    // 2. Messages Channel
     const chatChannel = supaClient.channel('realtime_messages');
     
     chatChannel
@@ -1364,11 +1363,10 @@ async function loginSuccess(u) {
         if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
             if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
             if (dot) dot.style.background = 'var(--yellow)';
-            // ❌ YAHAN SE MANUAL TIMEOUT HATA DIYA HAI. SUPABASE AB APNE AAP RECONNECT KAREGA.
         }
       });
 
-    // 4. Supabase Presence Channel (Saamne wale ka status check karne ke liye)
+    // 3. Supabase Presence Channel (Online/Offline Track)
     const presenceChannel = supaClient.channel('global_presence');
     
     presenceChannel
