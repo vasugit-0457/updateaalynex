@@ -1466,7 +1466,11 @@ async function syncFromSupabase(u) {
           id: p.id, name: p.name || 'User', email: '', phone: p.phone || '',
           role: p.role || 'creator', profession: p.profession || '',
           platform: p.platform || '', avatar: (p.name || 'U').charAt(0).toUpperCase(),
-          createdAt: new Date(p.created_at).getTime()
+          createdAt: new Date(p.created_at).getTime(),
+          skills: p.skills || [],
+          portfolio_links: p.portfolio_links || {},
+          resume_url: p.resume_url || '',
+          photo_url: p.photo_url || ''
         };
         if (!exists) localUsers.push(mapped); else Object.assign(exists, mapped);
       });
@@ -2576,31 +2580,167 @@ function fEarnings() {
 
 function fProfile() {
   const u = CU;
+  const skills = u.skills || [];
+  const links = u.portfolio_links || {};
+
   return `
   <div class="page-head"><h2>My Profile</h2></div>
   <div class="two-col">
-    <div class="det-card">
-      <h4>Personal Info</h4>
-      <div class="fg"><label>Full Name</label><input id="fprof-name" value="${u.name}"/></div>
-      <div class="fg"><label>Email</label><input value="${u.email}" disabled style="opacity:.5;"/></div>
-      <div class="fg"><label>Phone</label><input id="fprof-phone" value="${u.phone||''}"/></div>
-      <div class="fg"><label>Profession</label><input id="fprof-profession" value="${u.profession||''}"/></div>
-      <button class="btn btn-primary" onclick="saveFProfile()">Save Changes</button>
+    
+    <div>
+      <div class="det-card">
+        <h4>Personal Info</h4>
+        <div class="fg"><label>Full Name</label><input id="fprof-name" value="${u.name}"/></div>
+        <div class="fg"><label>Email</label><input value="${u.email}" disabled style="opacity:.5;"/></div>
+        <div class="fg"><label>Phone</label><input id="fprof-phone" value="${u.phone||''}"/></div>
+        <div class="fg"><label>Profession</label><input id="fprof-profession" value="${u.profession||''}"/></div>
+        <button class="btn btn-primary" onclick="saveFProfile()">Save Changes</button>
+      </div>
+      
+      <div class="det-card">
+        <h4>Account Details</h4>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div class="sb-avatar sb-av-freelancer" style="width:48px;height:48px;font-size:1.2rem;overflow:hidden;">
+            ${u.photo_url ? `<img src="${u.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : u.avatar}
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:1rem;color:var(--text);">${u.name}</div>
+            <span class="tag pu">Freelancer</span>
+          </div>
+        </div>
+        <div class="info-row"><span class="key">Profession</span><span>${u.profession || 'N/A'}</span></div>
+        <div class="info-row"><span class="key">Member Since</span><span>${new Date(u.createdAt).toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</span></div>
+      </div>
     </div>
-    <div class="det-card">
-      <h4>Account Details</h4>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <div class="sb-avatar sb-av-freelancer" style="width:48px;height:48px;font-size:1.2rem;">${u.avatar}</div>
-        <div>
-          <div style="font-weight:600;font-size:1rem;color:var(--text);">${u.name}</div>
-          <span class="tag pu">Freelancer</span>
+
+    <div>
+      <div class="det-card">
+        <h4>Profile Photo</h4>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+          <div class="sb-avatar sb-av-freelancer" style="width:80px;height:80px;font-size:2rem;overflow:hidden;">
+            ${u.photo_url ? `<img src="${u.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : u.avatar}
+          </div>
+          <input type="file" id="bio-photo-upload" accept="image/*" style="display:none;" onchange="javascript:(async function(input){
+              const file = input.files[0];
+              if(!file) return;
+              showToast('Uploading photo...', 'info', '');
+              if(window.supaClient) {
+                  const path = 'avatars/' + CU.id + '_' + Date.now();
+                  const { error } = await supaClient.storage.from('images').upload(path, file);
+                  if(error) { showToast('Upload failed', 'err', ''); return; }
+                  const { data:urlData } = supaClient.storage.from('images').getPublicUrl(path);
+                  CU.photo_url = urlData.publicUrl;
+                  await supaClient.from('profiles').update({photo_url: CU.photo_url}).eq('id', CU.id);
+                  showToast('Photo updated successfully!', 'ok', '');
+                  fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
+              }
+          })(this)">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bio-photo-upload').click()">Change Photo</button>
         </div>
       </div>
-      <div class="info-row"><span class="key">Profession</span><span>${u.profession || 'N/A'}</span></div>
-      <div class="info-row"><span class="key">Member Since</span><span>${new Date(u.createdAt).toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</span></div>
+
+      <div class="det-card">
+        <h4>My Skills</h4>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          ${skills.map(s => `<span class="tag pu" style="cursor:pointer;" onclick="javascript:(async function(){
+              CU.skills = CU.skills.filter(x => x !== '${s}');
+              if(window.supaClient) await supaClient.from('profiles').update({skills: CU.skills}).eq('id', CU.id);
+              showToast('Skill removed', 'ok', '');
+              fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
+          })()">${s} &times;</span>`).join('')}
+        </div>
+        <div class="fg" style="display:flex; gap:8px; margin-bottom:12px;">
+          <input id="bio-skill-input" placeholder="Add a new skill..." style="flex:1;">
+          <button class="btn btn-primary" onclick="javascript:(async function(){
+              const val = document.getElementById('bio-skill-input').value.trim();
+              if(!val) return;
+              CU.skills = CU.skills || [];
+              if(!CU.skills.includes(val)) {
+                  CU.skills.push(val);
+                  if(window.supaClient) await supaClient.from('profiles').update({skills: CU.skills}).eq('id', CU.id);
+                  showToast('Skill added', 'ok', '');
+                  fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
+              }
+          })()">Add</button>
+        </div>
+        <div class="divider">Suggested</div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          ${['Video Editing', 'Color Grading', 'Motion Graphics', 'Sound Design', 'Thumbnail Design', 'Premiere Pro', 'After Effects', 'DaVinci Resolve', 'CapCut', 'Alight Motion'].map(s => `
+            <div class="ct-pill" onclick="javascript:(async function(){
+                CU.skills = CU.skills || [];
+                if(CU.skills.includes('${s}')) return;
+                CU.skills.push('${s}');
+                if(window.supaClient) await supaClient.from('profiles').update({skills: CU.skills}).eq('id', CU.id);
+                showToast('Skill added', 'ok', '');
+                fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
+            })()">${s}</div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="det-card">
+        <h4>Portfolio &amp; Work Links</h4>
+        <div class="fg"><label>Instagram Profile Link</label><input id="bio-ig" placeholder="https://instagram.com/yourhandle" value="${links.instagram || ''}"></div>
+        <div class="fg"><label>YouTube Channel Link</label><input id="bio-yt" placeholder="https://youtube.com/@yourchannel" value="${links.youtube || ''}"></div>
+        <div class="fg"><label>Work Video Link (Best Work)</label><input id="bio-work" placeholder="Paste a link to your best work (YouTube/Drive/Vimeo)" value="${links.video_link || ''}"></div>
+        <button class="btn btn-primary btn-sm" onclick="javascript:(async function(){
+            const ig = document.getElementById('bio-ig').value.trim();
+            const yt = document.getElementById('bio-yt').value.trim();
+            const work = document.getElementById('bio-work').value.trim();
+            CU.portfolio_links = { instagram: ig, youtube: yt, video_link: work };
+            if(window.supaClient) await supaClient.from('profiles').update({portfolio_links: CU.portfolio_links}).eq('id', CU.id);
+            showToast('Links saved', 'ok', '');
+        })()">Save Links</button>
+      </div>
+
+      <div class="det-card">
+        <h4>Resume / CV</h4>
+        ${u.resume_url ? `
+          <div class="alert alert-s" style="align-items:center;">
+            <span style="flex:1;font-weight:500;">Resume Uploaded</span>
+            <a href="${u.resume_url}" target="_blank" class="btn btn-ghost btn-xs" style="margin-right:8px; text-decoration:none;">View Resume</a>
+            <input type="file" id="bio-resume-replace" accept="application/pdf" style="display:none;" onchange="javascript:(async function(input){
+                const file = input.files[0];
+                if(!file) return;
+                showToast('Uploading resume...', 'info', '');
+                if(window.supaClient) {
+                    const path = 'resumes/' + CU.id + '_' + Date.now() + '.pdf';
+                    const { error } = await supaClient.storage.from('images').upload(path, file);
+                    if(error) { showToast('Upload failed', 'err', ''); return; }
+                    const { data:urlData } = supaClient.storage.from('images').getPublicUrl(path);
+                    CU.resume_url = urlData.publicUrl;
+                    await supaClient.from('profiles').update({resume_url: CU.resume_url}).eq('id', CU.id);
+                    showToast('Resume replaced successfully!', 'ok', '');
+                    fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
+                }
+            })(this)">
+            <button class="btn btn-primary btn-xs" onclick="document.getElementById('bio-resume-replace').click()">Replace</button>
+          </div>
+        ` : `
+          <label class="upload-area" style="display:block;">
+            Upload your Resume (PDF)
+            <input type="file" accept="application/pdf" style="display:none;" onchange="javascript:(async function(input){
+                const file = input.files[0];
+                if(!file) return;
+                showToast('Uploading resume...', 'info', '');
+                if(window.supaClient) {
+                    const path = 'resumes/' + CU.id + '_' + Date.now() + '.pdf';
+                    const { error } = await supaClient.storage.from('images').upload(path, file);
+                    if(error) { showToast('Upload failed', 'err', ''); return; }
+                    const { data:urlData } = supaClient.storage.from('images').getPublicUrl(path);
+                    CU.resume_url = urlData.publicUrl;
+                    await supaClient.from('profiles').update({resume_url: CU.resume_url}).eq('id', CU.id);
+                    showToast('Resume uploaded successfully!', 'ok', '');
+                    fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
+                }
+            })(this)">
+          </label>
+        `}
+      </div>
     </div>
   </div>`;
 }
+
 function saveFProfile() {
   const name = document.getElementById('fprof-name')?.value?.trim();
   if (!name) { showToast('Name cannot be empty', 'err', ''); return; }
