@@ -1245,7 +1245,12 @@ async function doLogin() {
             profession: profile.profession || '',
             platform: profile.platform || '',
             avatar: (profile.name || email).charAt(0).toUpperCase(),
-            createdAt: new Date(profile.created_at).getTime()
+            createdAt: new Date(profile.created_at).getTime(),
+            skills: profile.skills || [],
+            portfolio_links: profile.portfolio_links || {},
+            resume_url: profile.resume_url || '',
+            photo_url: profile.photo_url || '',
+            experience: profile.experience || []
           };
           setBtn('login-btn', false);
           loginSuccess(u);
@@ -1363,8 +1368,11 @@ async function loginSuccess(u) {
     document.getElementById('f-sb-role').textContent   = 'Freelancer · ' + (u.profession || '');
     showScreen('screen-freelancer');
     renderF('home');
+    // Update avatar with photo if available
+    if (u.photo_url) { updateAvatarsEverywhere(); }
   }
   await syncFromSupabase(u);
+  if (u.role === 'freelancer') { await loadFreelancerProfile(); }
 
   // 🟢 MASTER REAL-TIME SYSTEM (NO CONNECTION-KILLER BUGS)
   if (supaClient && !window.realtimeInitialized) {
@@ -2582,11 +2590,12 @@ function fProfile() {
   const u = CU;
   const skills = u.skills || [];
   const links = u.portfolio_links || {};
+  const exp = u.experience || [];
 
   return `
   <div class="page-head"><h2>My Profile</h2></div>
   <div class="two-col">
-    
+
     <div>
       <div class="det-card">
         <h4>Personal Info</h4>
@@ -2596,7 +2605,7 @@ function fProfile() {
         <div class="fg"><label>Profession</label><input id="fprof-profession" value="${u.profession||''}"/></div>
         <button class="btn btn-primary" onclick="saveFProfile()">Save Changes</button>
       </div>
-      
+
       <div class="det-card">
         <h4>Account Details</h4>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
@@ -2609,7 +2618,40 @@ function fProfile() {
           </div>
         </div>
         <div class="info-row"><span class="key">Profession</span><span>${u.profession || 'N/A'}</span></div>
-        <div class="info-row"><span class="key">Member Since</span><span>${new Date(u.createdAt).toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</span></div>
+        <div class="info-row"><span class="key">Member Since</span><span>${new Date(u.createdAt || u.created_at).toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</span></div>
+      </div>
+
+      <div class="det-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+           <h4>Experience</h4>
+           <button class="btn btn-primary btn-xs" onclick="toggleExpForm()">+ Add Experience</button>
+        </div>
+        <div id="exp-form-container" style="display:none; margin-top:10px; padding:12px; background:var(--bg2); border:1px solid var(--glass-border-strong); border-radius:var(--radius-sm);">
+            <div class="fg"><label>Job Title / Role</label><input id="exp-title" placeholder="Senior Video Editor"></div>
+            <div class="fg"><label>Company / Client Name</label><input id="exp-company" placeholder="MrBeast / Studio XYZ"></div>
+            <div class="fg"><label>Duration</label><input id="exp-duration" placeholder="Jan 2023 - Mar 2024"></div>
+            <div class="fg"><label>Description</label><textarea id="exp-desc" placeholder="Edited high retention videos..."></textarea></div>
+            <input type="hidden" id="exp-edit-idx" value="-1">
+            <div style="display:flex; gap:8px;">
+               <button class="btn btn-primary btn-sm" onclick="saveExperience()">Save Entry</button>
+               <button class="btn btn-ghost btn-sm" onclick="toggleExpForm()">Cancel</button>
+            </div>
+        </div>
+        <div id="exp-list" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+           ${exp.map((e, i) => `
+              <div style="background:var(--surface); border:1px solid var(--glass-border); padding:12px; border-radius:var(--radius-sm);">
+                  <div style="display:flex; justify-content:space-between;">
+                      <strong style="font-size:0.9rem;color:var(--text);">${e.title}</strong>
+                      <div style="display:flex; gap:6px;">
+                          <button class="btn btn-ghost btn-xs" onclick="editExperience(${i})">Edit</button>
+                          <button class="btn btn-danger btn-xs" onclick="deleteExperience(${i})">Del</button>
+                      </div>
+                  </div>
+                  <div style="font-size:0.8rem; color:var(--text-2); margin-bottom:4px; font-weight:500;">${e.company} | ${e.duration}</div>
+                  ${e.description ? `<div style="font-size:0.75rem; color:var(--text-3); line-height:1.4;">${e.description}</div>` : ''}
+              </div>
+           `).join('') || '<div style="font-size:0.8rem; color:var(--text-3);">No experience added yet.</div>'}
+        </div>
       </div>
     </div>
 
@@ -2617,63 +2659,29 @@ function fProfile() {
       <div class="det-card">
         <h4>Profile Photo</h4>
         <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-          <div class="sb-avatar sb-av-freelancer" style="width:80px;height:80px;font-size:2rem;overflow:hidden;">
+          <div class="sb-avatar sb-av-freelancer" style="width:80px;height:80px;font-size:2rem;overflow:hidden;" id="prof-photo-preview">
             ${u.photo_url ? `<img src="${u.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : u.avatar}
           </div>
-          <input type="file" id="bio-photo-upload" accept="image/*" style="display:none;" onchange="javascript:(async function(input){
-              const file = input.files[0];
-              if(!file) return;
-              showToast('Uploading photo...', 'info', '');
-              if(window.supaClient) {
-                  const path = 'avatars/' + CU.id + '_' + Date.now();
-                  const { error } = await supaClient.storage.from('images').upload(path, file);
-                  if(error) { showToast('Upload failed', 'err', ''); return; }
-                  const { data:urlData } = supaClient.storage.from('images').getPublicUrl(path);
-                  CU.photo_url = urlData.publicUrl;
-                  await supaClient.from('profiles').update({photo_url: CU.photo_url}).eq('id', CU.id);
-                  showToast('Photo updated successfully!', 'ok', '');
-                  fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
-              }
-          })(this)">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bio-photo-upload').click()">Change Photo</button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer; margin:0;">
+            Upload New Photo
+            <input type="file" id="bio-photo-upload" accept="image/*" style="display:none;" onchange="uploadProfilePhoto(this)">
+          </label>
         </div>
       </div>
 
       <div class="det-card">
         <h4>My Skills</h4>
         <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-          ${skills.map(s => `<span class="tag pu" style="cursor:pointer;" onclick="javascript:(async function(){
-              CU.skills = CU.skills.filter(x => x !== '${s}');
-              if(window.supaClient) await supaClient.from('profiles').update({skills: CU.skills}).eq('id', CU.id);
-              showToast('Skill removed', 'ok', '');
-              fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
-          })()">${s} &times;</span>`).join('')}
+          ${skills.map(s => `<span class="tag pu" style="cursor:pointer;" onclick="removeSkill('${s}')">${s} &times;</span>`).join('')}
         </div>
         <div class="fg" style="display:flex; gap:8px; margin-bottom:12px;">
           <input id="bio-skill-input" placeholder="Add a new skill..." style="flex:1;">
-          <button class="btn btn-primary" onclick="javascript:(async function(){
-              const val = document.getElementById('bio-skill-input').value.trim();
-              if(!val) return;
-              CU.skills = CU.skills || [];
-              if(!CU.skills.includes(val)) {
-                  CU.skills.push(val);
-                  if(window.supaClient) await supaClient.from('profiles').update({skills: CU.skills}).eq('id', CU.id);
-                  showToast('Skill added', 'ok', '');
-                  fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
-              }
-          })()">Add</button>
+          <button class="btn btn-primary" onclick="addSkill(document.getElementById('bio-skill-input').value)">Add</button>
         </div>
         <div class="divider">Suggested</div>
         <div style="display:flex; flex-wrap:wrap; gap:8px;">
           ${['Video Editing', 'Color Grading', 'Motion Graphics', 'Sound Design', 'Thumbnail Design', 'Premiere Pro', 'After Effects', 'DaVinci Resolve', 'CapCut', 'Alight Motion'].map(s => `
-            <div class="ct-pill" onclick="javascript:(async function(){
-                CU.skills = CU.skills || [];
-                if(CU.skills.includes('${s}')) return;
-                CU.skills.push('${s}');
-                if(window.supaClient) await supaClient.from('profiles').update({skills: CU.skills}).eq('id', CU.id);
-                showToast('Skill added', 'ok', '');
-                fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
-            })()">${s}</div>
+            <div class="ct-pill" onclick="addSkill('${s}')">${s}</div>
           `).join('')}
         </div>
       </div>
@@ -2683,82 +2691,232 @@ function fProfile() {
         <div class="fg"><label>Instagram Profile Link</label><input id="bio-ig" placeholder="https://instagram.com/yourhandle" value="${links.instagram || ''}"></div>
         <div class="fg"><label>YouTube Channel Link</label><input id="bio-yt" placeholder="https://youtube.com/@yourchannel" value="${links.youtube || ''}"></div>
         <div class="fg"><label>Work Video Link (Best Work)</label><input id="bio-work" placeholder="Paste a link to your best work (YouTube/Drive/Vimeo)" value="${links.video_link || ''}"></div>
-        <button class="btn btn-primary btn-sm" onclick="javascript:(async function(){
-            const ig = document.getElementById('bio-ig').value.trim();
-            const yt = document.getElementById('bio-yt').value.trim();
-            const work = document.getElementById('bio-work').value.trim();
-            CU.portfolio_links = { instagram: ig, youtube: yt, video_link: work };
-            if(window.supaClient) await supaClient.from('profiles').update({portfolio_links: CU.portfolio_links}).eq('id', CU.id);
-            showToast('Links saved', 'ok', '');
-        })()">Save Links</button>
+        <button class="btn btn-primary btn-sm" onclick="savePortfolioLinks()">Save Links</button>
       </div>
 
       <div class="det-card">
         <h4>Resume / CV</h4>
         ${u.resume_url ? `
-          <div class="alert alert-s" style="align-items:center;">
-            <span style="flex:1;font-weight:500;">Resume Uploaded</span>
-            <a href="${u.resume_url}" target="_blank" class="btn btn-ghost btn-xs" style="margin-right:8px; text-decoration:none;">View Resume</a>
-            <input type="file" id="bio-resume-replace" accept="application/pdf" style="display:none;" onchange="javascript:(async function(input){
-                const file = input.files[0];
-                if(!file) return;
-                showToast('Uploading resume...', 'info', '');
-                if(window.supaClient) {
-                    const path = 'resumes/' + CU.id + '_' + Date.now() + '.pdf';
-                    const { error } = await supaClient.storage.from('images').upload(path, file);
-                    if(error) { showToast('Upload failed', 'err', ''); return; }
-                    const { data:urlData } = supaClient.storage.from('images').getPublicUrl(path);
-                    CU.resume_url = urlData.publicUrl;
-                    await supaClient.from('profiles').update({resume_url: CU.resume_url}).eq('id', CU.id);
-                    showToast('Resume replaced successfully!', 'ok', '');
-                    fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
-                }
-            })(this)">
-            <button class="btn btn-primary btn-xs" onclick="document.getElementById('bio-resume-replace').click()">Replace</button>
+          <div class="alert alert-s" style="align-items:center; display:flex;">
+            <span style="flex:1;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Resume Uploaded</span>
+            <a href="${u.resume_url}" target="_blank" class="btn btn-ghost btn-xs" style="margin-right:8px; text-decoration:none;">View</a>
+            <label class="btn btn-primary btn-xs" style="cursor:pointer; margin:0;">
+              Replace
+              <input type="file" id="bio-resume-replace" accept="application/pdf" style="display:none;" onchange="uploadResume(this)">
+            </label>
           </div>
         ` : `
-          <label class="upload-area" style="display:block;">
+          <label class="upload-area" style="display:block; cursor:pointer;">
             Upload your Resume (PDF)
-            <input type="file" accept="application/pdf" style="display:none;" onchange="javascript:(async function(input){
-                const file = input.files[0];
-                if(!file) return;
-                showToast('Uploading resume...', 'info', '');
-                if(window.supaClient) {
-                    const path = 'resumes/' + CU.id + '_' + Date.now() + '.pdf';
-                    const { error } = await supaClient.storage.from('images').upload(path, file);
-                    if(error) { showToast('Upload failed', 'err', ''); return; }
-                    const { data:urlData } = supaClient.storage.from('images').getPublicUrl(path);
-                    CU.resume_url = urlData.publicUrl;
-                    await supaClient.from('profiles').update({resume_url: CU.resume_url}).eq('id', CU.id);
-                    showToast('Resume uploaded successfully!', 'ok', '');
-                    fPage('profile', document.querySelector('[data-page=\\'profile\\']'));
-                }
-            })(this)">
+            <input type="file" accept="application/pdf" style="display:none;" onchange="uploadResume(this)">
           </label>
         `}
       </div>
     </div>
   </div>`;
 }
-
 function saveFProfile() {
   const name = document.getElementById('fprof-name')?.value?.trim();
   if (!name) { showToast('Name cannot be empty', 'err', ''); return; }
   const phone = document.getElementById('fprof-phone')?.value?.trim();
   const profession = document.getElementById('fprof-profession')?.value?.trim();
+  const newAvatar = name.charAt(0).toUpperCase();
+
   const users = DB.users(), u = users.find(x => x.id === CU.id);
-  if (u) { u.name = name; u.phone = phone; u.profession = profession; u.avatar = name.charAt(0).toUpperCase(); DB.saveUsers(users); }
-  CU = {...CU, name, phone, profession, avatar: name.charAt(0).toUpperCase()}; 
+  if (u) { u.name = name; u.phone = phone; u.profession = profession; u.avatar = newAvatar; DB.saveUsers(users); }
+
+  CU = {...CU, name, phone, profession, avatar: newAvatar}; 
   DB.setCurrentUser(CU);
+
   document.getElementById('f-nav-name').textContent  = name.split(' ')[0];
   document.getElementById('f-sb-name').textContent   = name;
-  document.getElementById('f-sb-avatar').textContent = name.charAt(0).toUpperCase();
   document.getElementById('f-sb-role').textContent   = 'Freelancer · ' + (profession || '');
+
+  updateAvatarsEverywhere();
+
   if (supaClient && CU.id) {
-    supaClient.from('profiles').update({ name, phone, profession }).eq('id', CU.id).then(() => {});
+    supaClient.from('profiles').upsert({ 
+      id: CU.id, 
+      name: CU.name, 
+      phone: CU.phone, 
+      profession: CU.profession, 
+      avatar: CU.avatar,
+      role: CU.role,
+      skills: CU.skills || [],
+      portfolio_links: CU.portfolio_links || {},
+      resume_url: CU.resume_url || '',
+      photo_url: CU.photo_url || '',
+      experience: CU.experience || []
+    }, { onConflict: 'id' }).then(({error}) => {
+      if (error) { showToast('Database save failed', 'err', ''); } 
+      else {
+        showToast('Profile updated & saved!', 'ok', '');
+        renderF('profile');
+      }
+    });
+  } else {
+    showToast('Profile updated locally', 'ok', '');
+    renderF('profile');
   }
-  showToast('Profile updated', 'ok', '');
+}
+
+/* ══════════════════════════════════════════════
+   PROFILE & UPLOAD HANDLERS
+══════════════════════════════════════════════ */
+
+async function loadFreelancerProfile() {
+  if (!supaClient || !CU || CU.role !== 'freelancer') return;
+  try {
+    const { data, error } = await supaClient.from('profiles').select('*').eq('id', CU.id).single();
+    if (data && !error) {
+      CU.skills = data.skills || [];
+      CU.portfolio_links = data.portfolio_links || {};
+      CU.resume_url = data.resume_url || '';
+      CU.photo_url = data.photo_url || '';
+      CU.experience = data.experience || [];
+      DB.setCurrentUser(CU);
+      updateAvatarsEverywhere();
+    }
+  } catch (e) {
+    console.error("Error loading freelancer profile:", e);
+  }
+}
+
+function updateAvatarsEverywhere() {
+  if (!CU) return;
+  const fAvEl = document.getElementById('f-sb-avatar');
+  if (fAvEl) {
+    if (CU.photo_url) {
+      fAvEl.innerHTML = `<img src="${CU.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    } else {
+      fAvEl.textContent = CU.avatar || CU.name.charAt(0).toUpperCase();
+    }
+  }
+}
+
+async function uploadProfilePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  showToast('Uploading profile photo...', 'info', '');
+  if (supaClient) {
+    const path = CU.id + '/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const { error } = await supaClient.storage.from('avatars').upload(path, file, { upsert: true });
+    if (error) { showToast('Upload failed: ' + error.message, 'err', ''); return; }
+    const { data: urlData } = supaClient.storage.from('avatars').getPublicUrl(path);
+    CU.photo_url = urlData.publicUrl;
+    await supaClient.from('profiles').upsert({ id: CU.id, photo_url: CU.photo_url });
+    DB.setCurrentUser(CU);
+    updateAvatarsEverywhere();
+    showToast('Photo successfully updated!', 'ok', '');
+    renderF('profile');
+  }
+}
+
+async function uploadResume(input) {
+  const file = input.files[0];
+  if (!file) return;
+  showToast('Uploading resume...', 'info', '');
+  if (supaClient) {
+    const path = CU.id + '/' + Date.now() + '.pdf';
+    const { error } = await supaClient.storage.from('resumes').upload(path, file, { upsert: true });
+    if (error) { showToast('Upload failed: ' + error.message, 'err', ''); return; }
+    const { data: urlData } = supaClient.storage.from('resumes').getPublicUrl(path);
+    CU.resume_url = urlData.publicUrl;
+    await supaClient.from('profiles').upsert({ id: CU.id, resume_url: CU.resume_url });
+    DB.setCurrentUser(CU);
+    showToast('Resume uploaded and saved!', 'ok', '');
+    renderF('profile');
+  }
+}
+
+async function addSkill(s) {
+  s = (s || '').trim();
+  if (!s) return;
+  CU.skills = CU.skills || [];
+  if (!CU.skills.includes(s)) {
+    CU.skills.push(s);
+    if (supaClient) await supaClient.from('profiles').upsert({ id: CU.id, skills: CU.skills });
+    DB.setCurrentUser(CU);
+    showToast('Skill added', 'ok', '');
+    renderF('profile');
+  }
+}
+
+async function removeSkill(s) {
+  CU.skills = (CU.skills || []).filter(x => x !== s);
+  if (supaClient) await supaClient.from('profiles').upsert({ id: CU.id, skills: CU.skills });
+  DB.setCurrentUser(CU);
+  showToast('Skill removed', 'ok', '');
   renderF('profile');
+}
+
+async function savePortfolioLinks() {
+  const ig   = document.getElementById('bio-ig')?.value?.trim() || '';
+  const yt   = document.getElementById('bio-yt')?.value?.trim() || '';
+  const work = document.getElementById('bio-work')?.value?.trim() || '';
+  CU.portfolio_links = { instagram: ig, youtube: yt, video_link: work };
+  if (supaClient) await supaClient.from('profiles').upsert({ id: CU.id, portfolio_links: CU.portfolio_links });
+  DB.setCurrentUser(CU);
+  showToast('Portfolio links saved!', 'ok', '');
+}
+
+function toggleExpForm() {
+  const form = document.getElementById('exp-form-container');
+  if (!form) return;
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'none') {
+    document.getElementById('exp-title').value    = '';
+    document.getElementById('exp-company').value  = '';
+    document.getElementById('exp-duration').value = '';
+    document.getElementById('exp-desc').value     = '';
+    document.getElementById('exp-edit-idx').value = '-1';
+  }
+}
+
+async function saveExperience() {
+  const title    = document.getElementById('exp-title')?.value?.trim();
+  const company  = document.getElementById('exp-company')?.value?.trim();
+  const duration = document.getElementById('exp-duration')?.value?.trim();
+  const desc     = document.getElementById('exp-desc')?.value?.trim() || '';
+  const idx      = parseInt(document.getElementById('exp-edit-idx')?.value || '-1');
+
+  if (!title || !company || !duration) { showToast('Title, Company, and Duration are required', 'err', ''); return; }
+
+  CU.experience = CU.experience || [];
+  const newExp = { title, company, duration, description: desc };
+  if (idx >= 0) CU.experience[idx] = newExp;
+  else CU.experience.push(newExp);
+
+  if (supaClient) {
+    const { error } = await supaClient.from('profiles').upsert({ id: CU.id, experience: CU.experience });
+    if (error) { showToast('Database error', 'err', ''); return; }
+  }
+  DB.setCurrentUser(CU);
+  showToast('Experience saved!', 'ok', '');
+  renderF('profile');
+}
+
+function editExperience(idx) {
+  const exp = (CU.experience || [])[idx];
+  if (!exp) return;
+  const form = document.getElementById('exp-form-container');
+  if (form) form.style.display = 'block';
+  document.getElementById('exp-title').value    = exp.title;
+  document.getElementById('exp-company').value  = exp.company;
+  document.getElementById('exp-duration').value = exp.duration;
+  document.getElementById('exp-desc').value     = exp.description || '';
+  document.getElementById('exp-edit-idx').value = idx;
+}
+
+async function deleteExperience(idx) {
+  if (confirm('Remove this experience entry?')) {
+    CU.experience = (CU.experience || []);
+    CU.experience.splice(idx, 1);
+    if (supaClient) await supaClient.from('profiles').upsert({ id: CU.id, experience: CU.experience });
+    DB.setCurrentUser(CU);
+    showToast('Experience deleted', 'info', '');
+    renderF('profile');
+  }
 }
 
 /* ══════════════════════════════════════════════
