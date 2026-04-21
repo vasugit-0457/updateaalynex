@@ -1384,22 +1384,23 @@ async function loginSuccess(u) {
         });
       })
       // 2. Listen to Messages
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+      // 2. Listen to Messages
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const newMsg = payload.new;
         if (!newMsg) return;
+        
+        // Khud ka bheja hua message ignore karo
         if (String(newMsg.sender_id).toLowerCase() === String(CU.id).toLowerCase()) return;
 
         try {
-            const { data: convo } = await supaClient.from('conversations').select('*').eq('id', newMsg.conversation_id).single();
-            if (!convo) return;
-            if (convo.user1_id !== CU.id && convo.user2_id !== CU.id) return;
-
-            const otherId = convo.user1_id === CU.id ? convo.user2_id : convo.user1_id;
+            // API CALL HATAYI GAYI HAI. DIRECT LOCAL MEMORY USE KAR RAHE HAIN.
+            const otherId = newMsg.sender_id;
             const key = [CU.id, otherId].sort().join('_');
             
             const allMsgs = DB.messages();
             if (!allMsgs[key]) allMsgs[key] = [];
             
+            // Duplicate check
             const exists = allMsgs[key].find(m => m.text === newMsg.text && m.from === newMsg.sender_id && Math.abs(m.time - new Date(newMsg.created_at).getTime()) < 5000);
             
             if (!exists) {
@@ -1409,12 +1410,18 @@ async function loginSuccess(u) {
                 DB.saveMessages(allMsgs);
             }
 
+            // Agar user ussi chat window me hai, toh UI update karo
             if (currentChatUserId === otherId) {
                 const el = document.getElementById('chat-msgs-el');
-                if (el) { el.innerHTML = renderMsgs(allMsgs[key], CU.id); el.scrollTop = el.scrollHeight; }
+                if (el) { 
+                    el.innerHTML = renderMsgs(allMsgs[key], CU.id); 
+                    el.scrollTop = el.scrollHeight; 
+                }
             }
             updateChatSidebarPreviews();
-        } catch (err) {}
+        } catch (err) {
+            console.error("Chat update error: ", err);
+        }
       })
       // 3. Listen to Presence (Online/Offline)
       .on('presence', { event: 'sync' }, () => {
@@ -1435,6 +1442,7 @@ async function loginSuccess(u) {
             if (dot) dot.style.background = 'var(--green)';
             await masterChannel.track({ user_id: CU.id }); // Khud ko online declare karein
         } 
+
         else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
             if (statusText) { statusText.textContent = 'Connecting...'; statusText.style.color = 'var(--yellow)'; }
             if (dot) dot.style.background = 'var(--yellow)';
