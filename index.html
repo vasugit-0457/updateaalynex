@@ -1682,6 +1682,97 @@ function cHome() {
   </div>`;
 }
 
+
+async function viewFreelancerPortfolio(freelancerId) {
+    document.getElementById('modal-title').textContent = 'Freelancer Portfolio';
+    document.getElementById('modal-body').innerHTML = '<div style="padding:30px 10px;text-align:center;color:var(--text-3);font-size:.85rem;">Loading profile data...</div>';
+    document.getElementById('modal-confirm').textContent = 'Close';
+    document.getElementById('modal-confirm').onclick = () => { closeModal(); };
+    document.getElementById('modal-bg').classList.add('show');
+
+    if (!supaClient) {
+        showToast('Database connection required to view portfolio.', 'err', '');
+        closeModal();
+        return;
+    }
+
+    try {
+        const { data: profile, error } = await supaClient.from('profiles').select('*').eq('id', freelancerId).single();
+        if (error || !profile) throw error;
+
+        const photoHtml = profile.photo_url
+            ? `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+            : (profile.avatar || profile.name.charAt(0).toUpperCase());
+
+        const bio = profile.bio || 'Available for freelance video editing projects.';
+        const skills = profile.skills || [];
+        const links = profile.portfolio_links || {};
+        const exp = profile.experience || [];
+
+        // Dynamic rating & completed projects (same logic as freelancer card)
+        const allProjects = DB.projects();
+        const completedProjs = allProjects.filter(p => p.freelancerId === freelancerId && p.status === 'completed');
+        const ratedProjs = completedProjs.filter(p => p.rating && p.rating > 0);
+        const avgRating = ratedProjs.length > 0
+            ? (ratedProjs.reduce((s, p) => s + p.rating, 0) / ratedProjs.length).toFixed(1)
+            : null;
+        const completedCount = completedProjs.length;
+        const reviewsCount = ratedProjs.length;
+
+        let html = `
+        <div style="display:flex;flex-direction:column;gap:18px;">
+            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;">
+                <div class="f-avatar" style="width:80px;height:80px;font-size:2rem;margin:0;${profile.photo_url ? 'background:transparent;' : ''}">
+                    ${photoHtml}
+                </div>
+                <div>
+                    <div style="font-family:'Outfit',sans-serif;font-size:1.2rem;font-weight:700;color:var(--text);">${profile.name}</div>
+                    <div style="font-size:.85rem;color:var(--accent2);font-weight:500;">${profile.profession || 'Editor'}</div>
+                </div>
+                <div style="color:var(--yellow);font-size:.8rem;display:flex;align-items:center;gap:6px;">
+                    ${avgRating
+                        ? Array.from({length:5}, (_,i) => `<span style="color:${i < Math.round(avgRating) ? 'var(--yellow)' : 'rgba(0,0,0,0.15)'}">&#9733;</span>`).join('')
+                        : `<span style="color:rgba(0,0,0,0.15)">&#9733;&#9733;&#9733;&#9733;&#9733;</span>`}
+                    <span style="color:var(--text-3);">${avgRating ? `(${avgRating} &bull; ${completedCount} Projects)` : `(New &bull; ${completedCount} Projects)`}</span>
+                </div>
+            </div>
+            <div style="background:var(--bg2);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--glass-border);">
+                <div style="font-size:.7rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">About</div>
+                <div style="font-size:.82rem;color:var(--text-2);line-height:1.5;">${bio}</div>
+            </div>
+            <div>
+                <div style="font-size:.7rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Tools &amp; Skills</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    ${skills.length > 0 ? skills.map(s => `<span class="tag pu" style="font-size:.72rem;padding:5px 12px;">${s}</span>`).join('') : '<span style="font-size:.8rem;color:var(--text-3);">No skills added</span>'}
+                </div>
+            </div>
+            <div>
+                <div style="font-size:.7rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Experience</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    ${exp.length > 0 ? exp.map(e => `
+                        <div style="border-left:2px solid var(--accent-soft);padding-left:12px;">
+                            <div style="font-weight:600;font-size:.85rem;color:var(--text);">${e.title}</div>
+                            <div style="font-size:.75rem;color:var(--text-3);margin-top:2px;">${e.company} &middot; ${e.duration}</div>
+                        </div>`).join('') : '<span style="font-size:.8rem;color:var(--text-3);">No experience added</span>'}
+                </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;border-top:1px solid var(--glass-border);padding-top:16px;">
+                ${links.instagram ? `<a href="${links.instagram}" target="_blank" class="btn btn-ghost btn-xs" style="text-decoration:none;">Instagram</a>` : ''}
+                ${links.youtube ? `<a href="${links.youtube}" target="_blank" class="btn btn-ghost btn-xs" style="text-decoration:none;">YouTube</a>` : ''}
+                ${links.video_link ? `<a href="${links.video_link}" target="_blank" class="btn btn-ghost btn-xs" style="text-decoration:none;">Work Video</a>` : ''}
+                ${profile.resume_url ? `<a href="${profile.resume_url}" target="_blank" class="btn btn-primary btn-xs" style="text-decoration:none;">View Resume</a>` : ''}
+            </div>
+        </div>`;
+
+        document.getElementById('modal-title').textContent = 'Freelancer Profile';
+        document.getElementById('modal-body').innerHTML = html;
+
+    } catch (e) {
+        showToast('Failed to load portfolio details.', 'err', '');
+        closeModal();
+    }
+}
+
 function cNew() {
   const steps = ['Details','Content','Deadline','Upload Files','Freelancer','Chat','Review','Payment'];
 
@@ -1772,18 +1863,41 @@ async function wfContent() {
     }
     if (!editors || editors.length === 0) editors = DB.users().filter(u => u.role === "freelancer");
 
+    // Dynamic rating & completed projects per freelancer
+    const allProjects = DB.projects();
+    const getFreelancerStats = (fid) => {
+      const completed = allProjects.filter(p => p.freelancerId === fid && p.status === 'completed');
+      const rated = completed.filter(p => p.rating && p.rating > 0);
+      const avgRating = rated.length > 0
+        ? (rated.reduce((s, p) => s + p.rating, 0) / rated.length).toFixed(1)
+        : null;
+      return { completedCount: completed.length, avgRating };
+    };
+
     return `
     <h3>Choose Editors to Request</h3>
     <p style="color:var(--text-3);font-size:.8rem;margin-bottom:14px;">Select multiple freelancers. First to accept gets the job!</p>
     <div class="f-grid">
-      ${(editors && editors.length > 0) ? editors.map(f => `
+      ${(editors && editors.length > 0) ? editors.map(f => {
+        const stats = getFreelancerStats(f.id);
+        const ratingDisplay = stats.avgRating ? stats.avgRating : 'New';
+        const starsHtml = stats.avgRating
+          ? Array.from({length:5}, (_,i) => `<span style="color:${i < Math.round(stats.avgRating) ? 'var(--yellow)' : 'rgba(0,0,0,0.12)'}">&#9733;</span>`).join('')
+          : `<span style="color:var(--text-3);font-size:.65rem;">No ratings yet</span>`;
+        return `
         <div class="f-card${selFreelancerIds.includes(f.id)?' sel':''}" onclick="selFL('${f.id}','${f.name}')">
-          <div class="f-avatar">${f.avatar || 'F'}</div>
+          <div class="f-avatar" style="${f.photo_url ? 'background:transparent;' : ''}">
+            ${f.photo_url ? `<img src="${f.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (f.avatar || 'F')}
+          </div>
           <div class="f-name">${f.name}</div>
-          <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-          <div class="f-rate">4.9 &middot; ₹2,500+</div>
+          <div class="stars">${starsHtml}</div>
+          <div class="f-rate">${ratingDisplay} &middot; ${stats.completedCount} Projects</div>
           <div class="f-spec">${f.profession || 'Editor'}</div>
-        </div>`).join('') : `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors available.</div>`}
+          <div style="margin-top:10px;">
+            <button class="btn btn-outline-f btn-xs full-btn" onclick="event.stopPropagation(); viewFreelancerPortfolio('${f.id}')">View Portfolio</button>
+          </div>
+        </div>`;
+      }).join('') : `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors available.</div>`}
     </div><br/>
     ${selFreelancerIds.length > 0 ? `<div class="alert alert-s">Selected: <strong>${selFreelancerIds.length} Editors</strong></div>` : ''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -2120,7 +2234,26 @@ function cPayment() {
   </div>`;
 }
 
-function submitReview() { showToast('Review submitted! Thank you', 'ok', ''); }
+async function submitReview() {
+  const rating = document.querySelectorAll('#sr1 span.lit').length;
+  if (!rating) { showToast('Please select a star rating first', 'err', ''); return; }
+  const review = document.getElementById('review-text')?.value || '';
+  const pid = activeManageProjectId;
+  if (!pid) { showToast('No active project found', 'err', ''); return; }
+  const projs = DB.projects(), p = projs.find(x => x.id === pid);
+  if (p) {
+    p.rating = rating;
+    p.review = review;
+    DB.saveProjects(projs);
+    if (supaClient) {
+      const { error } = await supaClient.from('projects').update({ rating: rating, review: review }).eq('id', pid);
+      if (error) { showToast('Review saved locally but DB sync failed: ' + error.message, 'warn', ''); }
+      else { showToast(`Review submitted! ${rating} stars`, 'ok', ''); }
+    } else {
+      showToast(`Review submitted! ${rating} stars`, 'ok', '');
+    }
+  }
+}
 
 function cRate() {
   const projs = DB.projects().filter(p => p.creatorId===CU.id && p.status==='completed' && p.rating===0);
@@ -2136,12 +2269,24 @@ function cRate() {
         </div>`).join('')
     : '<div class="alert alert-i">You\'ve rated all completed projects!</div>'}`;
 }
-function saveRating(pid) {
+async function saveRating(pid) {
   const rating = document.querySelectorAll(`#sr-${pid} span.lit`).length;
   if (!rating) { showToast('Please select a star rating', 'err', ''); return; }
+  const review = document.getElementById('rev-'+pid)?.value || '';
   const projs = DB.projects(), p = projs.find(x => x.id === pid);
-  if (p) { p.rating = rating; p.review = document.getElementById('rev-'+pid)?.value || ''; DB.saveProjects(projs); }
-  showToast(`Rating submitted! ${rating} stars`, 'ok', ''); renderC('rate');
+  if (p) {
+    p.rating = rating;
+    p.review = review;
+    DB.saveProjects(projs);
+    if (supaClient) {
+      const { error } = await supaClient.from('projects').update({ rating: rating, review: review }).eq('id', pid);
+      if (error) { showToast('Rating saved locally but DB sync failed: ' + error.message, 'warn', ''); }
+      else { showToast(`Rating submitted! ${rating} stars`, 'ok', ''); }
+    } else {
+      showToast(`Rating submitted! ${rating} stars`, 'ok', '');
+    }
+  }
+  renderC('rate');
 }
 
 function cProfile() {
