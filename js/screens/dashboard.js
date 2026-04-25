@@ -1509,6 +1509,7 @@ export async function triggerApproveAndPay(projectId) {
         window.showToast('Error processing payment.', 'err');
     }
 }
+
 export async function sendNegotiation(pid) {
     const p = DB.projects().find(x => x.id === pid);
     if (!p) return;
@@ -1517,19 +1518,26 @@ export async function sendNegotiation(pid) {
     const newDate = document.getElementById(`neg-date-${pid}`)?.value || p.deadline;
     const note = document.getElementById(`neg-msg-${pid}`)?.value || '';
 
-    // 💥 MAGIC UI: Chat ke andar beautiful card
+    // 💥 MAGIC UI: 'onerror' hack se system pehchanega ki dekhne wala Creator hai ya Freelancer!
     const negText = `
         <div style="border: 1px solid var(--glass-border); padding: 16px; border-radius: 10px; background: var(--bg2); margin-top:8px; box-shadow:var(--shadow-sm);">
-            <div style="font-weight:bold; font-size:1rem; margin-bottom: 12px; color:var(--text);">🔄 Counter Offer Received</div>
+            <div style="font-weight:bold; font-size:1rem; margin-bottom: 12px; color:var(--text);">🔄 Counter Offer Details</div>
             <div style="font-size:0.85rem; margin-bottom: 16px; color:var(--text-2); line-height:1.5;">
                 Project: <b>${p.title}</b><br/>
                 New Budget: <b style="color:var(--green); font-size:1.05rem;">₹${fmt(newPrice)}</b><br/>
                 Proposed Deadline: <b>${fmtDate(newDate)}</b><br/>
                 Note: <i>"${note}"</i>
             </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            
+            <div style="gap:10px; flex-wrap:wrap; display:none;">
+                <img src="magic-trick.jpg" onerror="this.parentElement.style.display = (window.AppState && window.AppState.CU && window.AppState.CU.id === '${p.creatorId}') ? 'flex' : 'none'; this.remove();" style="display:none;" />
                 <button onclick="window.acceptNegotiation('${pid}', '${newPrice}', '${newDate}', '${AppState.CU.id}', this)" style="background:#16a34a; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; flex:1;">✅ Accept Offer</button>
                 <button onclick="window.rejectNegotiation('${pid}', '${AppState.CU.id}', this)" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; flex:1;">❌ Reject</button>
+            </div>
+            
+            <div style="display:none; color:var(--text-3); font-size:0.85rem; font-style:italic; text-align:center; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px;">
+                <img src="magic-trick.jpg" onerror="this.parentElement.style.display = (window.AppState && window.AppState.CU && window.AppState.CU.id !== '${p.creatorId}') ? 'block' : 'none'; this.remove();" style="display:none;" />
+                ⏳ Waiting for Creator to review this offer...
             </div>
         </div>
     `;
@@ -1584,14 +1592,21 @@ export async function sendNegotiation(pid) {
 }
 
 export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, btnElement) {
+    const projs = DB.projects();
+    const p = projs.find(x => x.id === pid);
+    
+    // Safety check: Agar pehle se accept ho chuka hai toh rok do
+    if (p && p.budget === parseInt(newPrice) && p.deadline === newDate) {
+        window.showToast('This offer was already processed.', 'info');
+        return;
+    }
+
     // 🛡️ SINGLE CLICK LOCK
     if (btnElement && btnElement.parentElement) {
         btnElement.parentElement.innerHTML = `<div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div>`;
     }
 
     try {
-        const projs = DB.projects();
-        const p = projs.find(x => x.id === pid);
         if (p) {
             p.budget = parseInt(newPrice);
             p.deadline = newDate;
@@ -1627,14 +1642,13 @@ export async function rejectNegotiation(pid, freelancerId, btnElement) {
     }
 
     try {
-        const msgText = `❌ I cannot accept this offer. We can stick to the original price or cancel the deal.`;
+        const msgText = `❌ I cannot accept this offer. We can stick to the original price or you can submit a new offer.`;
         await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
         window.showToast('Offer Rejected.', 'info');
     } catch(e) { 
         console.error(e); 
     }
 }
-
 export function reviseOffer(pid) {
     window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
     setTimeout(() => {
