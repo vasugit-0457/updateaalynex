@@ -27,17 +27,22 @@ export async function syncDataFromSupabase(u) {
         const { data: { user } } = await supaClient.auth.getUser();
         if (!user) return;
 
-        // ✅ 'users' nahi, 'profiles' hai
+        // ✅ profiles table, sahi method naam
         const { data: profile } = await supaClient
             .from('profiles')
             .select('*').eq('id', user.id).maybeSingle();
-        if (profile) DB.setUser(profile);
+        if (profile) DB.setCurrentUser(profile);
 
-        // ✅ Projects bhi fetch karo refresh ke baad
+        // ✅ projects fetch karo — sahi method naam
         const { data: projects } = await supaClient
             .from('projects')
             .select('*').eq('creator_id', user.id);
-        if (projects) DB.setProjects(projects);
+        if (projects) DB.saveProjects(projects);
+
+        // ✅ Users bhi sync karo
+        const { data: users } = await supaClient
+            .from('profiles').select('*');
+        if (users) DB.saveUsers(users);
 
     } catch(e) { console.error("Sync failed", e); }
 }
