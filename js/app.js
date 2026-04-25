@@ -61,6 +61,19 @@ window.reviseOffer = reviseOffer;
 window.triggerApproveAndPay = triggerApproveAndPay;
 window.handleProfilePhotoUpload = handleProfilePhotoUpload;
 
+window.cPageMobile = function(page, el) {
+    document.querySelectorAll('#c-bottom-nav .bn-item').forEach(i => i.classList.remove('active'));
+    if (el) el.classList.add('active');
+    cPage(page, document.querySelector(`#screen-creator .nav-item[data-page="${page}"]`));
+    closeSidebar('creator');
+};
+
+window.fPageMobile = function(page, el) {
+    document.querySelectorAll('#f-bottom-nav .bn-item').forEach(i => i.classList.remove('active'));
+    if (el) el.classList.add('active');
+    fPage(page, document.querySelector(`#screen-freelancer .nav-item[data-page="${page}"]`));
+    closeSidebar('freelancer');
+};
 
 // ── 2. LOGIN SUCCESS ──
 window.loginSuccess = async function(u) {
