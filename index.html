@@ -19,7 +19,7 @@
   <nav>
     <div class="logo">
       <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
-      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+      <span class="logo-text" draggable="true" class="logo-text logo-drag"">Aalynex</span>
     </div>
     <div class="nav-right">
       <button class="btn btn-ghost btn-sm" onclick="goAuth('login')">Login</button>
@@ -146,7 +146,7 @@
   <nav>
     <div class="logo">
       <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
-      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+      <span class="logo-text" draggable="true" class="logo-text logo-drag"">Aalynex</span>
     </div>
     <div class="nav-right">
       <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-landing')">&larr; Back</button>
@@ -212,7 +212,7 @@
   <nav>
     <div class="logo">
       <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
-      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+      <span class="logo-text" draggable="true" class="logo-text logo-drag"">Aalynex</span>
     </div>
     <div class="nav-right">
       <span class="nav-greeting" id="c-nav-greeting">Hi, <strong id="c-nav-name"></strong></span>
@@ -281,7 +281,7 @@
   <nav>
     <div class="logo">
       <img src="aalynex-logo.png" class="logo-img" draggable="false" alt="Logo">
-      <span class="logo-text" draggable="true" id="logoDrag">Aalynex</span>
+      <span class="logo-text" draggable="true" class="logo-text logo-drag"">Aalynex</span>
     </div>
     <div class="nav-right">
       <span class="nav-greeting nav-greeting-f" id="f-nav-greeting">Hi, <strong id="f-nav-name"></strong></span>
@@ -364,14 +364,14 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script type="module" src="js/app.js?v=3"></script><script>
-const logo = document.getElementById("logoDrag");
-if (logo) {
-  logo.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/uri-list", window.location.href);
-    e.dataTransfer.setData("text/plain", window.location.href);
-  }); 
-}
+<script type="module" src="js/app.js"></script>
+<script>
+document.querySelectorAll('.logo-drag').forEach(logo => {
+    logo.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/uri-list", window.location.href);
+        e.dataTransfer.setData("text/plain", window.location.href);
+    });
+});
 </script>
 </body>
 </html>
