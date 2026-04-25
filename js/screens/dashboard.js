@@ -1254,40 +1254,6 @@ function fProfile() {
     </div>`;
 }
 
-export function saveFProfile() {
-    const name = document.getElementById('f-prof-name')?.value?.trim();
-    if (!name) { window.showToast('Name cannot be empty', 'err'); return; }
-    const phone = document.getElementById('f-prof-phone')?.value?.trim();
-    const prof = document.getElementById('f-prof-title')?.value?.trim();
-    
-    const users = DB.users();
-    const u = users.find(x => x.id === AppState.CU.id);
-    
-    if (u) { 
-        u.name = name; 
-        u.phone = phone; 
-        u.profession = prof; 
-        u.avatar = name.charAt(0).toUpperCase(); 
-        DB.saveUsers(users); 
-    }
-    
-    AppState.CU = {...AppState.CU, name, phone, profession: prof}; 
-    DB.setCurrentUser(AppState.CU);
-    
-    const navName = document.getElementById('f-nav-name');
-    const sbName = document.getElementById('f-sb-name');
-    const sbAvatar = document.getElementById('f-sb-avatar');
-    if(navName) navName.textContent = name.split(' ')[0];
-    if(sbName) sbName.textContent = name;
-    if(sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
-    
-    if (window.supabaseClient && AppState.CU.id) {
-        window.supabaseClient.from('profiles').update({ name, phone, profession: prof }).eq('id', AppState.CU.id).then(() => {});
-    }
-    
-    window.showToast('Profile updated successfully!', 'ok');
-    window.fPage('profile', document.querySelector('[data-page="profile"]'));
-}
 
 function fEarnings() {
     const projs = DB.projects().filter(p => p.freelancerId === AppState.CU.id);
