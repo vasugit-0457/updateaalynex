@@ -78,20 +78,16 @@ window.loginSuccess = async function(u) {
     AppState.CU = u;
     DB.setCurrentUser(u);
     const fullName = u.full_name || u.name || 'User';
-
     // ✅ PEHLE sync karo — projects load ho jayein
     await syncDataFromSupabase(u);
 
-    if (u.role === 'creator') {
-        // ... baaki creator UI code same ...
-        window.showScreen('screen-creator');
-        // ✅ PHIR render karo — ab projects DB me hain
-        setTimeout(() => { window.cPage('home', document.querySelector('#screen-creator .nav-item[data-page="home"]') || document.querySelector('#screen-creator .nav-item')); }, 50);
-    } else {
-        // ... baaki freelancer UI code same ...
-        window.showScreen('screen-freelancer');
-        setTimeout(() => { window.fPage('home', document.querySelector('#screen-freelancer .nav-item[data-page="home"]') || document.querySelector('#screen-freelancer .nav-item')); }, 50);
-    }
+if (u.role === 'creator') {
+    const navName = document.getElementById('c-nav-name');
+    if (navName) navName.textContent = fullName.split(' ')[0];
+} else {
+    const navName = document.getElementById('f-nav-name');
+    if (navName) navName.textContent = fullName.split(' ')[0];
+}
 
     // Realtime baad me
     initChatRealtime(u.id);
