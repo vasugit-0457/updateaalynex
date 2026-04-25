@@ -517,7 +517,6 @@ export function saveProfile() {
     const phone    = document.getElementById('prof-phone')?.value?.trim();
     const platform = document.getElementById('prof-platform')?.value;
     
-    // Links fetch kar rahe hain
     const instaLink = document.getElementById('c-prof-insta')?.value?.trim() || '';
     const ytLink = document.getElementById('c-prof-yt')?.value?.trim() || '';
     const workLink = document.getElementById('c-prof-work')?.value?.trim() || '';
@@ -1150,101 +1149,105 @@ function fEarnings() {
     </div>`;
 }
 
+function fNegotiate() {
+    const myId = String(AppState.CU.id).toLowerCase();
+
+    setTimeout(async () => {
+        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        if (supa) {
+            try {
+                const { data } = await supa.from('projects').select('*').eq('status', 'ongoing').eq('freelancer_id', myId);
+                if (data) {
+                    let updated = false;
+                    const localDB = DB.projects();
+                    data.forEach(dp => {
+                        const existing = localDB.find(x => x.id === dp.id);
+                        if (!existing) {
+                            localDB.push({
+                                id: dp.id, creatorId: dp.creator_id, title: dp.title, description: dp.description,
+                                budget: dp.budget, contentType: dp.content_type, deadline: dp.deadline, priority: dp.priority,
+                                freelancerId: dp.freelancer_id, status: dp.status, createdAt: new Date(dp.created_at).getTime()
+                            });
+                            updated = true;
+                        } else if (existing.budget !== dp.budget || existing.deadline !== dp.deadline) {
+                            existing.budget = dp.budget;
+                            existing.deadline = dp.deadline;
+                            updated = true;
+                        }
+                    });
+                    if (updated) {
+                        DB.saveProjects(localDB);
+                        if (document.querySelector('[data-page="negotiate"]')?.classList.contains('active')) {
+                            window.fPage('negotiate', document.querySelector('[data-page="negotiate"]'));
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+    }, 100);
+
+    const projs = DB.projects().filter(p => p.status === 'ongoing' && String(p.freelancerId).toLowerCase() === myId);
+
+    if (!projs.length) {
+        return `
+        <div class="page-head"><h2>Negotiate Price & Deadline</h2><p>Request changes for ongoing projects</p></div>
+        <div style="padding:20px 0; color:var(--text-3); font-size:0.9rem;">
+            <div class="alert alert-i">You have no ongoing projects to negotiate right now. First, accept a project to request changes!</div>
+        </div>`;
+    }
+
+    return `
+    <div class="page-head" style="margin-bottom:20px;">
+        <h2>Negotiate Price & Deadline</h2>
+        <p style="color:var(--text-3); font-size:0.85rem; margin-top:4px;">Select an ongoing project to request budget/deadline changes</p>
+    </div>
+
+    <div class="fg" style="margin-bottom:24px;">
+        <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-3); margin-bottom:8px; text-transform:uppercase;">Select Project</label>
+        <select id="neg-project-select" style="width:100%; max-width:100%; padding:12px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); color:var(--text); outline:none; cursor:pointer; font-family:inherit; font-size:0.9rem;" onchange="window.toggleNegotiationCard(this.value)">
+            <option value="" disabled selected>-- Choose an ongoing project --</option>
+            ${projs.map(p => `<option value="${p.id}">${p.title} (Current Budget: ₹${fmt(p.budget)})</option>`).join('')}
+        </select>
+    </div>
+
+    <div id="neg-cards-container" style="width:100%;">
+        ${projs.map(p => `
+            <div id="neg-card-${p.id}" class="det-card neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
+                <h3 style="margin-top:0; margin-bottom:6px; font-size:1.2rem; color:var(--text); font-weight:700;">${p.title}</h3>
+                <div style="font-size:.85rem; color:var(--text-3); margin-bottom:24px;">
+                    Current Budget: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Current Deadline: ${fmtDate(p.deadline)}
+                </div>
+                
+                <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
+                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">New Request Price (₹)</label>
+                        <input type="number" id="neg-price-${p.id}" value="${p.budget}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                    </div>
+                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
+                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">New Proposed Deadline</label>
+                        <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                    </div>
+                </div>
+                
+                <div class="fg" style="margin-bottom:24px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Reason / Message to Client</label>
+                    <input type="text" id="neg-msg-${p.id}" placeholder="I need more budget/time because..." style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                </div>
+                
+                <div style="display:flex; gap:12px;">
+                    <button class="btn" style="background:#e85d2e; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Request to Client</button>
+                </div>
+            </div>
+        `).join('')}
+    </div>
+    `;
+}
 
 export function toggleNegotiationCard(pid) {
     document.querySelectorAll('.neg-card-item').forEach(el => el.style.display = 'none');
     const selected = document.getElementById('neg-card-' + pid);
     if (selected) selected.style.display = 'block';
 }
-
-export function saveFProfile() {
-    const name = document.getElementById('f-prof-name')?.value?.trim();
-    if (!name) { window.showToast('Name cannot be empty', 'err'); return; }
-    const phone = document.getElementById('f-prof-phone')?.value?.trim();
-    const prof = document.getElementById('f-prof-title')?.value?.trim();
-    
-    const instaLink = document.getElementById('f-prof-insta')?.value?.trim() || '';
-    const ytLink = document.getElementById('f-prof-yt')?.value?.trim() || '';
-    const workLink = document.getElementById('f-prof-work')?.value?.trim() || '';
-    
-    const users = DB.users();
-    const u = users.find(x => x.id === AppState.CU.id);
-    
-    if (u) { 
-        u.name = name; 
-        u.phone = phone; 
-        u.profession = prof; 
-        u.avatar = name.charAt(0).toUpperCase(); 
-        u.instaLink = instaLink;
-        u.ytLink = ytLink;
-        u.workLink = workLink;
-        DB.saveUsers(users); 
-    }
-    
-    AppState.CU = {...AppState.CU, name, phone, profession: prof, instaLink, ytLink, workLink}; 
-    DB.setCurrentUser(AppState.CU);
-    
-    const navName = document.getElementById('f-nav-name');
-    const sbName = document.getElementById('f-sb-name');
-    const sbAvatar = document.getElementById('f-sb-avatar');
-    if(navName) navName.textContent = name.split(' ')[0];
-    if(sbName) sbName.textContent = name;
-    if(sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
-    
-    if (supaClient && AppState.CU.id) {
-        supaClient.from('profiles').update({ 
-            name, phone, profession: prof, insta_link: instaLink, yt_link: ytLink, work_link: workLink 
-        }).eq('id', AppState.CU.id).then(() => {});
-    }
-    
-    window.showToast('Profile updated successfully!', 'ok');
-    window.fPage('profile', document.querySelector('[data-page="profile"]'));
-}
-
-export async function handleProfilePhotoUpload(input) {
-    if (!input.files || !input.files.length) return;
-    const file = input.files[0];
-
-    window.showToast('Uploading photo...', 'info');
-
-    try {
-        const supa = window.supaClient || window.supabaseClient || window.supabase || supaClient;
-        if (!supa) throw new Error("Supabase connection not found");
-
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${AppState.CU.id}_${Date.now()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
-
-        const { data: uploadData, error: uploadErr } = await supa.storage.from('avatars').upload(filePath, file);
-        if (uploadErr) throw uploadErr;
-
-        const { data: urlData } = supa.storage.from('avatars').getPublicUrl(uploadData.path);
-        const photoUrl = urlData?.publicUrl;
-
-        AppState.CU.photo_url = photoUrl;
-        const users = DB.users();
-        const u = users.find(x => x.id === AppState.CU.id);
-        if (u) { 
-            u.photo_url = photoUrl; 
-            DB.saveUsers(users); 
-        }
-        DB.setCurrentUser(AppState.CU);
-
-        await supa.from('profiles').update({ photo_url: photoUrl }).eq('id', AppState.CU.id);
-
-        window.showToast('Profile photo updated!', 'ok');
-        window.fPage('profile', document.querySelector('[data-page="profile"]')); 
-
-    } catch (err) {
-        console.error("Photo upload error:", err);
-        window.showToast('Upload failed. Try again.', 'err');
-    } finally {
-        input.value = ''; 
-    }
-}
-
-export function downloadEditedVideo(id) { window.showToast('Download starting...', 'ok'); }
-export function submitReview() { window.showToast('Review submitted!', 'ok'); window.cPage('projects', document.querySelector('[data-page="projects"]')); }
 
 export function viewFreelancerPortfolio(id) {
     const f = DB.users().find(u => u.id === id);
@@ -1358,7 +1361,6 @@ export async function acceptProject(pid) {
                 fileLinksText = attachments.map(f => {
                     const size = f.file_size ? (f.file_size / (1024*1024)).toFixed(2) + ' MB' : 'Unknown Size';
                     if (f.file_url && f.file_url.startsWith('http')) {
-                        // ✨ BEAUTIFUL BUTTON UI FOR CHAT ✨
                         return `<div style="background:rgba(255,255,255,0.15); padding:10px 14px; border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.2);">
                             <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px; word-break:break-all; line-height:1.3;">📁 ${f.file_name} <span style="font-weight:normal; font-size:0.75rem; opacity:0.8;">(${size})</span></div>
                             <a href="${f.file_url}" target="_blank" download style="display:inline-block; background:var(--bg); color:var(--text); padding:6px 14px; border-radius:6px; font-size:0.75rem; font-weight:700; text-decoration:none; box-shadow:var(--shadow-sm);">⬇ Download File</a>
@@ -1395,7 +1397,6 @@ export async function acceptProject(pid) {
                 }]);
             }
             
-            // LOCAL SYNC
             if (typeof DB.messages === 'function') {
                 const key = [AppState.CU.id, p.creatorId].sort().join('_');
                 let allMsgs = DB.messages() || {};
@@ -1450,86 +1451,6 @@ export async function triggerApproveAndPay(projectId) {
     }
 }
 
-// ─── NEGOTIATION FUNCTIONS (ADVANCED STATE PERSISTENCE) ───
-
-function fNegotiate() {
-  const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
-  return `
-  <div class="page-head"><h2>Negotiate Price &amp; Deadline</h2></div>
-  ${projs.length
-    ? projs.map(p => `
-        <div class="det-card">
-          <h4>${p.title}</h4>
-          <p>Client's offer: <strong>₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}</p>
-          <div class="two-col" style="margin-top:14px;">
-            <div class="fg"><label>Your Counter-Price (₹)</label><input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget*1.15)}"/></div>
-            <div class="fg"><label>Proposed Deadline</label><input type="date" id="neg-date-${p.id}" value="${new Date(Date.now()+7*86400000).toISOString().split('T')[0]}"/></div>
-          </div>
-          <div class="fg"><label>Message to Client</label><input id="neg-msg-${p.id}" placeholder="I can complete this at the revised price…"/></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm"    onclick="sendCounter('${p.id}')">Send Counter-Offer</button>
-            <button class="btn btn-green-btn btn-sm"  onclick="showToast('Accepted at original terms!','ok','')">Accept Original</button>
-          </div>
-        </div>`).join('')
-    : '<div class="alert alert-i">No projects to negotiate right now.</div>'}`;
-}
-function sendCounter(id) {
-  const price = document.getElementById('neg-price-'+id)?.value, date = document.getElementById('neg-date-'+id)?.value;
-  if (!price || !date) { showToast('Fill in all fields', 'err', ''); return; }
-  
-  const proj = DB.projects().find(x=>x.id===id);
-  if(proj) {
-     const msg = `[NEGOTIATION_REQ]|${proj.id}|${price}|${date}|${document.getElementById('neg-msg-'+id)?.value}`;
-     sendMsg(CU.id, proj.creatorId, null, null, msg);
-  }
-  
-  showToast(`Counter-offer sent: ₹${fmt(price)}`, 'ok', '');
-}
-
-async function acceptNegotiation(btn, projectId, newPrice, newDate, otherId) {
-   btn.disabled = true;
-   btn.innerText = "Processing...";
-   if (btn.nextElementSibling) btn.nextElementSibling.style.display = 'none';
-   
-   const projs = DB.projects(), p = projs.find(x => x.id === projectId);
-   if (p) { 
-       p.budget = parseInt(newPrice); 
-       p.deadline = newDate;
-       DB.saveProjects(projs); 
-   }
-   
-   if (supaClient) {
-       await supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', projectId);
-   }
-   
-   await sendMsg(CU.id, otherId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
-   showToast('Budget & deadline updated!', 'ok');
-   
-   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Offer Accepted</span>`;
-}
-
-function rejectNegotiation(btn, projectId, otherId) {
-   btn.disabled = true;
-   btn.innerText = "Processing...";
-   if (btn.previousElementSibling) btn.previousElementSibling.style.display = 'none';
-
-   sendMsg(CU.id, otherId, null, null, `❌ Offer Rejected. Let's discuss further.`);
-   showToast('Offer rejected', 'info');
-
-   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Offer Rejected</span>`;
-}
-
-
-export function reviseOffer(pid) {
-    window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
-    setTimeout(() => {
-        const select = document.getElementById('neg-project-select');
-        if(select) {
-            select.value = pid;
-            window.toggleNegotiationCard(pid);
-        }
-    }, 200);
-}
 export function wfB() { 
     AppState.wfStep = Math.max(0, AppState.wfStep - 1); 
     if(typeof renderC === 'function') renderC('new'); 
@@ -1549,4 +1470,190 @@ export function selFL(id, name) {
         AppState.selFreelancerName = name;
     }
     if(typeof renderC === 'function') renderC('new'); 
+}
+
+// ─── NEGOTIATION FUNCTIONS (BULLETPROOF UI) ───
+
+export async function sendNegotiation(pid) {
+    const p = DB.projects().find(x => x.id === pid);
+    if (!p) return;
+
+    const newPrice = document.getElementById(`neg-price-${pid}`)?.value || p.budget;
+    const newDate = document.getElementById(`neg-date-${pid}`)?.value || p.deadline;
+    const note = document.getElementById(`neg-msg-${pid}`)?.value || '';
+    
+    const negId = 'neg_' + Date.now();
+
+    // 💥 MAGIC UI 2.0: Ultra-Safe 'onerror' Hack
+    const negText = `
+        <div id="${negId}" style="border: 1px solid var(--glass-border); padding: 16px; border-radius: 10px; background: var(--bg2); margin-top:8px; box-shadow:var(--shadow-sm);">
+            <div style="font-weight:bold; font-size:1rem; margin-bottom: 12px; color:var(--text);">🔄 Counter Offer Details</div>
+            <div style="font-size:0.85rem; margin-bottom: 16px; color:var(--text-2); line-height:1.5;">
+                Project: <b>${p.title}</b><br/>
+                New Budget: <b style="color:var(--green); font-size:1.05rem;">₹${fmt(newPrice)}</b><br/>
+                Proposed Deadline: <b>${fmtDate(newDate)}</b><br/>
+                Note: <i>"${note}"</i>
+            </div>
+            
+            <div class="neg-action-area">
+                <img src="x" onerror="
+                    try {
+                        var isCreator = String(window.AppState.CU.id) === '${p.creatorId}';
+                        if(isCreator) {
+                            this.parentElement.querySelector('.c-btns').style.display = 'flex';
+                        } else {
+                            this.parentElement.querySelector('.f-wait').style.display = 'block';
+                        }
+                    } catch(e){}
+                    this.remove();
+                " style="display:none;" />
+                
+                <div class="c-btns" style="display:none; gap:10px; flex-wrap:wrap;">
+                    <button onclick="window.acceptNegotiation('${pid}', '${newPrice}', '${newDate}', '${AppState.CU.id}', this, '${negId}')" style="background:#16a34a; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; flex:1;">✅ Accept</button>
+                    <button onclick="window.rejectNegotiation('${pid}', '${AppState.CU.id}', this, '${negId}')" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; flex:1;">❌ Reject</button>
+                </div>
+                
+                <div class="f-wait" style="display:none; color:var(--text-3); font-size:0.85rem; font-style:italic; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; text-align:center;">
+                    ⏳ Waiting for Creator to review this offer...
+                </div>
+            </div>
+        </div>
+    `;
+
+    window.showToast('Sending counter-offer...', 'info');
+
+    try {
+        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        if (supa) {
+            let convoId = null;
+            const { data: convos } = await supa.from('conversations').select('id, user1_id, user2_id').or(`user1_id.eq.${AppState.CU.id},user2_id.eq.${AppState.CU.id}`);
+
+            if (convos && convos.length > 0) {
+                const existing = convos.find(c => (c.user1_id === p.creatorId && c.user2_id === AppState.CU.id) || (c.user1_id === AppState.CU.id && c.user2_id === p.creatorId));
+                if (existing) convoId = existing.id;
+            }
+
+            if (!convoId) {
+                const { data: newConvo } = await supa.from('conversations').insert([{ user1_id: AppState.CU.id, user2_id: p.creatorId }]).select('id').single();
+                if (newConvo) convoId = newConvo.id;
+            }
+
+            if (convoId) {
+                await supa.from('messages').insert([{ conversation_id: convoId, sender_id: AppState.CU.id, text: negText }]);
+            }
+        }
+
+        if (typeof DB.messages === 'function') {
+            const key = [AppState.CU.id, p.creatorId].sort().join('_');
+            let allMsgs = DB.messages() || {};
+            if (!allMsgs[key]) allMsgs[key] = [];
+            allMsgs[key].push({ from: AppState.CU.id, text: negText, time: Date.now() });
+            if (typeof DB.saveMessages === 'function') DB.saveMessages(allMsgs);
+        }
+
+        window.showToast('Counter-offer sent to creator!', 'ok');
+        window.fPage('chat', document.querySelector('[data-page=chat]'));
+        setTimeout(() => window.switchChat(AppState.CU.id, p.creatorId), 100);
+
+    } catch(e) {
+        console.error(e);
+        window.showToast('Failed to send offer. Check console.', 'err');
+    }
+    
+    document.querySelectorAll('.neg-card-item').forEach(el => el.style.display = 'none');
+    const select = document.getElementById('neg-project-select');
+    if(select) select.value = "";
+}
+
+export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, btnElement, negId) {
+    if (btnElement) {
+        const actionArea = btnElement.closest('.neg-action-area');
+        if (actionArea) actionArea.innerHTML = `<div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div>`;
+    }
+
+    try {
+        const projs = DB.projects();
+        const p = projs.find(x => x.id === pid);
+        if (p) {
+            p.budget = parseInt(newPrice);
+            p.deadline = newDate;
+            p.freelancerId = freelancerId;
+            p.status = 'ongoing';
+            DB.saveProjects(projs);
+        }
+        
+        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        if (supa) {
+            await supa.from('projects').update({ budget: parseInt(newPrice), deadline: newDate, freelancer_id: freelancerId, status: 'ongoing' }).eq('id', pid);
+            
+            if (negId) {
+                const { data: msgs } = await supa.from('messages').select('id, text').ilike('text', `%${negId}%`);
+                if (msgs && msgs.length > 0) {
+                    const newText = msgs[0].text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div></div></div>';
+                    await supa.from('messages').update({ text: newText }).eq('id', msgs[0].id);
+                }
+            }
+        }
+
+        if (typeof DB.messages === 'function' && negId) {
+            const key = [AppState.CU.id, freelancerId].sort().join('_');
+            let allMsgs = DB.messages();
+            if (allMsgs[key]) {
+                allMsgs[key] = allMsgs[key].map(m => {
+                    if (m.text && m.text.includes(negId)) {
+                        return { ...m, text: m.text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div></div></div>' };
+                    }
+                    return m;
+                });
+                DB.saveMessages(allMsgs);
+            }
+        }
+        
+        const msgText = `🎉 **Great News!** I have Accepted your counter-offer. The budget is now officially **₹${fmt(newPrice)}**. Let's start working!`;
+        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
+        window.showToast('Offer Accepted! Project & Budget Updated.', 'ok');
+        
+    } catch(e) {
+        console.error(e);
+        window.showToast('Error accepting offer.', 'err');
+    }
+}
+
+export async function rejectNegotiation(pid, freelancerId, btnElement, negId) {
+    if (btnElement) {
+        const actionArea = btnElement.closest('.neg-action-area');
+        if (actionArea) actionArea.innerHTML = `<div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div>`;
+    }
+
+    try {
+        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        if (supa && negId) {
+            const { data: msgs } = await supa.from('messages').select('id, text').ilike('text', `%${negId}%`);
+            if (msgs && msgs.length > 0) {
+                const newText = msgs[0].text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div></div></div>';
+                await supa.from('messages').update({ text: newText }).eq('id', msgs[0].id);
+            }
+        }
+
+        if (typeof DB.messages === 'function' && negId) {
+            const key = [AppState.CU.id, freelancerId].sort().join('_');
+            let allMsgs = DB.messages();
+            if (allMsgs[key]) {
+                allMsgs[key] = allMsgs[key].map(m => {
+                    if (m.text && m.text.includes(negId)) {
+                        return { ...m, text: m.text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div></div></div>' };
+                    }
+                    return m;
+                });
+                DB.saveMessages(allMsgs);
+            }
+        }
+
+        const msgText = `❌ I cannot accept this offer. We can stick to the original price or you can submit a new offer.`;
+        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
+        window.showToast('Offer Rejected.', 'info');
+        
+    } catch(e) { 
+        console.error(e); 
+    }
 }
