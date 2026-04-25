@@ -12,25 +12,24 @@ function getSafeMessages() {
 
 let chatSubscription = null;
 let presenceChannel = null;
-let currentRealtimeUserId = null; // Lock ko ID based kar diya hai
+let currentRealtimeUserId = null; 
 
 export function initChatRealtime(myId) {
     const supa = getSupa();
     if (!supa || !myId) return;
 
-    // Agar SAME user already connected hai, tabhi block karo
     if (currentRealtimeUserId === myId) return; 
-    
-    currentRealtimeUserId = myId; // Naye user ki ID set karo
+    currentRealtimeUserId = myId; 
     console.log("🚀 Realtime Connection Shuru ho raha hai for:", myId);
 
-    // 🟢 PRESENCE
+    // 🟢 PRESENCE (Online/Offline Logic)
     if (presenceChannel) { supa.removeChannel(presenceChannel); }
     presenceChannel = supa.channel('global_presence', { config: { presence: { key: myId } } });
 
     presenceChannel.on('presence', { event: 'sync' }, () => {
         const newState = presenceChannel.presenceState();
         AppState.onlineUsers = new Set(Object.keys(newState));
+        console.log("👥 Online Users Updated:", AppState.onlineUsers);
         updateChatHeaderPresence(); 
     });
 
@@ -38,49 +37,59 @@ export function initChatRealtime(myId) {
         if (status === 'SUBSCRIBED') await presenceChannel.track({ online: true });
     });
 
-    // 📨 MESSAGES REALTIME
+    // 📨 MESSAGES REALTIME LOGIC
     if (chatSubscription) { supa.removeChannel(chatSubscription); }
     chatSubscription = supa.channel('realtime-messages')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-            console.log("🔔 Cloud se Message Aaya! Payload:", payload.new);
-            
             const newMsg = payload.new;
-            if (!newMsg || !newMsg.sender_id) return;
+            console.log("🔔 Cloud se Message Aaya! Payload:", newMsg);
             
-            if (String(newMsg.sender_id).toLowerCase() === String(myId).toLowerCase()) return; 
+            // 🔥 Fix 1: Column ka naam kuch bhi ho, ab ye catch kar lega
+            const msgSender = newMsg.sender_id || newMsg.senderId || newMsg.from || newMsg.user_id;
+            if (!newMsg || !msgSender) {
+                console.log("⚠️ Sender ID nahi mila payload mein!");
+                return;
+            }
+            
+            if (String(msgSender).toLowerCase() === String(myId).toLowerCase()) return; 
 
             try {
+                // 🔥 Fix 2: Agar Supabase RLS block kare, tab bhi crash nahi hoga
                 const { data: convo, error } = await supa.from('conversations').select('*').eq('id', newMsg.conversation_id).maybeSingle();
-                if (error) return;
                 
+                let otherId = AppState.currentChatUserId; // Fallback ID use karega
                 if (convo) {
-                    const otherId = convo.user1_id === myId ? convo.user2_id : convo.user1_id;
-                    const key = [myId, otherId].sort().join('_');
+                    otherId = String(convo.user1_id) === String(myId) ? convo.user2_id : convo.user1_id;
+                } else if (error) {
+                    console.error("⚠️ Convo fetch error (RLS issue ho sakta hai):", error);
+                }
+                
+                if (!otherId) return; 
+
+                const key = [myId, otherId].sort().join('_');
+                const safeMsgs = getSafeMessages();
+                if (!safeMsgs[key]) safeMsgs[key] = [];
+
+                const msgTime = newMsg.created_at ? new Date(newMsg.created_at).getTime() : Date.now();
+                const isDup = safeMsgs[key].some(m => m.text === newMsg.text && Math.abs(m.time - msgTime) < 2000);
+
+                if (!isDup) {
+                    safeMsgs[key].push({
+                        from: msgSender,
+                        text: newMsg.text || '',
+                        file_url: newMsg.file_url || newMsg.fileUrl || null,
+                        time: msgTime
+                    });
+                    DB.saveMessages(safeMsgs);
                     
-                    const safeMsgs = getSafeMessages();
-                    if (!safeMsgs[key]) safeMsgs[key] = [];
-
-                    const msgTime = new Date(newMsg.created_at).getTime();
-                    const isDup = safeMsgs[key].some(m => m.text === newMsg.text && Math.abs(m.time - msgTime) < 2000);
-
-                    if (!isDup) {
-                        safeMsgs[key].push({
-                            from: newMsg.sender_id,
-                            text: newMsg.text || '',
-                            file_url: newMsg.file_url || null,
-                            time: msgTime
-                        });
-                        DB.saveMessages(safeMsgs);
-                        
-                        if (String(AppState.currentChatUserId) === String(otherId)) {
-                            const chatArea = document.getElementById('chat-msgs-el');
-                            if (chatArea) {
-                                chatArea.innerHTML = renderMsgs(safeMsgs[key], myId);
-                                chatArea.scrollTop = chatArea.scrollHeight;
-                            }
+                    if (String(AppState.currentChatUserId) === String(otherId)) {
+                        const chatArea = document.getElementById('chat-msgs-el');
+                        if (chatArea) {
+                            chatArea.innerHTML = renderMsgs(safeMsgs[key], myId);
+                            chatArea.scrollTop = chatArea.scrollHeight;
                         }
-                        updateChatSidebarPreviews();
                     }
+                    updateChatSidebarPreviews();
                 }
             } catch (err) {
                 console.error("Realtime Error:", err);
