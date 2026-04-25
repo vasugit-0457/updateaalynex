@@ -1643,6 +1643,7 @@ export async function handleProfilePhotoUpload(input) {
         input.value = ''; // Input ko reset karein
     }
 }
+
 export function saveFProfile() {
     const name = document.getElementById('f-prof-name')?.value?.trim();
     if (!name) { window.showToast('Name cannot be empty', 'err'); return; }
@@ -1687,5 +1688,6 @@ export function saveFProfile() {
     window.showToast('Profile updated successfully!', 'ok');
     window.fPage('profile', document.querySelector('[data-page="profile"]'));
 }
+
 export function downloadEditedVideo(id) { showToast('Download starting...', 'ok'); }
 export function submitReview() { showToast('Review submitted!', 'ok'); cPage('projects', document.querySelector('[data-page="projects"]')); }
