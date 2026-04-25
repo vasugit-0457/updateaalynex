@@ -1,105 +1,105 @@
-// js/services/authService.js
+// js/services/chatService.js
 import { supaClient } from './supabase.js';
-import { DB, AppState, uid } from '../state.js';
+import { DB } from '../state.js';
 
-function formatProfile(p, email, roleFallback) {
-    return {
-        id: p.id, name: p.name || 'User', email: email || '', phone: p.phone || '',
-        role: p.role || roleFallback, profession: p.profession || '',
-        platform: p.platform || '', avatar: (p.name || 'U').charAt(0).toUpperCase(),
-        createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
-        skills: p.skills || [], portfolio_links: p.portfolio_links || {},
-        resume_url: p.resume_url || '', photo_url: p.photo_url || '', experience: p.experience || []
-    };
-}
 
-export async function loginUser(email, password, role) {
-    if (!supaClient) throw new Error("No database connection");
-    const { data, error } = await supaClient.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    
-    let { data: profile, error: pErr } = await supaClient.from('profiles').select('*').eq('id', data.user.id).single();
-    
-    if (pErr || !profile) {
-        const name = email.split('@')[0];
-        const newProfile = { id: data.user.id, name, role: role, profession: '', platform: '', avatar: name.charAt(0).toUpperCase() };
-        await supaClient.from('profiles').insert(newProfile);
-        profile = { ...newProfile, created_at: Date.now() };
-    }
-    
-    return formatProfile(profile, data.user.email, role);
-}
+export async function sendMessageToDB(myId, otherId, text, fileUrl) {
+    const key = [myId, otherId].sort().join('_');
+    const allMsgs = DB.messages();
+    if (!allMsgs[key]) allMsgs[key] = [];
 
-export async function registerUser(email, password, name, phone, role, profession, platform) {
-    if (!supaClient) throw new Error("No database connection");
-    const { data, error } = await supaClient.auth.signUp({
-        email, password, options: { data: { name, phone, role, profession, platform } }
-    });
-    if (error) throw error;
-    
-    const authUser = data.user;
-    if (authUser) {
-        await supaClient.from('profiles').upsert({
-            id: authUser.id, name, phone, role, profession, platform, avatar: name.charAt(0).toUpperCase()
-        }, { onConflict: 'id' });
-    }
-    
-    return { 
-        session: data.session, 
-        user: { id: authUser?.id || uid(), name, email, phone, role, profession, platform, avatar: name.charAt(0).toUpperCase(), createdAt: Date.now() }
-    };
-}
+    allMsgs[key].push({ from: myId, text: text, file_url: fileUrl, time: Date.now() });
+    DB.saveMessages(allMsgs);
 
-export async function syncDataFromSupabase(u) {
-    if (!supaClient) return;
-    try {
-        const { data: profiles } = await supaClient.from('profiles').select('*');
-        if (profiles) {
-            const localUsers = DB.users();
-            profiles.forEach(p => {
-                const exists = localUsers.find(x => x.id === p.id);
-                const mapped = formatProfile(p, '', p.role);
-                if (!exists) localUsers.push(mapped); else Object.assign(exists, mapped);
-            });
-            DB.saveUsers(localUsers);
-        }
-
-        const { data: projects } = await supaClient.from('projects').select('*');
-        if (projects) {
-            const mapped = projects.map(p => ({
-                id: p.id, creatorId: p.creator_id, freelancerId: p.freelancer_id || null,
-                invited_freelancers: p.invited_freelancers || [], 
-                title: p.title || '', description: p.description || '', budget: p.budget || 0,
-                contentType: p.content_type || '', deadline: p.deadline || '', priority: p.priority || 'Normal',
-                status: p.status || 'open', rawShared: p.raw_shared || false,
-                editedUploaded: p.edited_uploaded || false, paid: p.paid || false,
-                rating: p.rating || 0, review: p.review || '', createdAt: new Date(p.created_at).getTime()
-            }));
-            DB.saveProjects(mapped);
-        }
-
-        const { data: attachments } = await supaClient.from('project_attachments').select('*');
-        if (attachments) {
-            DB.saveAttachments(attachments.map(a => ({ id: a.id, projectId: a.project_id, name: a.file_name, type: a.file_type, size: a.file_size, duration: a.duration })));
-        }
-
-        const { data: convos } = await supaClient.from('conversations').select('*').or(`user1_id.eq.${u.id},user2_id.eq.${u.id}`);
-        if (convos && convos.length > 0) {
-            const convoIds = convos.map(c => c.id);
-            const { data: messages } = await supaClient.from('messages').select('*').in('conversation_id', convoIds).order('created_at', { ascending: true });
-            if (messages) {
-                const msgMap = {};
-                messages.forEach(m => {
-                    const c = convos.find(x => x.id === m.conversation_id);
-                    if (c) {
-                        const otherId = c.user1_id === u.id ? c.user2_id : c.user1_id;
-                        const key = [u.id, otherId].sort().join('_');
-                        if (!msgMap[key]) msgMap[key] = [];
-                        msgMap[key].push({ from: m.sender_id, text: m.text, file_url: m.file_url || null, time: new Date(m.created_at).getTime() });
-                    }
-                });
-                DB.saveMessages(msgMap);
+    if (supaClient) {
+        try {
+            const uid1 = [myId, otherId].sort()[0];
+            const uid2 = [myId, otherId].sort()[1];
+            let { data: convo } = await supaClient.from('conversations').select('id').eq('user1_id', uid1).eq('user2_id', uid2).maybeSingle();
+            if (!convo) {
+                const { data: newC } = await supaClient.from('conversations').insert({ user1_id: uid1, user2_id: uid2 }).select('id').single();
+                convo = newC;
             }
+            if (convo) {
+                await supaClient.from('messages').insert({ conversation_id: convo.id, sender_id: myId, text, file_url: fileUrl });
+            }
+        } catch (e) {
+            console.error("Message sync failed", e);
+            throw e;
         }
-    } catch(e) { console.warn('Sync failed:', e); }
+    }
+    return allMsgs[key];
+}
+
+
+export async function uploadChatVideo(file, myId) {
+    if (!supaClient) throw new Error("No DB connection");
+    const path = `chat/${myId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { data, error } = await supaClient.storage.from('videos').upload(path, file);
+    if (error) throw error;
+    const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(data.path);
+    return urlData.publicUrl;
+}
+
+
+// ✅ NEW: Real-time subscribe
+export function subscribeToMessages(myId, otherId, onNewMessage) {
+    if (!supaClient) {
+        console.warn("⚠️ Supabase not ready, realtime disabled");
+        return null;
+    }
+
+    const uid1 = [myId, otherId].sort()[0];
+    const uid2 = [myId, otherId].sort()[1];
+    const key = [myId, otherId].sort().join('_');
+
+    const channel = supaClient
+        .channel(`chat-${uid1}-${uid2}`)
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'messages'
+            },
+            (payload) => {
+                const newMsg = payload.new;
+
+                // Sirf isi conversation ke messages process karo
+                const allMsgs = DB.messages();
+                if (!allMsgs[key]) allMsgs[key] = [];
+
+                // Duplicate check — jo hum khud bhej chuke wo dobara mat add karo
+                const isDuplicate = allMsgs[key].some(m =>
+                    m.text === newMsg.text &&
+                    m.from === newMsg.sender_id &&
+                    Math.abs((m.time || 0) - new Date(newMsg.created_at).getTime()) < 3000
+                );
+
+                if (!isDuplicate) {
+                    allMsgs[key].push({
+                        from: newMsg.sender_id,
+                        text: newMsg.text,
+                        file_url: newMsg.file_url,
+                        time: new Date(newMsg.created_at).getTime()
+                    });
+                    DB.saveMessages(allMsgs);
+                    onNewMessage(allMsgs[key]); // UI ko updated messages do
+                }
+            }
+        )
+        .subscribe((status) => {
+            console.log(`🟢 Realtime [${uid1} <-> ${uid2}]:`, status);
+        });
+
+    return channel;
+}
+
+
+// ✅ NEW: Unsubscribe — page switch pe zaroor call karo
+export function unsubscribeFromMessages(channel) {
+    if (supaClient && channel) {
+        supaClient.removeChannel(channel);
+        console.log("🔴 Realtime channel closed");
+    }
 }
