@@ -471,48 +471,82 @@ function cProfile() {
     return `
     <div class="page-head"><h2>My Profile</h2></div>
     <div class="two-col">
-        <div class="det-card">
-            <h4>Personal Info</h4>
-            <div class="fg"><label>Full Name</label><input id="prof-name" value="${u.name}"/></div>
-            <div class="fg"><label>Email</label><input value="${u.email}" disabled style="opacity:.5;"/></div>
-            <div class="fg"><label>Phone</label><input id="prof-phone" value="${u.phone||''}"/></div>
-            <div class="fg"><label>Primary Platform</label>
-                <select id="prof-platform">${['YouTube','Instagram','TikTok','LinkedIn','Multiple'].map(p => `<option${u.platform===p?' selected':''}>${p}</option>`).join('')}</select>
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="det-card">
+                <h4>Personal Info</h4>
+                <div class="fg"><label>Full Name</label><input id="prof-name" value="${u.name}"/></div>
+                <div class="fg"><label>Email</label><input value="${u.email}" disabled style="opacity:.5;"/></div>
+                <div class="fg"><label>Phone</label><input id="prof-phone" value="${u.phone||''}"/></div>
+                <div class="fg"><label>Primary Platform</label>
+                    <select id="prof-platform">${['YouTube','Instagram','TikTok','LinkedIn','Multiple'].map(p => `<option${u.platform===p?' selected':''}>${p}</option>`).join('')}</select>
+                </div>
+                <button class="btn btn-primary" onclick="window.saveProfile()">Save Changes</button>
             </div>
-            <button class="btn btn-primary" onclick="window.saveProfile()">Save Changes</button>
         </div>
-        <div class="det-card">
-            <h4>Account Stats</h4>
-            ${[['Projects Posted', DB.projects().filter(p=>p.creatorId===AppState.CU.id).length],
-               ['Completed',       DB.projects().filter(p=>p.creatorId===AppState.CU.id&&p.status==='completed').length],
-               ['Member Since',    new Date(u.createdAt).toLocaleDateString('en-IN',{month:'long',year:'numeric'})],
-               ['Role',            u.role.charAt(0).toUpperCase()+u.role.slice(1)]]
-              .map(([k,v]) => `<div class="info-row"><span class="key">${k}</span><span>${v}</span></div>`).join('')}
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="det-card">
+                <h4>Account Stats</h4>
+                ${[['Projects Posted', DB.projects().filter(p=>p.creatorId===AppState.CU.id).length],
+                   ['Completed',       DB.projects().filter(p=>p.creatorId===AppState.CU.id&&p.status==='completed').length],
+                   ['Member Since',    new Date(u.createdAt).toLocaleDateString('en-IN',{month:'long',year:'numeric'})],
+                   ['Role',            u.role.charAt(0).toUpperCase()+u.role.slice(1)]]
+                  .map(([k,v]) => `<div class="info-row"><span class="key">${k}</span><span>${v}</span></div>`).join('')}
+            </div>
+            
+            <div class="det-card">
+                <div class="section-title">Portfolio & Social Links</div>
+                <div class="fg"><label>Instagram Profile Link</label><input id="c-prof-insta" value="${u.instaLink || ''}" placeholder="https://instagram.com/yourhandle"/></div>
+                <div class="fg"><label>YouTube Channel Link</label><input id="c-prof-yt" value="${u.ytLink || ''}" placeholder="https://youtube.com/@yourchannel"/></div>
+                <div class="fg"><label>Website / Work Link</label><input id="c-prof-work" value="${u.workLink || ''}" placeholder="https://yourwebsite.com"/></div>
+                <button class="btn btn-primary" onclick="window.saveProfile()">Save Links</button>
+            </div>
         </div>
     </div>`;
 }
-
-export function saveProfile() {
-    const name = document.getElementById('prof-name')?.value?.trim();
-    if (!name) { showToast('Name cannot be empty', 'err'); return; }
-    const phone    = document.getElementById('prof-phone')?.value?.trim();
-    const platform = document.getElementById('prof-platform')?.value;
-    const users = DB.users(), u = users.find(x => x.id === AppState.CU.id);
+export function saveFProfile() {
+    const name = document.getElementById('f-prof-name')?.value?.trim();
+    if (!name) { window.showToast('Name cannot be empty', 'err'); return; }
+    const phone = document.getElementById('f-prof-phone')?.value?.trim();
+    const prof = document.getElementById('f-prof-title')?.value?.trim();
     
-    if (u) { u.name = name; u.phone = phone; u.platform = platform; u.avatar = name.charAt(0).toUpperCase(); DB.saveUsers(users); }
-    AppState.CU = {...AppState.CU, name, phone, platform}; 
+    // Naye Links yahan fetch kar rahe hain
+    const instaLink = document.getElementById('f-prof-insta')?.value?.trim() || '';
+    const ytLink = document.getElementById('f-prof-yt')?.value?.trim() || '';
+    const workLink = document.getElementById('f-prof-work')?.value?.trim() || '';
+    
+    const users = DB.users();
+    const u = users.find(x => x.id === AppState.CU.id);
+    
+    if (u) { 
+        u.name = name; 
+        u.phone = phone; 
+        u.profession = prof; 
+        u.avatar = name.charAt(0).toUpperCase(); 
+        u.instaLink = instaLink;
+        u.ytLink = ytLink;
+        u.workLink = workLink;
+        DB.saveUsers(users); 
+    }
+    
+    AppState.CU = {...AppState.CU, name, phone, profession: prof, instaLink, ytLink, workLink}; 
     DB.setCurrentUser(AppState.CU);
     
-    document.getElementById('c-nav-name').textContent  = name.split(' ')[0];
-    document.getElementById('c-sb-name').textContent   = name;
-    document.getElementById('c-sb-avatar').textContent = name.charAt(0).toUpperCase();
+    const navName = document.getElementById('f-nav-name');
+    const sbName = document.getElementById('f-sb-name');
+    const sbAvatar = document.getElementById('f-sb-avatar');
+    if(navName) navName.textContent = name.split(' ')[0];
+    if(sbName) sbName.textContent = name;
+    if(sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
     
-    if (supaClient && AppState.CU.id) {
-        supaClient.from('profiles').update({ name, phone, platform }).eq('id', AppState.CU.id).then(() => {});
+    if (window.supabaseClient && AppState.CU.id) {
+        window.supabaseClient.from('profiles').update({ 
+            name, phone, profession: prof, insta_link: instaLink, yt_link: ytLink, work_link: workLink 
+        }).eq('id', AppState.CU.id).then(() => {});
     }
-    showToast('Profile updated', 'ok');
+    
+    window.showToast('Profile updated successfully!', 'ok');
+    window.fPage('profile', document.querySelector('[data-page="profile"]'));
 }
-
 // ─── FREELANCER ROUTING & SCREENS ───
 export function fPage(p, el) {
     document.querySelectorAll('#screen-freelancer .nav-item').forEach(n => n.classList.remove('active'));
@@ -1189,12 +1223,12 @@ function fProfile() {
             </div>
 
             <div class="det-card">
-                <div class="section-title">Portfolio & Work Links</div>
-                <div class="fg"><label>Instagram Profile Link</label><input placeholder="https://instagram.com/yourhandle"/></div>
-                <div class="fg"><label>YouTube Channel Link</label><input placeholder="https://youtube.com/@yourchannel"/></div>
-                <div class="fg"><label>Work Video Link (Best Work)</label><input placeholder="Paste a link to your best work (YouTube/Drive/Vimeo)"/></div>
-                <button class="btn btn-primary" onclick="window.showToast('Links saved successfully!', 'ok')">Save Links</button>
-            </div>
+            <div class="section-title">Portfolio & Work Links</div>
+                <div class="fg"><label>Instagram Profile Link</label><input id="f-prof-insta" value="${u.instaLink || ''}" placeholder="https://instagram.com/yourhandle"/></div>
+                <div class="fg"><label>YouTube Channel Link</label><input id="f-prof-yt" value="${u.ytLink || ''}" placeholder="https://youtube.com/@yourchannel"/></div>
+                <div class="fg"><label>Work Video Link (Best Work)</label><input id="f-prof-work" value="${u.workLink || ''}" placeholder="Paste a link to your best work (YouTube/Drive/Vimeo)"/></div>
+                <button class="btn btn-primary" onclick="window.saveFProfile()">Save Links</button>
+            </div> 
         </div>
     </div>`;
 }
