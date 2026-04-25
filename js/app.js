@@ -9,9 +9,15 @@ import { toggleSidebar, closeSidebar } from './components/navbar.js';
 import { showToast } from './components/toast.js';
 import { showModal, closeModal } from './components/modal.js';
 import { switchChat, sendMsg, handleChatUpload, initChatRealtime } from './components/chatUI.js';
-import { cPage, fPage, manageProject, wfN, wfB, selCT, selFL, completePayment, saveProfile, saveFProfile, saveRating, handleMultiFileUpload, removeProjectFile, viewFreelancerPortfolio, downloadEditedVideo, submitReview, acceptProject, handleFinalUpload, viewProjectDetails, rejectProject, sendNegotiation, toggleNegotiationCard, acceptNegotiation, rejectNegotiation, reviseOffer, triggerApproveAndPay, handleProfilePhotoUpload } from './screens/dashboard.js';
+import {
+    cPage, fPage, manageProject, wfN, wfB, selCT, selFL, completePayment,
+    saveProfile, saveFProfile, saveRating, handleMultiFileUpload,
+    removeProjectFile, viewFreelancerPortfolio, downloadEditedVideo,
+    submitReview, acceptProject, handleFinalUpload, viewProjectDetails,
+    rejectProject, sendNegotiation, toggleNegotiationCard, acceptNegotiation,
+    rejectNegotiation, reviseOffer, triggerApproveAndPay, handleProfilePhotoUpload
+} from './screens/dashboard.js';
 
-// ── 1. GLOBAL WINDOW BINDINGS ──
 window.goAuth = goAuth;
 window.switchTab = switchTab;
 window.setLRole = setLRole;
@@ -25,13 +31,11 @@ window.closeModal = closeModal;
 window.toggleSidebar = toggleSidebar;
 window.closeSidebar = closeSidebar;
 
-// Chat Bindings — ✅ Sirf ek baar assign karo
 window.initChatRealtime = initChatRealtime;
 window.switchChat = switchChat;
 window.sendMsg = sendMsg;
 window.handleChatUpload = handleChatUpload;
 
-// Dashboard Bindings
 window.cPage = cPage;
 window.fPage = fPage;
 window.manageProject = manageProject;
@@ -77,72 +81,116 @@ window.fPageMobile = function(page, el) {
 window.loginSuccess = async function(u) {
     AppState.CU = u;
     DB.setCurrentUser(u);
+
     const fullName = u.full_name || u.name || 'User';
-    // ✅ PEHLE sync karo — projects load ho jayein
+    const firstName = fullName.split(' ')[0];
+
     await syncDataFromSupabase(u);
 
-if (u.role === 'creator') {
-    const navName = document.getElementById('c-nav-name');
-    if (navName) navName.textContent = fullName.split(' ')[0];
-} else {
-    const navName = document.getElementById('f-nav-name');
-    if (navName) navName.textContent = fullName.split(' ')[0];
-}
+    if (u.role === 'creator') {
+        showScreen('screen-creator');
 
-    // Realtime baad me
+        const navName = document.getElementById('c-nav-name');
+        const sbName = document.getElementById('c-sb-name');
+        const sbRole = document.getElementById('c-sb-role');
+        const sbAvatar = document.getElementById('c-sb-avatar');
+
+        if (navName) navName.textContent = firstName;
+        if (sbName) sbName.textContent = fullName;
+        if (sbRole) sbRole.textContent = 'Creator';
+        if (sbAvatar) sbAvatar.textContent = fullName.charAt(0).toUpperCase();
+
+        setTimeout(() => {
+            cPage(
+                'home',
+                document.querySelector('#screen-creator .nav-item[data-page="home"]') ||
+                document.querySelector('#screen-creator .nav-item')
+            );
+        }, 50);
+    } else {
+        showScreen('screen-freelancer');
+
+        const navName = document.getElementById('f-nav-name');
+        const sbName = document.getElementById('f-sb-name');
+        const sbRole = document.getElementById('f-sb-role');
+        const sbAvatar = document.getElementById('f-sb-avatar');
+
+        if (navName) navName.textContent = firstName;
+        if (sbName) sbName.textContent = fullName;
+        if (sbRole) sbRole.textContent = 'Freelancer';
+        if (sbAvatar) sbAvatar.textContent = fullName.charAt(0).toUpperCase();
+
+        setTimeout(() => {
+            fPage(
+                'home',
+                document.querySelector('#screen-freelancer .nav-item[data-page="home"]') ||
+                document.querySelector('#screen-freelancer .nav-item')
+            );
+        }, 50);
+    }
+
     initChatRealtime(u.id);
 
-    if (window.supabaseClient && !AppState.realtimeInitialized) {
+    if (supaClient && !AppState.realtimeInitialized) {
         AppState.realtimeInitialized = true;
-        const masterChannel = window.supabaseClient.channel('aalynex_master');
+        const masterChannel = supaClient.channel('aalynex_master');
         masterChannel
             .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
                 syncDataFromSupabase(AppState.CU);
             })
             .subscribe((status) => {
-                console.log("🌐 Master Realtime Status:", status);
+                console.log('🌐 Master Realtime Status:', status);
             });
     }
 };
 
-// ── 3. LOGOUT ──
 window.logout = function() {
     showModal('Log Out', 'Are you sure you want to log out?', async () => {
-        if (supaClient) { try { await supaClient.auth.signOut(); } catch(e) {} }
+        if (supaClient) {
+            try { await supaClient.auth.signOut(); } catch (e) {}
+        }
         DB.logout();
         AppState.CU = null;
-        AppState.realtimeInitialized = false; // ✅ Reset flag on logout
+        AppState.realtimeInitialized = false;
         showScreen('screen-landing');
         showToast('Logged out successfully', 'info');
     });
 };
 
-// ── 4. APP INITIALIZATION ──
 window.addEventListener('load', async () => {
     initSupabase();
+
     if (supaClient) {
         try {
             const { data: { session } } = await supaClient.auth.getSession();
             if (session) {
-                const { data: profile } = await supaClient.from('profiles').select('*').eq('id', session.user.id).single();
+                const { data: profile } = await supaClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+
                 if (profile) {
                     const u = {
-                         id: profile.id,
-    name: profile.name || session.user.email.split('@')[0], // ✅ sirf name
-    full_name: profile.name || '',  // ✅ compatibility ke liye
-    email: session.user.email,
-    role: profile.role || 'creator',
-    platform: profile.platform || '',
-    profession: profile.profession || '',
-    phone: profile.phone || '',
-    avatar: (profile.name || 'U').charAt(0).toUpperCase(),
-    createdAt: profile.created_at ? new Date(profile.created_at).getTime() : Date.now()
+                        id: profile.id,
+                        name: profile.name || session.user.email.split('@')[0],
+                        full_name: profile.name || '',
+                        email: session.user.email,
+                        role: profile.role || 'creator',
+                        platform: profile.platform || '',
+                        profession: profile.profession || '',
+                        phone: profile.phone || '',
+                        avatar: (profile.name || 'U').charAt(0).toUpperCase(),
+                        createdAt: profile.created_at ? new Date(profile.created_at).getTime() : Date.now()
                     };
                     window.loginSuccess(u);
                     return;
                 }
             }
-        } catch(e) { console.error(e) }
+        } catch (e) {
+            console.error(e);
+        }
     }
+
     showScreen('screen-landing');
 });
