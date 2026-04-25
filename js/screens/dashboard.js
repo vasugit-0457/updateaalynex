@@ -587,14 +587,21 @@ export function renderF(p) {
 // ─── NEGOTIATE SCREEN UI (DROPDOWN STYLE) ───
 // ─── NEGOTIATE SCREEN UI (PREMIUM DESIGN) ───
 function fNegotiate() {
+    const myId = String(AppState.CU.id).toLowerCase();
+
     const projs = DB.projects().filter(p => {
         if (p.status !== 'open') return false;
         if (p.creatorId === AppState.CU.id) return false;
         if (p.freelancerId) return false; 
-        if (p.invited_freelancers && Array.isArray(p.invited_freelancers) && p.invited_freelancers.length > 0) {
-            return p.invited_freelancers.includes(AppState.CU.id);
+        
+        // 🛡️ BULLETPROOF ARRAY CHECK
+        let invited = p.invited_freelancers;
+        if (typeof invited === 'string') {
+            try { invited = JSON.parse(invited); } catch(e) { return false; }
         }
-        return true;
+        if (!Array.isArray(invited)) return false;
+
+        return invited.some(id => String(id).toLowerCase() === myId);
     });
 
     if (!projs.length) {
@@ -650,6 +657,7 @@ function fNegotiate() {
     </div>
     `;
 }
+
 export function toggleNegotiationCard(pid) {
     document.querySelectorAll('.neg-card-item').forEach(el => el.style.display = 'none');
     const selected = document.getElementById('neg-card-' + pid);
@@ -778,7 +786,22 @@ function fHome() {
 
 
 function fBrowse() {
-    const projs = DB.projects().filter(p => p.status === 'open' && p.invited_freelancers && p.invited_freelancers.includes(AppState.CU.id));
+    const myId = String(AppState.CU.id).toLowerCase();
+    
+    const projs = DB.projects().filter(p => {
+        if (p.status !== 'open') return false;
+        
+        // 🛡️ BULLETPROOF ARRAY CHECK
+        let invited = p.invited_freelancers;
+        if (typeof invited === 'string') {
+            try { invited = JSON.parse(invited); } catch(e) { return false; }
+        }
+        if (!Array.isArray(invited)) return false;
+
+        // Check if my ID is in the invited list
+        return invited.some(id => String(id).toLowerCase() === myId);
+    });
+
     return `
     <div class="page-head"><h2>Browse Projects</h2><p>Invitations from creators</p></div>
     <div class="project-list">
