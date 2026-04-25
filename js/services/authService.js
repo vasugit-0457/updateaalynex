@@ -21,13 +21,23 @@ export async function loginUser(email, password) {
     return data;
 }
 
-export async function syncDataFromSupabase() {
-    if (!supaClient) return;
+export async function syncDataFromSupabase(u) {
+    if (!supaClient || !u) return;
     try {
         const { data: { user } } = await supaClient.auth.getUser();
         if (!user) return;
+
+        // ✅ 'users' nahi, 'profiles' hai
         const { data: profile } = await supaClient
-            .from('users').select('*').eq('id', user.id).maybeSingle();
+            .from('profiles')
+            .select('*').eq('id', user.id).maybeSingle();
         if (profile) DB.setUser(profile);
+
+        // ✅ Projects bhi fetch karo refresh ke baad
+        const { data: projects } = await supaClient
+            .from('projects')
+            .select('*').eq('creator_id', user.id);
+        if (projects) DB.setProjects(projects);
+
     } catch(e) { console.error("Sync failed", e); }
 }
