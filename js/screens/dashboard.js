@@ -1582,3 +1582,45 @@ export async function triggerApproveAndPay(projectId) {
         window.showToast('Error processing payment.', 'err');
     }
 }
+// ─── MISSING NEGOTIATION FUNCTIONS ───
+export async function acceptNegotiation(pid, newPrice, newDate, freelancerId) {
+    try {
+        const projs = DB.projects();
+        const p = projs.find(x => x.id === pid);
+        if (p) {
+            p.budget = parseInt(newPrice);
+            p.deadline = newDate;
+            DB.saveProjects(projs);
+        }
+        if (window.supaClient) {
+            await window.supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', pid);
+        }
+        const msgText = `[NEGOTIATION_ACCEPTED]|${pid}|${newPrice}|${newDate}`;
+        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
+        window.showToast('Offer Accepted! Budget & Deadline updated.', 'ok');
+    } catch(e) {
+        console.error(e);
+        window.showToast('Error accepting offer.', 'err');
+    }
+}
+
+export async function rejectNegotiation(pid, freelancerId) {
+    try {
+        const msgText = `[NEGOTIATION_REJECTED]|${pid}`;
+        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
+        window.showToast('Offer Rejected.', 'info');
+    } catch(e) { 
+        console.error(e); 
+    }
+}
+
+export function reviseOffer(pid) {
+    window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
+    setTimeout(() => {
+        const select = document.getElementById('neg-project-select');
+        if(select) {
+            select.value = pid;
+            window.toggleNegotiationCard(pid);
+        }
+    }, 200);
+}
