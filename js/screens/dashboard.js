@@ -349,8 +349,13 @@ function getMediaDuration(file) {
 
 export async function handleMultiFileUpload(input) {
     if (!input.files || !input.files.length) return;
+    
     const newFiles = Array.from(input.files);
-    for (let file of newFiles) { file.displayDuration = await getMediaDuration(file); }
+    
+    for (let file of newFiles) {
+        file.displayDuration = await getMediaDuration(file);
+    }
+    
     AppState.newProjectFiles = [...(AppState.newProjectFiles || []), ...newFiles];
     renderFileList();
     input.value = ''; 
@@ -366,7 +371,8 @@ function renderFileList() {
     if (!container) return;
 
     if (!AppState.newProjectFiles || AppState.newProjectFiles.length === 0) {
-        container.innerHTML = ''; return;
+        container.innerHTML = '';
+        return;
     }
 
     container.innerHTML = AppState.newProjectFiles.map((file, idx) => {
@@ -381,7 +387,9 @@ function renderFileList() {
             iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
         }
 
-        const durationHtml = file.displayDuration ? ` <span style="margin:0 5px;color:rgba(0,0,0,0.15);">&bull;</span> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;margin-right:3px;vertical-align:-1px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${file.displayDuration}` : '';
+        const durationHtml = file.displayDuration 
+            ? ` <span style="margin:0 5px;color:rgba(0,0,0,0.15);">&bull;</span> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;margin-right:3px;vertical-align:-1px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${file.displayDuration}` 
+            : '';
 
         return `
         <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--glass-border);border-radius:var(--radius-sm);box-shadow:var(--shadow-xs);">
@@ -532,8 +540,8 @@ export function saveProfile() {
     if(sbName) sbName.textContent   = name;
     if(sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
     
-    if (window.supaClient && AppState.CU.id) {
-        window.supaClient.from('profiles').update({ 
+    if (supaClient && AppState.CU.id) {
+        supaClient.from('profiles').update({ 
             name, phone, platform, insta_link: instaLink, yt_link: ytLink, work_link: workLink 
         }).eq('id', AppState.CU.id).then(() => {});
     }
@@ -626,69 +634,39 @@ function fHome() {
     </div>`;
 }
 
-
 function fBrowse() {
     const myId = String(AppState.CU.id).toLowerCase();
     
-    // Direct Cloud (Supabase) se projects fetch karega
-    setTimeout(async () => {
-        if (window.supaClient) {
-            try {
-                const { data, error } = await window.supaClient.from('projects').select('*').eq('status', 'open');
-                if (data && !error) {
-                    const container = document.getElementById('f-browse-list');
-                    if (!container) return;
-
-                    // Filter for Anar (Current Freelancer)
-                    const projs = data.filter(p => {
-                        let invited = p.invited_freelancers;
-                        if (typeof invited === 'string') { try { invited = JSON.parse(invited); } catch(e) { return false; } }
-                        if (!Array.isArray(invited)) return false;
-                        return invited.some(id => String(id).toLowerCase() === myId);
-                    });
-
-                    // Local DB Sync (Taaki View Details & Accept Button kaam kare)
-                    const localProjs = DB.projects();
-                    projs.forEach(dp => {
-                        if (!localProjs.find(x => x.id === dp.id)) {
-                            localProjs.push({
-                                id: dp.id, creatorId: dp.creator_id, title: dp.title, description: dp.description,
-                                budget: dp.budget, contentType: dp.content_type, deadline: dp.deadline, priority: dp.priority,
-                                invited_freelancers: dp.invited_freelancers, status: dp.status, createdAt: new Date(dp.created_at).getTime()
-                            });
-                        }
-                    });
-                    DB.saveProjects(localProjs);
-
-                    // UI Draw
-                    if (projs.length === 0) {
-                        container.innerHTML = '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No project invitations right now.</div>';
-                    } else {
-                        container.innerHTML = projs.map(p => `
-                            <div class="pc" style="padding:16px 20px; border-radius:12px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--glass-border); margin-bottom: 12px;">
-                                <div style="display:flex; align-items:center; gap:16px;">
-                                    <div class="pico" style="background:var(--bg2); border:1px solid var(--glass-border);">${contentIconSvg(p.content_type)}</div>
-                                    <div class="pinfo">
-                                        <div class="ptitle" style="font-size:1.05rem;">${p.title}</div>
-                                        <div class="pmeta" style="margin-top:4px;">₹${fmt(p.budget)} &middot; ${p.content_type}</div>
-                                    </div>
-                                </div>
-                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                    <button class="btn btn-ghost btn-sm" style="border:1px solid var(--glass-border);" onclick="window.viewProjectDetails('${p.id}')">View Details</button>
-                                    <button class="btn btn-danger btn-sm" style="background:rgba(239,68,68,.1); color:#ef4444; border:none;" onclick="window.rejectProject('${p.id}')">Reject</button>
-                                    <button class="btn btn-primary btn-sm" onclick="window.acceptProject('${p.id}')">Accept Job</button>
-                                </div>
-                            </div>`).join('');
-                    }
-                }
-            } catch(e) { console.error("Browse Fetch Error:", e); }
+    const projs = DB.projects().filter(p => {
+        if (p.status !== 'open') return false;
+        
+        let invited = p.invited_freelancers;
+        if (typeof invited === 'string') {
+            try { invited = JSON.parse(invited); } catch(e) { return false; }
         }
-    }, 50);
+        if (!Array.isArray(invited)) return false;
+
+        return invited.some(id => String(id).toLowerCase() === myId);
+    });
 
     return `
     <div class="page-head"><h2>Browse Projects</h2><p>Invitations from creators</p></div>
-    <div class="project-list" id="f-browse-list">
-        <div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">Loading projects...</div>
+    <div class="project-list">
+        ${projs.length ? projs.map(p => `
+            <div class="pc" style="padding:16px 20px; border-radius:12px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--glass-border);">
+                <div style="display:flex; align-items:center; gap:16px;">
+                    <div class="pico" style="background:var(--bg2); border:1px solid var(--glass-border);">${contentIconSvg(p.contentType || p.content_type)}</div>
+                    <div class="pinfo">
+                        <div class="ptitle" style="font-size:1.05rem;">${p.title}</div>
+                        <div class="pmeta" style="margin-top:4px;">₹${fmt(p.budget)} &middot; ${p.contentType || p.content_type}</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-ghost btn-sm" style="border:1px solid var(--glass-border);" onclick="window.viewProjectDetails('${p.id}')">View Details</button>
+                    <button class="btn btn-danger btn-sm" style="background:rgba(239,68,68,.1); color:#ef4444; border:none;" onclick="window.rejectProject('${p.id}')">Reject</button>
+                    <button class="btn btn-primary btn-sm" onclick="window.acceptProject('${p.id}')">Accept Job</button>
+                </div>
+            </div>`).join('') : '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No project invitations right now.</div>'}
     </div>`;
 }
 
@@ -829,8 +807,8 @@ export async function wfN() {
                 editedUploaded: false, paid: false, rating: 0, review: ''
             };
 
-            if (window.supaClient) {
-                const { error: projErr } = await window.supaClient.from('projects').insert([{
+            if (supaClient) {
+                const { error: projErr } = await supaClient.from('projects').insert([{
                     id: newP.id, creator_id: newP.creatorId, title: newP.title, description: newP.description,
                     budget: newP.budget, content_type: newP.contentType, deadline: newP.deadline,
                     invited_freelancers: newP.invited_freelancers, status: 'open', created_at: new Date().toISOString()
@@ -846,10 +824,10 @@ export async function wfN() {
                         if (f.type && f.type.startsWith('audio/')) targetBucket = 'music';
                         else if (f.type && f.type.startsWith('image/')) targetBucket = 'images';
 
-                        const { data: uploadData, error: upErr } = await window.supaClient.storage.from(targetBucket).upload(path, f);
+                        const { data: uploadData, error: upErr } = await supaClient.storage.from(targetBucket).upload(path, f);
                         let fileUrl = '';
                         if (!upErr && uploadData) {
-                            const { data: urlData } = window.supaClient.storage.from(targetBucket).getPublicUrl(uploadData.path);
+                            const { data: urlData } = supaClient.storage.from(targetBucket).getPublicUrl(uploadData.path);
                             fileUrl = urlData.publicUrl;
                         }
                         dbAttachments.push({
@@ -858,7 +836,7 @@ export async function wfN() {
                             file_size: f.size, duration: f.displayDuration || null
                         });
                     }
-                    await window.supaClient.from('project_attachments').insert(dbAttachments);
+                    await supaClient.from('project_attachments').insert(dbAttachments);
                 }
             }
 
@@ -992,14 +970,13 @@ export async function handleFinalUpload(input, projectId) {
 
     try {
         let fileUrl = null;
-        const supa = window.supaClient || window.supabaseClient || window.supabase;
         
-        if (supa) {
+        if (supaClient) {
             const path = `final_delivery/${AppState.CU.id}/${Date.now()}_${input.files[0].name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-            const { data: uploadData, error: uploadErr } = await supa.storage.from('videos').upload(path, input.files[0]);
+            const { data: uploadData, error: uploadErr } = await supaClient.storage.from('videos').upload(path, input.files[0]);
             if (uploadErr) throw uploadErr;
             
-            const { data: urlData } = supa.storage.from('videos').getPublicUrl(uploadData.path);
+            const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(uploadData.path);
             fileUrl = urlData?.publicUrl;
         }
 
@@ -1118,6 +1095,7 @@ function fProfile() {
     </div>`;
 }
 
+
 function fEarnings() {
     const projs = DB.projects().filter(p => p.freelancerId === AppState.CU.id);
     const received = projs.filter(p => p.paid).reduce((s,p) => s + p.budget, 0);
@@ -1172,258 +1150,71 @@ function fEarnings() {
     </div>`;
 }
 
-// ─── ACCEPT PROJECT (Beautiful Chat Button UI) ───
-export async function acceptProject(pid) {
-    try {
-        const projs = DB.projects();
-        const p = projs.find(x => x.id === pid);
-        if (!p) return;
-
-        p.freelancerId = AppState.CU.id;
-        p.status = 'ongoing';
-        DB.saveProjects(projs);
-        
-        let fileLinksText = "No raw files were attached.";
-
-        if (supaClient) {
-            await supaClient.from('projects').update({ freelancer_id: AppState.CU.id, status: 'ongoing' }).eq('id', pid);
-            const { data: attachments } = await supaClient.from('project_attachments').select('*').eq('project_id', pid);
-
-            if (attachments && attachments.length > 0) {
-                fileLinksText = attachments.map(f => {
-                    const size = f.file_size ? (f.file_size / (1024*1024)).toFixed(2) + ' MB' : 'Unknown Size';
-                    if (f.file_url && f.file_url.startsWith('http')) {
-                        // ✨ BEAUTIFUL BUTTON UI FOR CHAT ✨
-                        return `<div style="background:rgba(255,255,255,0.15); padding:10px 14px; border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.2);">
-                            <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px; word-break:break-all; line-height:1.3;">📁 ${f.file_name} <span style="font-weight:normal; font-size:0.75rem; opacity:0.8;">(${size})</span></div>
-                            <a href="${f.file_url}" target="_blank" download style="display:inline-block; background:var(--bg); color:var(--text); padding:6px 14px; border-radius:6px; font-size:0.75rem; font-weight:700; text-decoration:none; box-shadow:var(--shadow-sm);">⬇ Download File</a>
-                        </div>`;
-                    } else {
-                        return `<div style="background:rgba(239,68,68,0.1); padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid rgba(239,68,68,0.3);">
-                            <div style="font-weight:600; font-size:0.85rem;">📁 ${f.file_name}</div>
-                            <div style="color:var(--red); font-size:0.75rem; margin-top:4px;">❌ File failed to upload</div>
-                        </div>`;
-                    }
-                }).join('');
-            } else if (p.files && p.files.length > 0) {
-                fileLinksText = p.files.map(f => `📁 <b>${f.name}</b> (${f.displaySize})<br>❌ <span style="color:var(--red);">Cloud link unavailable</span>`).join('<br><br>');
-            }
-
-            let convoId = null;
-            const { data: convos } = await supaClient.from('conversations').select('id, user1_id, user2_id').or(`user1_id.eq.${AppState.CU.id},user2_id.eq.${AppState.CU.id}`);
-
-            if (convos && convos.length > 0) {
-                const existing = convos.find(c => (c.user1_id === p.creatorId && c.user2_id === AppState.CU.id) || (c.user1_id === AppState.CU.id && c.user2_id === p.creatorId));
-                if (existing) convoId = existing.id;
-            }
-
-            if (!convoId) {
-                const { data: newConvo } = await supaClient.from('conversations').insert([{ user1_id: AppState.CU.id, user2_id: p.creatorId }]).select('id').single();
-                if (newConvo) convoId = newConvo.id;
-            }
-
-            const finalMessage = `I have accepted the project "${p.title}"! ✅<br><br>I can now access the raw files:<br><br>${fileLinksText}`;
-
-            if (convoId) {
-                await supaClient.from('messages').insert([{
-                    conversation_id: convoId, sender_id: AppState.CU.id, text: finalMessage
-                }]);
-            }
-            
-            // LOCAL SYNC
-            if (typeof DB.messages === 'function') {
-                const key = [AppState.CU.id, p.creatorId].sort().join('_');
-                let allMsgs = DB.messages() || {};
-                if (!allMsgs[key]) allMsgs[key] = [];
-                allMsgs[key].push({ from: AppState.CU.id, text: finalMessage, time: Date.now() });
-                if (typeof DB.saveMessages === 'function') DB.saveMessages(allMsgs);
-            }
-        }
-
-        window.showToast('Project Accepted! Files unlocked in Chat.', 'ok');
-        window.fPage('ongoing', document.querySelector('[data-page=ongoing]'));
-        
-    } catch (error) {
-        console.error("Accept Error Details:", error);
-        window.showToast('Error syncing chat, check console.', 'err');
-    }
-}
-
-export function wfB() { 
-    AppState.wfStep = Math.max(0, AppState.wfStep - 1); 
-    if(typeof renderC === 'function') renderC('new'); 
-}
-
-export function selCT(t) { 
-    AppState.selContent = t; 
-    if(typeof renderC === 'function') renderC('new'); 
-}
-
-export function selFL(id, name) { 
-    if (AppState.selFreelancerIds.includes(id)) {
-        AppState.selFreelancerIds = AppState.selFreelancerIds.filter(x => x !== id);
-        if (AppState.selFreelancerName === name) AppState.selFreelancerName = null;
-    } else {
-        AppState.selFreelancerIds.push(id);
-        AppState.selFreelancerName = name;
-    }
-    if(typeof renderC === 'function') renderC('new'); 
-}
-
-export async function acceptNegotiation(pid, newPrice, newDate, freelancerId) {
-    try {
-        const projs = DB.projects();
-        const p = projs.find(x => x.id === pid);
-        if (p) {
-            p.budget = parseInt(newPrice);
-            p.deadline = newDate;
-            DB.saveProjects(projs);
-        }
-        if (window.supaClient) {
-            await window.supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', pid);
-        }
-        const msgText = `[NEGOTIATION_ACCEPTED]|${pid}|${newPrice}|${newDate}`;
-        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
-        window.showToast('Offer Accepted! Budget & Deadline updated.', 'ok');
-    } catch(e) {
-        console.error(e);
-        window.showToast('Error accepting offer.', 'err');
-    }
-}
-
-export async function rejectNegotiation(pid, freelancerId) {
-    try {
-        const msgText = `[NEGOTIATION_REJECTED]|${pid}`;
-        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
-        window.showToast('Offer Rejected.', 'info');
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-export function reviseOffer(pid) {
-    window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
-    setTimeout(() => {
-        const select = document.getElementById('neg-project-select');
-        if(select) {
-            select.value = pid;
-            window.toggleNegotiationCard(pid);
-        }
-    }, 200);
-}
-
-export async function triggerApproveAndPay(projectId) {
-    if (!projectId || projectId === 'undefined') {
-        window.showToast('Error: Project ID missing', 'err');
-        return;
-    }
-    window.showToast('Processing Payment...', 'info');
-    try {
-        const projs = DB.projects();
-        const proj = projs.find(p => p.id === projectId);
-        if (!proj) {
-            window.showToast('Project not found!', 'err');
-            return;
-        }
-
-        proj.status = 'completed';
-        proj.paid = true;
-        DB.saveProjects(projs);
-
-        const supa = window.supaClient || window.supabaseClient || window.supabase;
-        if (supa) {
-            await supa.from('projects').update({ status: 'completed', paid: true }).eq('id', projectId);
-        }
-
-        const successMsg = "✅ Project Approved & Paid! Perfect video edit. Great working with you.";
-        await window.sendMsg(AppState.CU.id, proj.freelancerId, null, null, successMsg);
-
-        window.showToast('Payment Successful & Project Completed!', 'ok');
-        setTimeout(() => {
-            const msgTab = document.querySelector('[data-page=messages]');
-            if(msgTab) window.fPage('messages', msgTab);
-        }, 500);
-    } catch (e) {
-        console.error("Payment error:", e);
-        window.showToast('Error processing payment.', 'err');
-    }
-}
-
 function fNegotiate() {
     const myId = String(AppState.CU.id).toLowerCase();
 
-    // Direct Cloud (Supabase) se projects fetch karega
-    setTimeout(async () => {
-        if (window.supaClient) {
-            try {
-                const { data, error } = await window.supaClient.from('projects').select('*').eq('status', 'open');
-                if (data && !error) {
-                    const container = document.getElementById('neg-main-container');
-                    if (!container) return;
-
-                    const projs = data.filter(p => {
-                        if (p.creator_id === AppState.CU.id) return false;
-                        if (p.freelancer_id) return false; 
-                        
-                        let invited = p.invited_freelancers;
-                        if (typeof invited === 'string') { try { invited = JSON.parse(invited); } catch(e) { return false; } }
-                        if (!Array.isArray(invited)) return false;
-                        return invited.some(id => String(id).toLowerCase() === myId);
-                    });
-
-                    if (!projs.length) {
-                        container.innerHTML = `<div style="color:var(--text-3);font-size:.85rem; padding:20px 0;">No projects available for negotiation right now.</div>`;
-                    } else {
-                        container.innerHTML = `
-                        <div style="margin-bottom:24px;">
-                            <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-3); margin-bottom:8px; text-transform:uppercase;">Select Project</label>
-                            <select id="neg-project-select" style="width:100%; max-width:100%; padding:12px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); color:var(--text); outline:none; cursor:pointer; font-family:inherit; font-size:0.9rem;" onchange="window.toggleNegotiationCard(this.value)">
-                                <option value="" disabled selected>-- Choose a project --</option>
-                                ${projs.map(p => `<option value="${p.id}">${p.title} (Offer: ₹${fmt(p.budget)})</option>`).join('')}
-                            </select>
-                        </div>
-                        <div id="neg-cards-container" style="width:100%;">
-                            ${projs.map(p => `
-                                <div id="neg-card-${p.id}" class="det-card neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
-                                    <h3 style="margin-top:0; margin-bottom:6px; font-size:1.2rem; color:var(--text); font-weight:700;">${p.title}</h3>
-                                    <div style="font-size:.85rem; color:var(--text-3); margin-bottom:24px;">
-                                        Client's offer: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}
-                                    </div>
-                                    <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
-                                        <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                                            <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Your Counter-Price (₹)</label>
-                                            <input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget * 1.15)}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                                        </div>
-                                        <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                                            <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Proposed Deadline</label>
-                                            <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                                        </div>
-                                    </div>
-                                    <div class="fg" style="margin-bottom:24px;">
-                                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Message to Client</label>
-                                        <input type="text" id="neg-msg-${p.id}" placeholder="I can complete this at the revised price..." style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                                    </div>
-                                    <div style="display:flex; gap:12px;">
-                                        <button class="btn" style="background:#e85d2e; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Counter-Offer</button>
-                                        <button class="btn" style="background:#16a34a; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.acceptProject('${p.id}')">Accept Original</button>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>`;
-                    }
-                }
-            } catch(e) { console.error("Negotiate Fetch Error:", e); }
+    const projs = DB.projects().filter(p => {
+        if (p.status !== 'open') return false;
+        if (p.creatorId === AppState.CU.id) return false;
+        if (p.freelancerId) return false; 
+        
+        let invited = p.invited_freelancers;
+        if (typeof invited === 'string') {
+            try { invited = JSON.parse(invited); } catch(e) { return false; }
         }
-    }, 50);
+        if (!Array.isArray(invited)) return false;
+
+        return invited.some(id => String(id).toLowerCase() === myId);
+    });
+
+    if (!projs.length) {
+        return `<div class="page-head"><h2>Negotiate Price & Deadline</h2></div>
+                <div style="color:var(--text-3);font-size:.85rem; padding:20px 0;">No projects available for negotiation right now.</div>`;
+    }
 
     return `
     <div class="page-head" style="margin-bottom:20px;">
         <h2>Negotiate Price & Deadline</h2>
         <p style="color:var(--text-3); font-size:0.85rem; margin-top:4px;">Select a project to propose a counter-offer</p>
     </div>
-    <div id="neg-main-container">
-        <div style="color:var(--text-3);font-size:.85rem; padding:20px 0;">Loading projects...</div>
-    </div>`;
+
+    <div style="margin-bottom:24px;">
+        <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-3); margin-bottom:8px; text-transform:uppercase;">Select Project</label>
+        <select id="neg-project-select" style="width:100%; max-width:100%; padding:12px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); color:var(--text); outline:none; cursor:pointer; font-family:inherit; font-size:0.9rem;" onchange="window.toggleNegotiationCard(this.value)">
+            <option value="" disabled selected>-- Choose a project --</option>
+            ${projs.map(p => `<option value="${p.id}">${p.title} (Offer: ₹${fmt(p.budget)})</option>`).join('')}
+        </select>
+    </div>
+
+    <div id="neg-cards-container" style="width:100%;">
+        ${projs.map(p => `
+            <div id="neg-card-${p.id}" class="det-card neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
+                <h3 style="margin-top:0; margin-bottom:6px; font-size:1.2rem; color:var(--text); font-weight:700;">${p.title}</h3>
+                <div style="font-size:.85rem; color:var(--text-3); margin-bottom:24px;">
+                    Client's offer: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}
+                </div>
+                <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
+                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Your Counter-Price (₹)</label>
+                        <input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget * 1.15)}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                    </div>
+                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
+                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Proposed Deadline</label>
+                        <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                    </div>
+                </div>
+                <div class="fg" style="margin-bottom:24px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Message to Client</label>
+                    <input type="text" id="neg-msg-${p.id}" placeholder="I can complete this at the revised price..." style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button class="btn" style="background:#e85d2e; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Counter-Offer</button>
+                    <button class="btn" style="background:#16a34a; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.acceptProject('${p.id}')">Accept Original</button>
+                </div>
+            </div>
+        `).join('')}
+    </div>
+    `;
 }
 
 export function toggleNegotiationCard(pid) {
@@ -1444,9 +1235,9 @@ export async function sendNegotiation(pid) {
     window.showToast('Sending counter-offer...', 'info');
 
     try {
-        if (window.supaClient) {
+        if (supaClient) {
             let convoId = null;
-            const { data: convos } = await window.supaClient.from('conversations').select('id, user1_id, user2_id').or(`user1_id.eq.${AppState.CU.id},user2_id.eq.${AppState.CU.id}`);
+            const { data: convos } = await supaClient.from('conversations').select('id, user1_id, user2_id').or(`user1_id.eq.${AppState.CU.id},user2_id.eq.${AppState.CU.id}`);
 
             if (convos && convos.length > 0) {
                 const existing = convos.find(c => (c.user1_id === p.creatorId && c.user2_id === AppState.CU.id) || (c.user1_id === AppState.CU.id && c.user2_id === p.creatorId));
@@ -1454,12 +1245,12 @@ export async function sendNegotiation(pid) {
             }
 
             if (!convoId) {
-                const { data: newConvo } = await window.supaClient.from('conversations').insert([{ user1_id: AppState.CU.id, user2_id: p.creatorId }]).select('id').single();
+                const { data: newConvo } = await supaClient.from('conversations').insert([{ user1_id: AppState.CU.id, user2_id: p.creatorId }]).select('id').single();
                 if (newConvo) convoId = newConvo.id;
             }
 
             if (convoId) {
-                await window.supaClient.from('messages').insert([{
+                await supaClient.from('messages').insert([{
                     conversation_id: convoId,
                     sender_id: AppState.CU.id,
                     text: negText
@@ -1522,8 +1313,8 @@ export function saveFProfile() {
     if(sbName) sbName.textContent = name;
     if(sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
     
-    if (window.supabaseClient && AppState.CU.id) {
-        window.supabaseClient.from('profiles').update({ 
+    if (supaClient && AppState.CU.id) {
+        supaClient.from('profiles').update({ 
             name, phone, profession: prof, insta_link: instaLink, yt_link: ytLink, work_link: workLink 
         }).eq('id', AppState.CU.id).then(() => {});
     }
@@ -1539,7 +1330,7 @@ export async function handleProfilePhotoUpload(input) {
     window.showToast('Uploading photo...', 'info');
 
     try {
-        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        const supa = window.supaClient || window.supabaseClient || window.supabase || supaClient;
         if (!supa) throw new Error("Supabase connection not found");
 
         const fileExt = file.name.split('.').pop();
@@ -1667,4 +1458,127 @@ export function viewFreelancerPortfolio(id) {
     `;
 
     document.body.appendChild(overlay);
+}
+
+export async function acceptProject(pid) {
+    try {
+        const projs = DB.projects();
+        const p = projs.find(x => x.id === pid);
+        if (!p) return;
+
+        p.freelancerId = AppState.CU.id;
+        p.status = 'ongoing';
+        DB.saveProjects(projs);
+        
+        let fileLinksText = "No raw files were attached.";
+
+        if (supaClient) {
+            await supaClient.from('projects').update({ freelancer_id: AppState.CU.id, status: 'ongoing' }).eq('id', pid);
+            const { data: attachments } = await supaClient.from('project_attachments').select('*').eq('project_id', pid);
+
+            if (attachments && attachments.length > 0) {
+                fileLinksText = attachments.map(f => {
+                    const size = f.file_size ? (f.file_size / (1024*1024)).toFixed(2) + ' MB' : 'Unknown Size';
+                    if (f.file_url && f.file_url.startsWith('http')) {
+                        // ✨ BEAUTIFUL BUTTON UI FOR CHAT ✨
+                        return `<div style="background:rgba(255,255,255,0.15); padding:10px 14px; border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.2);">
+                            <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px; word-break:break-all; line-height:1.3;">📁 ${f.file_name} <span style="font-weight:normal; font-size:0.75rem; opacity:0.8;">(${size})</span></div>
+                            <a href="${f.file_url}" target="_blank" download style="display:inline-block; background:var(--bg); color:var(--text); padding:6px 14px; border-radius:6px; font-size:0.75rem; font-weight:700; text-decoration:none; box-shadow:var(--shadow-sm);">⬇ Download File</a>
+                        </div>`;
+                    } else {
+                        return `<div style="background:rgba(239,68,68,0.1); padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid rgba(239,68,68,0.3);">
+                            <div style="font-weight:600; font-size:0.85rem;">📁 ${f.file_name}</div>
+                            <div style="color:var(--red); font-size:0.75rem; margin-top:4px;">❌ File failed to upload</div>
+                        </div>`;
+                    }
+                }).join('');
+            } else if (p.files && p.files.length > 0) {
+                fileLinksText = p.files.map(f => `📁 <b>${f.name}</b> (${f.displaySize})<br>❌ <span style="color:var(--red);">Cloud link unavailable</span>`).join('<br><br>');
+            }
+
+            let convoId = null;
+            const { data: convos } = await supaClient.from('conversations').select('id, user1_id, user2_id').or(`user1_id.eq.${AppState.CU.id},user2_id.eq.${AppState.CU.id}`);
+
+            if (convos && convos.length > 0) {
+                const existing = convos.find(c => (c.user1_id === p.creatorId && c.user2_id === AppState.CU.id) || (c.user1_id === AppState.CU.id && c.user2_id === p.creatorId));
+                if (existing) convoId = existing.id;
+            }
+
+            if (!convoId) {
+                const { data: newConvo } = await supaClient.from('conversations').insert([{ user1_id: AppState.CU.id, user2_id: p.creatorId }]).select('id').single();
+                if (newConvo) convoId = newConvo.id;
+            }
+
+            const finalMessage = `I have accepted the project "${p.title}"! ✅<br><br>I can now access the raw files:<br><br>${fileLinksText}`;
+
+            if (convoId) {
+                await supaClient.from('messages').insert([{
+                    conversation_id: convoId, sender_id: AppState.CU.id, text: finalMessage
+                }]);
+            }
+            
+            // LOCAL SYNC
+            if (typeof DB.messages === 'function') {
+                const key = [AppState.CU.id, p.creatorId].sort().join('_');
+                let allMsgs = DB.messages() || {};
+                if (!allMsgs[key]) allMsgs[key] = [];
+                allMsgs[key].push({ from: AppState.CU.id, text: finalMessage, time: Date.now() });
+                if (typeof DB.saveMessages === 'function') DB.saveMessages(allMsgs);
+            }
+        }
+
+        window.showToast('Project Accepted! Files unlocked in Chat.', 'ok');
+        window.fPage('ongoing', document.querySelector('[data-page=ongoing]'));
+        
+    } catch (error) {
+        console.error("Accept Error Details:", error);
+        window.showToast('Error syncing chat, check console.', 'err');
+    }
+}
+
+export async function reviseOffer(pid) {
+    window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
+    setTimeout(() => {
+        const select = document.getElementById('neg-project-select');
+        if(select) {
+            select.value = pid;
+            window.toggleNegotiationCard(pid);
+        }
+    }, 200);
+}
+
+export async function triggerApproveAndPay(projectId) {
+    if (!projectId || projectId === 'undefined') {
+        window.showToast('Error: Project ID missing', 'err');
+        return;
+    }
+    window.showToast('Processing Payment...', 'info');
+    try {
+        const projs = DB.projects();
+        const proj = projs.find(p => p.id === projectId);
+        if (!proj) {
+            window.showToast('Project not found!', 'err');
+            return;
+        }
+
+        proj.status = 'completed';
+        proj.paid = true;
+        DB.saveProjects(projs);
+
+        if (supaClient) {
+            await supaClient.from('projects').update({ status: 'completed', paid: true }).eq('id', projectId);
+        }
+
+        const successMsg = "✅ Project Approved & Paid! Perfect video edit. Great working with you.";
+        await window.sendMsg(AppState.CU.id, proj.freelancerId, null, null, successMsg);
+
+        window.showToast('Payment Successful & Project Completed!', 'ok');
+        setTimeout(() => {
+            const msgTab = document.querySelector('[data-page=messages]');
+            if(msgTab) window.fPage('messages', msgTab);
+        }, 500);
+    } catch (e) {
+        console.error("Payment error:", e);
+        window.showToast('Error processing payment.', 'err');
+    }
 }
