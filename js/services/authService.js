@@ -103,3 +103,17 @@ export function unsubscribeFromMessages(channel) {
         console.log("🔴 Realtime channel closed");
     }
 }
+export async function registerUser(email, password, name, phone) {
+    const { data, error } = await supaClient.auth.signUp({
+        email,
+        password,
+        options: {
+            data: {
+                full_name: name,
+                phone
+            }
+        }
+    });
+    if (error) throw error;
+    return data;
+}
