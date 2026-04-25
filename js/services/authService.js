@@ -13,7 +13,7 @@ export async function registerUser(email, password, name, phone, role = 'creator
     if (data.user) {
         await supaClient.from('profiles').insert({
             id: data.user.id,
-            full_name: name,
+            name: name,
             phone,
             email,
             role
@@ -41,8 +41,8 @@ export async function syncDataFromSupabase(u) {
             .select('*').eq('id', user.id).maybeSingle();
         if (profile) DB.setCurrentUser({
             ...profile,
-            full_name: profile.full_name,
-            name: profile.full_name,
+            name: profile.name,
+            name: profile.name,
             role: profile.role
         });
 
@@ -50,7 +50,7 @@ export async function syncDataFromSupabase(u) {
         const { data: projects } = await supaClient
             .from('projects')
             .select('*')
-            .eq(role === 'creator' ? 'creatorid' : 'freelancerid', user.id); // ✅ snake_case
+            .eq(role === 'creator' ? 'creator_id' : 'freelancer_id', user.id); // ✅ snake_case
 
         if (projects) {
             const mapped = projects.map(dp => ({
@@ -78,7 +78,7 @@ export async function syncDataFromSupabase(u) {
         const { data: users } = await supaClient.from('profiles').select('*');
         if (users) DB.saveUsers(users.map(u => ({
             ...u,
-            name: u.full_name,
+            full_name: u.name,
             role: u.role
         })));
 
