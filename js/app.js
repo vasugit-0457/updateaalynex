@@ -99,11 +99,11 @@ window.loginSuccess = async function(u) {
         const navName = document.getElementById('f-nav-name');
         const sbName = document.getElementById('f-sb-name');
         const sbAvatar = document.getElementById('f-sb-avatar');
-        if (navName) navName.textContent = u.name.split(' ')[0];
-        if (sbAvatar) sbAvatar.textContent = u.avatar || u.name.charAt(0).toUpperCase();
+        if (navName) navName.textContent = (u.full_name || u.name || 'User').split(' ')[0];
+        if (sbAvatar) sbAvatar.textContent = u.avatar || (u.full_name || u.name || 'U').charAt(0).toUpperCase();
         if (sbName) {
             sbName.innerHTML = `
-                <div style="font-weight:600; color:var(--text); line-height:1.2;">${u.name}</div>
+                <div style="font-weight:600; color:var(--text); line-height:1.2;">${u.full_name || u.name || 'User'}</div>
                 <div style="font-size:0.75rem; color:var(--text-3); font-weight:normal; margin-top:4px; text-transform:capitalize;">Freelancer &middot; ${u.profession || 'Editor'}</div>
             `;
         }
