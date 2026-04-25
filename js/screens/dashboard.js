@@ -1150,66 +1150,6 @@ function fEarnings() {
     </div>`;
 }
 
-function fNegotiate() {
-    const myId = String(AppState.CU.id).toLowerCase();
-
-    // Fetch ONGOING Projects for this Freelancer
-    const projs = DB.projects().filter(p => p.status === 'ongoing' && String(p.freelancerId).toLowerCase() === myId);
-
-    if (!projs.length) {
-        return `
-        <div class="page-head"><h2>Negotiate Price & Deadline</h2><p>Request changes for ongoing projects</p></div>
-        <div style="padding:20px 0; color:var(--text-3); font-size:0.9rem;">
-            <div class="alert alert-i">You have no ongoing projects to negotiate right now. First, accept a project to request changes!</div>
-        </div>`;
-    }
-
-    return `
-    <div class="page-head" style="margin-bottom:20px;">
-        <h2>Negotiate Price & Deadline</h2>
-        <p style="color:var(--text-3); font-size:0.85rem; margin-top:4px;">Select an ongoing project to request budget/deadline changes</p>
-    </div>
-
-    <div class="fg" style="margin-bottom:24px;">
-        <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-3); margin-bottom:8px; text-transform:uppercase;">Select Project</label>
-        <select id="neg-project-select" style="width:100%; max-width:100%; padding:12px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); color:var(--text); outline:none; cursor:pointer; font-family:inherit; font-size:0.9rem;" onchange="window.toggleNegotiationCard(this.value)">
-            <option value="" disabled selected>-- Choose an ongoing project --</option>
-            ${projs.map(p => `<option value="${p.id}">${p.title} (Current Budget: ₹${fmt(p.budget)})</option>`).join('')}
-        </select>
-    </div>
-
-    <div id="neg-cards-container" style="width:100%;">
-        ${projs.map(p => `
-            <div id="neg-card-${p.id}" class="det-card neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
-                <h3 style="margin-top:0; margin-bottom:6px; font-size:1.2rem; color:var(--text); font-weight:700;">${p.title}</h3>
-                <div style="font-size:.85rem; color:var(--text-3); margin-bottom:24px;">
-                    Current Budget: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Current Deadline: ${fmtDate(p.deadline)}
-                </div>
-                
-                <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
-                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">New Request Price (₹)</label>
-                        <input type="number" id="neg-price-${p.id}" value="${p.budget}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                    </div>
-                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">New Proposed Deadline</label>
-                        <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                    </div>
-                </div>
-                
-                <div class="fg" style="margin-bottom:24px;">
-                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Reason / Message to Client</label>
-                    <input type="text" id="neg-msg-${p.id}" placeholder="I need more budget/time because..." style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                </div>
-                
-                <div style="display:flex; gap:12px;">
-                    <button class="btn" style="background:#e85d2e; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Request to Client</button>
-                </div>
-            </div>
-        `).join('')}
-    </div>
-    `;
-}
 
 export function toggleNegotiationCard(pid) {
     document.querySelectorAll('.neg-card-item').forEach(el => el.style.display = 'none');
@@ -1512,194 +1452,73 @@ export async function triggerApproveAndPay(projectId) {
 
 // ─── NEGOTIATION FUNCTIONS (ADVANCED STATE PERSISTENCE) ───
 
-export async function sendNegotiation(pid) {
-    const p = DB.projects().find(x => x.id === pid);
-    if (!p) return;
-
-    const newPrice = document.getElementById(`neg-price-${pid}`)?.value || p.budget;
-    const newDate = document.getElementById(`neg-date-${pid}`)?.value || p.deadline;
-    const note = document.getElementById(`neg-msg-${pid}`)?.value || '';
-    
-    // Unique ID har naye offer ke liye
-    const negId = 'neg_' + Date.now();
-
-    // 💥 MAGIC UI: Ye code khud decide karega ki Buttons dikhane hain ya Waiting Text
-    const negText = `
-        <div id="${negId}" style="border: 1px solid var(--glass-border); padding: 16px; border-radius: 10px; background: var(--bg2); margin-top:8px; box-shadow:var(--shadow-sm);">
-            <div style="font-weight:bold; font-size:1rem; margin-bottom: 12px; color:var(--text);">🔄 Counter Offer Details</div>
-            <div style="font-size:0.85rem; margin-bottom: 16px; color:var(--text-2); line-height:1.5;">
-                Project: <b>${p.title}</b><br/>
-                New Budget: <b style="color:var(--green); font-size:1.05rem;">₹${fmt(newPrice)}</b><br/>
-                Proposed Deadline: <b>${fmtDate(newDate)}</b><br/>
-                Note: <i>"${note}"</i>
-            </div>
-            
-            <div class="neg-action-area">
-                <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" onload="
-                    if(String(window.AppState.CU.id) === '${p.creatorId}') {
-                        this.nextElementSibling.style.display = 'block';
-                    } else {
-                        this.nextElementSibling.nextElementSibling.style.display = 'block';
-                    }
-                    this.remove();
-                " />
-                
-                <div style="display:none;">
-                    <button onclick="window.acceptNegotiation('${pid}', '${newPrice}', '${newDate}', '${AppState.CU.id}', this, '${negId}')" style="background:#16a34a; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; margin-right:8px;">✅ Accept Offer</button>
-                    <button onclick="window.rejectNegotiation('${pid}', '${AppState.CU.id}', this, '${negId}')" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600;">❌ Reject</button>
-                </div>
-                
-                <div style="display:none; color:var(--text-3); font-size:0.85rem; font-style:italic; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; text-align:center;">
-                    ⏳ Waiting for Creator to review this offer...
-                </div>
-            </div>
-        </div>
-    `;
-
-    window.showToast('Sending counter-offer...', 'info');
-
-    try {
-        const supa = window.supaClient || window.supabaseClient || window.supabase;
-        if (supa) {
-            let convoId = null;
-            const { data: convos } = await supa.from('conversations').select('id, user1_id, user2_id').or(`user1_id.eq.${AppState.CU.id},user2_id.eq.${AppState.CU.id}`);
-
-            if (convos && convos.length > 0) {
-                const existing = convos.find(c => (c.user1_id === p.creatorId && c.user2_id === AppState.CU.id) || (c.user1_id === AppState.CU.id && c.user2_id === p.creatorId));
-                if (existing) convoId = existing.id;
-            }
-
-            if (!convoId) {
-                const { data: newConvo } = await supa.from('conversations').insert([{ user1_id: AppState.CU.id, user2_id: p.creatorId }]).select('id').single();
-                if (newConvo) convoId = newConvo.id;
-            }
-
-            if (convoId) {
-                await supa.from('messages').insert([{ conversation_id: convoId, sender_id: AppState.CU.id, text: negText }]);
-            }
-        }
-
-        if (typeof DB.messages === 'function') {
-            const key = [AppState.CU.id, p.creatorId].sort().join('_');
-            let allMsgs = DB.messages() || {};
-            if (!allMsgs[key]) allMsgs[key] = [];
-            allMsgs[key].push({ from: AppState.CU.id, text: negText, time: Date.now() });
-            if (typeof DB.saveMessages === 'function') DB.saveMessages(allMsgs);
-        }
-
-        window.showToast('Counter-offer sent to creator!', 'ok');
-        window.fPage('chat', document.querySelector('[data-page=chat]'));
-        setTimeout(() => window.switchChat(AppState.CU.id, p.creatorId), 100);
-
-    } catch(e) {
-        console.error(e);
-        window.showToast('Failed to send offer. Check console.', 'err');
-    }
-    
-    document.querySelectorAll('.neg-card-item').forEach(el => el.style.display = 'none');
-    const select = document.getElementById('neg-project-select');
-    if(select) select.value = "";
+function fNegotiate() {
+  const projs = DB.projects().filter(p => p.freelancerId===CU.id && p.status==='ongoing');
+  return `
+  <div class="page-head"><h2>Negotiate Price &amp; Deadline</h2></div>
+  ${projs.length
+    ? projs.map(p => `
+        <div class="det-card">
+          <h4>${p.title}</h4>
+          <p>Client's offer: <strong>₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}</p>
+          <div class="two-col" style="margin-top:14px;">
+            <div class="fg"><label>Your Counter-Price (₹)</label><input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget*1.15)}"/></div>
+            <div class="fg"><label>Proposed Deadline</label><input type="date" id="neg-date-${p.id}" value="${new Date(Date.now()+7*86400000).toISOString().split('T')[0]}"/></div>
+          </div>
+          <div class="fg"><label>Message to Client</label><input id="neg-msg-${p.id}" placeholder="I can complete this at the revised price…"/></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm"    onclick="sendCounter('${p.id}')">Send Counter-Offer</button>
+            <button class="btn btn-green-btn btn-sm"  onclick="showToast('Accepted at original terms!','ok','')">Accept Original</button>
+          </div>
+        </div>`).join('')
+    : '<div class="alert alert-i">No projects to negotiate right now.</div>'}`;
+}
+function sendCounter(id) {
+  const price = document.getElementById('neg-price-'+id)?.value, date = document.getElementById('neg-date-'+id)?.value;
+  if (!price || !date) { showToast('Fill in all fields', 'err', ''); return; }
+  
+  const proj = DB.projects().find(x=>x.id===id);
+  if(proj) {
+     const msg = `[NEGOTIATION_REQ]|${proj.id}|${price}|${date}|${document.getElementById('neg-msg-'+id)?.value}`;
+     sendMsg(CU.id, proj.creatorId, null, null, msg);
+  }
+  
+  showToast(`Counter-offer sent: ₹${fmt(price)}`, 'ok', '');
 }
 
-export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, btnElement, negId) {
-    // 1. Instant Screen Update (Visual lock)
-    if (btnElement) {
-        const actionArea = btnElement.closest('.neg-action-area');
-        if (actionArea) actionArea.innerHTML = `<div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div>`;
-    }
-
-    try {
-        // 2. Local Database & Supabase Update
-        const projs = DB.projects();
-        const p = projs.find(x => x.id === pid);
-        if (p) {
-            p.budget = parseInt(newPrice);
-            p.deadline = newDate;
-            p.freelancerId = freelancerId;
-            p.status = 'ongoing';
-            DB.saveProjects(projs);
-        }
-        
-        const supa = window.supaClient || window.supabaseClient || window.supabase;
-        if (supa) {
-            await supa.from('projects').update({ budget: parseInt(newPrice), deadline: newDate, freelancer_id: freelancerId, status: 'ongoing' }).eq('id', pid);
-            
-            // 🌟 3. Cloud History Update: Permanent Button Deletion
-            if (negId) {
-                const { data: msgs } = await supa.from('messages').select('id, text').ilike('text', `%${negId}%`);
-                if (msgs && msgs.length > 0) {
-                    const newText = msgs[0].text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div></div></div>';
-                    await supa.from('messages').update({ text: newText }).eq('id', msgs[0].id);
-                }
-            }
-        }
-
-        // 🌟 4. Local History Update: Permanent Button Deletion
-        if (typeof DB.messages === 'function' && negId) {
-            const key = [AppState.CU.id, freelancerId].sort().join('_');
-            let allMsgs = DB.messages();
-            if (allMsgs[key]) {
-                allMsgs[key] = allMsgs[key].map(m => {
-                    if (m.text.includes(negId)) {
-                        return { ...m, text: m.text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div></div></div>' };
-                    }
-                    return m;
-                });
-                DB.saveMessages(allMsgs);
-            }
-        }
-        
-        const msgText = `🎉 **Great News!** I have Accepted your counter-offer. The budget is now officially **₹${fmt(newPrice)}**. Let's start working!`;
-        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
-        window.showToast('Offer Accepted! Project & Budget Updated.', 'ok');
-        
-    } catch(e) {
-        console.error(e);
-        window.showToast('Error accepting offer.', 'err');
-    }
+async function acceptNegotiation(btn, projectId, newPrice, newDate, otherId) {
+   btn.disabled = true;
+   btn.innerText = "Processing...";
+   if (btn.nextElementSibling) btn.nextElementSibling.style.display = 'none';
+   
+   const projs = DB.projects(), p = projs.find(x => x.id === projectId);
+   if (p) { 
+       p.budget = parseInt(newPrice); 
+       p.deadline = newDate;
+       DB.saveProjects(projs); 
+   }
+   
+   if (supaClient) {
+       await supaClient.from('projects').update({ budget: parseInt(newPrice), deadline: newDate }).eq('id', projectId);
+   }
+   
+   await sendMsg(CU.id, otherId, null, null, `✅ Offer Accepted! New budget: ₹${fmt(newPrice)} by ${fmtDate(newDate)}.`);
+   showToast('Budget & deadline updated!', 'ok');
+   
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--green); font-weight:600;">Offer Accepted</span>`;
 }
 
-export async function rejectNegotiation(pid, freelancerId, btnElement, negId) {
-    // 1. Instant Screen Update (Visual lock)
-    if (btnElement) {
-        const actionArea = btnElement.closest('.neg-action-area');
-        if (actionArea) actionArea.innerHTML = `<div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div>`;
-    }
+function rejectNegotiation(btn, projectId, otherId) {
+   btn.disabled = true;
+   btn.innerText = "Processing...";
+   if (btn.previousElementSibling) btn.previousElementSibling.style.display = 'none';
 
-    try {
-        // 🌟 2. Cloud History Update: Permanent Button Deletion
-        const supa = window.supaClient || window.supabaseClient || window.supabase;
-        if (supa && negId) {
-            const { data: msgs } = await supa.from('messages').select('id, text').ilike('text', `%${negId}%`);
-            if (msgs && msgs.length > 0) {
-                const newText = msgs[0].text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div></div></div>';
-                await supa.from('messages').update({ text: newText }).eq('id', msgs[0].id);
-            }
-        }
+   sendMsg(CU.id, otherId, null, null, `❌ Offer Rejected. Let's discuss further.`);
+   showToast('Offer rejected', 'info');
 
-        // 🌟 3. Local History Update: Permanent Button Deletion
-        if (typeof DB.messages === 'function' && negId) {
-            const key = [AppState.CU.id, freelancerId].sort().join('_');
-            let allMsgs = DB.messages();
-            if (allMsgs[key]) {
-                allMsgs[key] = allMsgs[key].map(m => {
-                    if (m.text.includes(negId)) {
-                        return { ...m, text: m.text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div></div></div>' };
-                    }
-                    return m;
-                });
-                DB.saveMessages(allMsgs);
-            }
-        }
-
-        const msgText = `❌ I cannot accept this offer. We can stick to the original price or you can submit a new offer.`;
-        await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
-        window.showToast('Offer Rejected.', 'info');
-        
-    } catch(e) { 
-        console.error(e); 
-    }
+   btn.parentElement.innerHTML = `<span style="font-size:0.8rem; color:var(--red); font-weight:600;">Offer Rejected</span>`;
 }
+
 
 export function reviseOffer(pid) {
     window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
