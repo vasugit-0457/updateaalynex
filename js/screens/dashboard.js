@@ -193,51 +193,71 @@ async function wfContent() {
         </div>`;
 
     if (AppState.wfStep === 4) {
-        let editors = [];
-        if (supaClient) {
-          try {
-            const { data, error } = await supaClient.from("profiles").select("*").eq("role", "freelancer");
-            if (!error && data) editors = data;
-          } catch (e) {}
+        if (AppState.selFreelancerIds.length === 0) { window.showToast('Select Editor', 'err'); return; }
+        
+        // 🔒 Button ko turant lock karo
+        const submitBtn = document.querySelector('button[onclick="window.wfN()"]');
+        if(submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Posting...';
         }
-        if (!editors || editors.length === 0) editors = DB.users().filter(u => u.role === "freelancer");
 
-        const allProjects = DB.projects();
-        const getFreelancerStats = (fid) => {
-          const completed = allProjects.filter(p => p.freelancerId === fid && p.status === 'completed');
-          const rated = completed.filter(p => p.rating && p.rating > 0);
-          const avgRating = rated.length > 0 ? (rated.reduce((s, p) => s + p.rating, 0) / rated.length).toFixed(1) : null;
-          return { completedCount: completed.length, avgRating };
-        };
+        window.showToast('Project post ho raha hai...', 'info');
+        
+        try {
+            const pidValue = pid(); // Unique ID
+            const newP = { 
+                id: pidValue, 
+                creatorId: AppState.CU.id, 
+                title: AppState.newProjectDraft.title, 
+                description: AppState.newProjectDraft.desc, 
+                budget: parseInt(AppState.newProjectDraft.budget) || 0, 
+                contentType: AppState.selContent, 
+                deadline: AppState.newProjectDraft.deadline, 
+                priority: 'Normal', 
+                invited_freelancers: AppState.selFreelancerIds, 
+                status: 'open', 
+                createdAt: Date.now() 
+            };
 
-        return `
-        <h3>Choose Editors to Request</h3>
-        <p style="color:var(--text-3);font-size:.8rem;margin-bottom:14px;">Select multiple freelancers. First to accept gets the job!</p>
-        <div class="f-grid">
-          ${(editors && editors.length > 0) ? editors.map(f => {
-            const stats = getFreelancerStats(f.id);
-            const ratingDisplay = stats.avgRating ? stats.avgRating : 'New';
-            const starsHtml = stats.avgRating ? Array.from({length:5}, (_,i) => `<span style="color:${i < Math.round(stats.avgRating) ? 'var(--yellow)' : 'rgba(0,0,0,0.12)'}">&#9733;</span>`).join('') : `<span style="color:var(--text-3);font-size:.65rem;">No ratings yet</span>`;
-            return `
-            <div class="f-card${AppState.selFreelancerIds.includes(f.id)?' sel':''}" onclick="window.selFL('${f.id}','${f.name}')">
-              <div class="f-avatar" style="${f.photo_url ? 'background:transparent;' : ''}">
-                ${f.photo_url ? `<img src="${f.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (f.avatar || 'F')}
-              </div>
-              <div class="f-name">${f.name}</div>
-              <div class="stars">${starsHtml}</div>
-              <div class="f-rate">${ratingDisplay} &middot; ${stats.completedCount} Projects</div>
-              <div class="f-spec">${f.profession || 'Editor'}</div>
-              <div style="margin-top:10px;">
-                <button class="btn btn-outline-f btn-xs full-btn" onclick="event.stopPropagation(); window.viewFreelancerPortfolio('${f.id}')">View Portfolio</button>
-              </div>
-            </div>`;
-          }).join('') : `<div style="color:var(--text-3);font-size:.82rem;grid-column:1/-1;padding:16px 0;">No editors available.</div>`}
-        </div><br/>
-        ${AppState.selFreelancerIds.length > 0 ? `<div class="alert alert-s">Selected: <strong>${AppState.selFreelancerIds.length} Editors</strong></div>` : ''}
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-ghost" onclick="window.wfB()">&larr; Back</button>
-          <button class="btn btn-primary" onclick="window.wfN()">Send Requests &amp; Post &rarr;</button>
-        </div>`;
+            if (window.supaClient) {
+                const { error: projErr } = await window.supaClient.from('projects').insert([{
+                    id: newP.id,
+                    creator_id: newP.creatorId,
+                    title: newP.title,
+                    description: newP.description,
+                    budget: newP.budget,
+                    content_type: newP.contentType,
+                    deadline: newP.deadline,
+                    invited_freelancers: newP.invited_freelancers,
+                    status: 'open',
+                    created_at: new Date().toISOString()
+                }]);
+                if (projErr) throw projErr;
+            }
+
+            // ✅ SUCCESS: Sab kuch clear karke page badlo
+            window.showToast('Project Successfully Posted!', 'ok');
+            
+            // State saaf karo taaki purana data na rahe
+            AppState.newProjectDraft = {};
+            AppState.newProjectFiles = [];
+            AppState.selFreelancerIds = [];
+            AppState.wfStep = 0;
+
+            // Turant projects page par bhejo
+            setTimeout(() => {
+                window.cPage('projects', document.querySelector('[data-page="projects"]'));
+            }, 500);
+
+        } catch(e) {
+            console.error(e);
+            window.showToast('Error: ' + e.message, 'err');
+            if(submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Send Requests & Post →";
+            }
+        }
     }
 
     const proj = DB.projects().find(x => x.id === AppState.activeManageProjectId);
