@@ -192,11 +192,12 @@ async function wfContent() {
           <button class="btn btn-primary" onclick="window.wfN()">Next &rarr;</button>
         </div>`;
 
+    // 🔥 YE WALA HISAAB MISSING THA! Ise wapas laaya gaya hai.
     if (AppState.wfStep === 4) {
         let editors = [];
-        if (supaClient) {
+        if (window.supaClient) {
           try {
-            const { data, error } = await supaClient.from("profiles").select("*").eq("role", "freelancer");
+            const { data, error } = await window.supaClient.from("profiles").select("*").eq("role", "freelancer");
             if (!error && data) editors = data;
           } catch (e) {}
         }
