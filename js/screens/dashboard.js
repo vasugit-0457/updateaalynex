@@ -1624,3 +1624,23 @@ export function reviseOffer(pid) {
         }
     }, 200);
 }
+export function wfB() { 
+    AppState.wfStep = Math.max(0, AppState.wfStep - 1); 
+    if(typeof renderC === 'function') renderC('new'); 
+}
+
+export function selCT(t) { 
+    AppState.selContent = t; 
+    if(typeof renderC === 'function') renderC('new'); 
+}
+
+export function selFL(id, name) { 
+    if (AppState.selFreelancerIds.includes(id)) {
+        AppState.selFreelancerIds = AppState.selFreelancerIds.filter(x => x !== id);
+        if (AppState.selFreelancerName === name) AppState.selFreelancerName = null;
+    } else {
+        AppState.selFreelancerIds.push(id);
+        AppState.selFreelancerName = name;
+    }
+    if(typeof renderC === 'function') renderC('new'); 
+}
