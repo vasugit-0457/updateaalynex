@@ -1193,8 +1193,11 @@ function fProfile() {
                 <div style="width:80px; height:80px; border-radius:50%; background:var(--bg2); margin:0 auto 16px; overflow:hidden; display:flex; align-items:center; justify-content:center; border:1px solid var(--glass-border);">
                     ${u.photo_url ? `<img src="${u.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:2.5rem; color:var(--text-3); font-family: 'Outfit', sans-serif; font-weight:700;">${u.avatar}</span>`}
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="window.showToast('Photo upload coming soon', 'info')">Upload New Photo</button>
-            </div>
+                <label class="btn btn-ghost btn-sm" style="cursor:pointer; display:inline-block;">
+    Upload New Photo
+    <input type="file" accept="image/*" style="display:none;" onchange="window.handleProfilePhotoUpload(this)">
+</label>
+</div>
 
             <div class="det-card">
                 <div class="section-title">My Skills</div>
@@ -1613,6 +1616,54 @@ export async function triggerApproveAndPay(projectId) {
     } catch (e) {
         console.error("Payment error:", e);
         window.showToast('Error processing payment.', 'err');
+    }
+}
+export async function handleProfilePhotoUpload(input) {
+    if (!input.files || !input.files.length) return;
+    const file = input.files[0];
+
+    window.showToast('Uploading photo...', 'info');
+
+    try {
+        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        if (!supa) throw new Error("Supabase connection not found");
+
+        // 1. File ka unique naam banayein
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${AppState.CU.id}_${Date.now()}.${fileExt}`;
+        const filePath = `avatars/${fileName}`;
+
+        // 2. Supabase 'avatars' bucket mein upload karein
+        const { data: uploadData, error: uploadErr } = await supa.storage.from('avatars').upload(filePath, file);
+        if (uploadErr) throw uploadErr;
+
+        // 3. Public URL get karein
+        const { data: urlData } = supa.storage.from('avatars').getPublicUrl(uploadData.path);
+        const photoUrl = urlData?.publicUrl;
+
+        // 4. Local AppState aur Database update karein
+        AppState.CU.photo_url = photoUrl;
+        const users = DB.users();
+        const u = users.find(x => x.id === AppState.CU.id);
+        if (u) { 
+            u.photo_url = photoUrl; 
+            DB.saveUsers(users); 
+        }
+        DB.setCurrentUser(AppState.CU);
+
+        // 5. Supabase Database update karein
+        await supa.from('profiles').update({ photo_url: photoUrl }).eq('id', AppState.CU.id);
+
+        window.showToast('Profile photo updated!', 'ok');
+        
+        // Page refresh karein taaki nayi photo dikhe
+        window.fPage('profile', document.querySelector('[data-page="profile"]')); 
+
+    } catch (err) {
+        console.error("Photo upload error:", err);
+        window.showToast('Upload failed. Try again.', 'err');
+    } finally {
+        input.value = ''; // Input ko reset karein
     }
 }
 
