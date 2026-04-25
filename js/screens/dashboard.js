@@ -1153,68 +1153,57 @@ function fEarnings() {
 function fNegotiate() {
     const myId = String(AppState.CU.id).toLowerCase();
 
-    const projs = DB.projects().filter(p => {
-        if (p.status !== 'open') return false;
-        if (p.creatorId === AppState.CU.id) return false;
-        if (p.freelancerId) return false; 
-        
-        let invited = p.invited_freelancers;
-        if (typeof invited === 'string') {
-            try { invited = JSON.parse(invited); } catch(e) { return false; }
-        }
-        if (!Array.isArray(invited)) return false;
-
-        return invited.some(id => String(id).toLowerCase() === myId);
-    });
+    // Fetch ONGOING Projects for this Freelancer
+    const projs = DB.projects().filter(p => p.status === 'ongoing' && String(p.freelancerId).toLowerCase() === myId);
 
     if (!projs.length) {
         return `
-        <div class="page-head"><h2>Negotiate Price & Deadline</h2><p>Submit your counter-offers</p></div>
-        <div class="alert alert-i">No projects available for negotiation right now.</div>`;
+        <div class="page-head"><h2>Negotiate Price & Deadline</h2><p>Request changes for ongoing projects</p></div>
+        <div style="padding:20px 0; color:var(--text-3); font-size:0.9rem;">
+            <div class="alert alert-i">You have no ongoing projects to negotiate right now. First, accept a project to request changes!</div>
+        </div>`;
     }
 
     return `
-    <div class="page-head">
+    <div class="page-head" style="margin-bottom:20px;">
         <h2>Negotiate Price & Deadline</h2>
-        <p>Submit your counter-offer for approval</p>
+        <p style="color:var(--text-3); font-size:0.85rem; margin-top:4px;">Select an ongoing project to request budget/deadline changes</p>
     </div>
 
-    <div class="fg">
-        <label>Select Project</label>
-        <select id="neg-project-select" onchange="window.toggleNegotiationCard(this.value)">
-            <option value="" disabled selected>-- Choose a project --</option>
-            ${projs.map(p => `<option value="${p.id}">${p.title} (Client Offer: ₹${fmt(p.budget)})</option>`).join('')}
+    <div class="fg" style="margin-bottom:24px;">
+        <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-3); margin-bottom:8px; text-transform:uppercase;">Select Project</label>
+        <select id="neg-project-select" style="width:100%; max-width:100%; padding:12px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); color:var(--text); outline:none; cursor:pointer; font-family:inherit; font-size:0.9rem;" onchange="window.toggleNegotiationCard(this.value)">
+            <option value="" disabled selected>-- Choose an ongoing project --</option>
+            ${projs.map(p => `<option value="${p.id}">${p.title} (Current Budget: ₹${fmt(p.budget)})</option>`).join('')}
         </select>
     </div>
 
-    <div id="neg-cards-container" style="margin-top:20px;">
+    <div id="neg-cards-container" style="width:100%;">
         ${projs.map(p => `
-            <div id="neg-card-${p.id}" class="neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:var(--shadow-sm); animation: fadeIn 0.3s ease;">
-                
+            <div id="neg-card-${p.id}" class="det-card neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
                 <h3 style="margin-top:0; margin-bottom:6px; font-size:1.2rem; color:var(--text); font-weight:700;">${p.title}</h3>
                 <div style="font-size:.85rem; color:var(--text-3); margin-bottom:24px;">
-                    Original Offer: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}
+                    Current Budget: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Current Deadline: ${fmtDate(p.deadline)}
                 </div>
                 
                 <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
                     <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                        <label>Your Counter-Price (₹)</label>
-                        <input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget * 1.15)}" style="width:100%;">
+                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">New Request Price (₹)</label>
+                        <input type="number" id="neg-price-${p.id}" value="${p.budget}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
                     </div>
                     <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                        <label>Proposed Deadline</label>
-                        <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%;">
+                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">New Proposed Deadline</label>
+                        <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
                     </div>
                 </div>
                 
                 <div class="fg" style="margin-bottom:24px;">
-                    <label>Message to Client</label>
-                    <input type="text" id="neg-msg-${p.id}" placeholder="I can complete this at the revised price..." style="width:100%;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Reason / Message to Client</label>
+                    <input type="text" id="neg-msg-${p.id}" placeholder="I need more budget/time because..." style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
                 </div>
                 
                 <div style="display:flex; gap:12px;">
-                    <button class="btn" style="background:#e85d2e; color:white; border:none; padding:10px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Counter-Offer</button>
-                    <button class="btn" style="background:#16a34a; color:white; border:none; padding:10px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.acceptProject('${p.id}')">Accept Original</button>
+                    <button class="btn" style="background:#e85d2e; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Request to Client</button>
                 </div>
             </div>
         `).join('')}
@@ -1528,7 +1517,7 @@ export async function sendNegotiation(pid) {
     const newDate = document.getElementById(`neg-date-${pid}`)?.value || p.deadline;
     const note = document.getElementById(`neg-msg-${pid}`)?.value || '';
 
-    // 💥 MAGIC UI: Chat ke andar ekdum beautiful card aur buttons bhejenge
+    // 💥 MAGIC UI: Chat ke andar beautiful card
     const negText = `
         <div style="border: 1px solid var(--glass-border); padding: 16px; border-radius: 10px; background: var(--bg2); margin-top:8px; box-shadow:var(--shadow-sm);">
             <div style="font-weight:bold; font-size:1rem; margin-bottom: 12px; color:var(--text);">🔄 Counter Offer Received</div>
@@ -1589,31 +1578,28 @@ export async function sendNegotiation(pid) {
         window.showToast('Failed to send offer. Check console.', 'err');
     }
     
-    // Card hide kar do bhejne ke baad
     document.querySelectorAll('.neg-card-item').forEach(el => el.style.display = 'none');
     const select = document.getElementById('neg-project-select');
     if(select) select.value = "";
 }
 
 export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, btnElement) {
-    // 🛡️ SINGLE CLICK LOCK: Buttons ko turant hata kar text dikha do
+    // 🛡️ SINGLE CLICK LOCK
     if (btnElement && btnElement.parentElement) {
         btnElement.parentElement.innerHTML = `<div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div>`;
     }
 
     try {
-        // 1. Local Database Update
         const projs = DB.projects();
         const p = projs.find(x => x.id === pid);
         if (p) {
             p.budget = parseInt(newPrice);
             p.deadline = newDate;
-            p.freelancerId = freelancerId; // Project direct assign ho jayega
+            p.freelancerId = freelancerId;
             p.status = 'ongoing';
             DB.saveProjects(projs);
         }
         
-        // 2. Supabase Cloud Database Update
         const supa = window.supaClient || window.supabaseClient || window.supabase;
         if (supa) {
             await supa.from('projects').update({ 
@@ -1624,7 +1610,6 @@ export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, bt
             }).eq('id', pid);
         }
         
-        // 3. Chat mein auto-message
         const msgText = `🎉 **Great News!** I have Accepted your counter-offer. The budget is now officially **₹${fmt(newPrice)}**. Let's start working!`;
         await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
         
@@ -1636,7 +1621,7 @@ export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, bt
 }
 
 export async function rejectNegotiation(pid, freelancerId, btnElement) {
-    // 🛡️ SINGLE CLICK LOCK: Reject karte hi buttons gayab
+    // 🛡️ SINGLE CLICK LOCK
     if (btnElement && btnElement.parentElement) {
         btnElement.parentElement.innerHTML = `<div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div>`;
     }
