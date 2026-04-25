@@ -12,21 +12,20 @@ function getSafeMessages() {
 
 let chatSubscription = null;
 let presenceChannel = null;
-
-// 🔥 NAYA JUGAD: Connection Lock! Taaki baar baar taar na toote aur CHANNEL_ERROR na aaye.
-let isRealtimeRunning = false; 
+let currentRealtimeUserId = null; // Lock ko ID based kar diya hai
 
 export function initChatRealtime(myId) {
-    if (isRealtimeRunning) return; // Agar pehle se connected hai, toh wapas naya mat banao!
-    
     const supa = getSupa();
     if (!supa || !myId) return;
 
-    isRealtimeRunning = true; // Lock set kar diya
-    console.log("🚀 Realtime Connection Shuru ho raha hai...");
+    // Agar SAME user already connected hai, tabhi block karo
+    if (currentRealtimeUserId === myId) return; 
+    
+    currentRealtimeUserId = myId; // Naye user ki ID set karo
+    console.log("🚀 Realtime Connection Shuru ho raha hai for:", myId);
 
     // 🟢 PRESENCE
-    if (presenceChannel) supa.removeChannel(presenceChannel);
+    if (presenceChannel) { supa.removeChannel(presenceChannel); }
     presenceChannel = supa.channel('global_presence', { config: { presence: { key: myId } } });
 
     presenceChannel.on('presence', { event: 'sync' }, () => {
@@ -40,7 +39,7 @@ export function initChatRealtime(myId) {
     });
 
     // 📨 MESSAGES REALTIME
-    if (chatSubscription) supa.removeChannel(chatSubscription);
+    if (chatSubscription) { supa.removeChannel(chatSubscription); }
     chatSubscription = supa.channel('realtime-messages')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
             console.log("🔔 Cloud se Message Aaya! Payload:", payload.new);
@@ -48,16 +47,11 @@ export function initChatRealtime(myId) {
             const newMsg = payload.new;
             if (!newMsg || !newMsg.sender_id) return;
             
-            // Khud ka bheja hua ignore karo
             if (String(newMsg.sender_id).toLowerCase() === String(myId).toLowerCase()) return; 
 
             try {
                 const { data: convo, error } = await supa.from('conversations').select('*').eq('id', newMsg.conversation_id).maybeSingle();
-                
-                if (error) {
-                    console.error("❌ Convo DB Error:", error);
-                    return;
-                }
+                if (error) return;
                 
                 if (convo) {
                     const otherId = convo.user1_id === myId ? convo.user2_id : convo.user1_id;
@@ -77,15 +71,12 @@ export function initChatRealtime(myId) {
                             time: msgTime
                         });
                         DB.saveMessages(safeMsgs);
-                        console.log("✅ Message local storage mein save ho gaya!");
                         
-                        // Zabardasti UI Update
                         if (String(AppState.currentChatUserId) === String(otherId)) {
                             const chatArea = document.getElementById('chat-msgs-el');
                             if (chatArea) {
                                 chatArea.innerHTML = renderMsgs(safeMsgs[key], myId);
                                 chatArea.scrollTop = chatArea.scrollHeight;
-                                console.log("🎨 Screen par message draw ho gaya!");
                             }
                         }
                         updateChatSidebarPreviews();
@@ -94,9 +85,7 @@ export function initChatRealtime(myId) {
             } catch (err) {
                 console.error("Realtime Error:", err);
             }
-        }).subscribe((status) => {
-            console.log("📡 Messages Sync Status:", status);
-        });
+        }).subscribe();
 }
 
 export function updateChatHeaderPresence() {
