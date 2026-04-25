@@ -1510,6 +1510,8 @@ export async function triggerApproveAndPay(projectId) {
     }
 }
 
+// ─── NEGOTIATION FUNCTIONS (ADVANCED STATE PERSISTENCE) ───
+
 export async function sendNegotiation(pid) {
     const p = DB.projects().find(x => x.id === pid);
     if (!p) return;
@@ -1517,10 +1519,13 @@ export async function sendNegotiation(pid) {
     const newPrice = document.getElementById(`neg-price-${pid}`)?.value || p.budget;
     const newDate = document.getElementById(`neg-date-${pid}`)?.value || p.deadline;
     const note = document.getElementById(`neg-msg-${pid}`)?.value || '';
+    
+    // Unique ID har naye offer ke liye
+    const negId = 'neg_' + Date.now();
 
-    // 💥 MAGIC UI: 'onerror' hack se system pehchanega ki dekhne wala Creator hai ya Freelancer!
+    // 💥 MAGIC UI: Ye code khud decide karega ki Buttons dikhane hain ya Waiting Text
     const negText = `
-        <div style="border: 1px solid var(--glass-border); padding: 16px; border-radius: 10px; background: var(--bg2); margin-top:8px; box-shadow:var(--shadow-sm);">
+        <div id="${negId}" style="border: 1px solid var(--glass-border); padding: 16px; border-radius: 10px; background: var(--bg2); margin-top:8px; box-shadow:var(--shadow-sm);">
             <div style="font-weight:bold; font-size:1rem; margin-bottom: 12px; color:var(--text);">🔄 Counter Offer Details</div>
             <div style="font-size:0.85rem; margin-bottom: 16px; color:var(--text-2); line-height:1.5;">
                 Project: <b>${p.title}</b><br/>
@@ -1529,15 +1534,24 @@ export async function sendNegotiation(pid) {
                 Note: <i>"${note}"</i>
             </div>
             
-            <div style="gap:10px; flex-wrap:wrap; display:none;">
-                <img src="magic-trick.jpg" onerror="this.parentElement.style.display = (window.AppState && window.AppState.CU && window.AppState.CU.id === '${p.creatorId}') ? 'flex' : 'none'; this.remove();" style="display:none;" />
-                <button onclick="window.acceptNegotiation('${pid}', '${newPrice}', '${newDate}', '${AppState.CU.id}', this)" style="background:#16a34a; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; flex:1;">✅ Accept Offer</button>
-                <button onclick="window.rejectNegotiation('${pid}', '${AppState.CU.id}', this)" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; flex:1;">❌ Reject</button>
-            </div>
-            
-            <div style="display:none; color:var(--text-3); font-size:0.85rem; font-style:italic; text-align:center; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px;">
-                <img src="magic-trick.jpg" onerror="this.parentElement.style.display = (window.AppState && window.AppState.CU && window.AppState.CU.id !== '${p.creatorId}') ? 'block' : 'none'; this.remove();" style="display:none;" />
-                ⏳ Waiting for Creator to review this offer...
+            <div class="neg-action-area">
+                <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" onload="
+                    if(String(window.AppState.CU.id) === '${p.creatorId}') {
+                        this.nextElementSibling.style.display = 'block';
+                    } else {
+                        this.nextElementSibling.nextElementSibling.style.display = 'block';
+                    }
+                    this.remove();
+                " />
+                
+                <div style="display:none;">
+                    <button onclick="window.acceptNegotiation('${pid}', '${newPrice}', '${newDate}', '${AppState.CU.id}', this, '${negId}')" style="background:#16a34a; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; margin-right:8px;">✅ Accept Offer</button>
+                    <button onclick="window.rejectNegotiation('${pid}', '${AppState.CU.id}', this, '${negId}')" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600;">❌ Reject</button>
+                </div>
+                
+                <div style="display:none; color:var(--text-3); font-size:0.85rem; font-style:italic; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; text-align:center;">
+                    ⏳ Waiting for Creator to review this offer...
+                </div>
             </div>
         </div>
     `;
@@ -1561,11 +1575,7 @@ export async function sendNegotiation(pid) {
             }
 
             if (convoId) {
-                await supa.from('messages').insert([{
-                    conversation_id: convoId,
-                    sender_id: AppState.CU.id,
-                    text: negText
-                }]);
+                await supa.from('messages').insert([{ conversation_id: convoId, sender_id: AppState.CU.id, text: negText }]);
             }
         }
 
@@ -1591,22 +1601,17 @@ export async function sendNegotiation(pid) {
     if(select) select.value = "";
 }
 
-export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, btnElement) {
-    const projs = DB.projects();
-    const p = projs.find(x => x.id === pid);
-    
-    // Safety check: Agar pehle se accept ho chuka hai toh rok do
-    if (p && p.budget === parseInt(newPrice) && p.deadline === newDate) {
-        window.showToast('This offer was already processed.', 'info');
-        return;
-    }
-
-    // 🛡️ SINGLE CLICK LOCK
-    if (btnElement && btnElement.parentElement) {
-        btnElement.parentElement.innerHTML = `<div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div>`;
+export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, btnElement, negId) {
+    // 1. Instant Screen Update (Visual lock)
+    if (btnElement) {
+        const actionArea = btnElement.closest('.neg-action-area');
+        if (actionArea) actionArea.innerHTML = `<div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div>`;
     }
 
     try {
+        // 2. Local Database & Supabase Update
+        const projs = DB.projects();
+        const p = projs.find(x => x.id === pid);
         if (p) {
             p.budget = parseInt(newPrice);
             p.deadline = newDate;
@@ -1617,38 +1622,85 @@ export async function acceptNegotiation(pid, newPrice, newDate, freelancerId, bt
         
         const supa = window.supaClient || window.supabaseClient || window.supabase;
         if (supa) {
-            await supa.from('projects').update({ 
-                budget: parseInt(newPrice), 
-                deadline: newDate,
-                freelancer_id: freelancerId,
-                status: 'ongoing' 
-            }).eq('id', pid);
+            await supa.from('projects').update({ budget: parseInt(newPrice), deadline: newDate, freelancer_id: freelancerId, status: 'ongoing' }).eq('id', pid);
+            
+            // 🌟 3. Cloud History Update: Permanent Button Deletion
+            if (negId) {
+                const { data: msgs } = await supa.from('messages').select('id, text').ilike('text', `%${negId}%`);
+                if (msgs && msgs.length > 0) {
+                    const newText = msgs[0].text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div></div></div>';
+                    await supa.from('messages').update({ text: newText }).eq('id', msgs[0].id);
+                }
+            }
+        }
+
+        // 🌟 4. Local History Update: Permanent Button Deletion
+        if (typeof DB.messages === 'function' && negId) {
+            const key = [AppState.CU.id, freelancerId].sort().join('_');
+            let allMsgs = DB.messages();
+            if (allMsgs[key]) {
+                allMsgs[key] = allMsgs[key].map(m => {
+                    if (m.text.includes(negId)) {
+                        return { ...m, text: m.text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(22,163,74,.1); color:var(--green); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">✅ Offer Accepted Successfully</div></div></div>' };
+                    }
+                    return m;
+                });
+                DB.saveMessages(allMsgs);
+            }
         }
         
         const msgText = `🎉 **Great News!** I have Accepted your counter-offer. The budget is now officially **₹${fmt(newPrice)}**. Let's start working!`;
         await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
-        
         window.showToast('Offer Accepted! Project & Budget Updated.', 'ok');
+        
     } catch(e) {
         console.error(e);
         window.showToast('Error accepting offer.', 'err');
     }
 }
 
-export async function rejectNegotiation(pid, freelancerId, btnElement) {
-    // 🛡️ SINGLE CLICK LOCK
-    if (btnElement && btnElement.parentElement) {
-        btnElement.parentElement.innerHTML = `<div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div>`;
+export async function rejectNegotiation(pid, freelancerId, btnElement, negId) {
+    // 1. Instant Screen Update (Visual lock)
+    if (btnElement) {
+        const actionArea = btnElement.closest('.neg-action-area');
+        if (actionArea) actionArea.innerHTML = `<div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div>`;
     }
 
     try {
+        // 🌟 2. Cloud History Update: Permanent Button Deletion
+        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        if (supa && negId) {
+            const { data: msgs } = await supa.from('messages').select('id, text').ilike('text', `%${negId}%`);
+            if (msgs && msgs.length > 0) {
+                const newText = msgs[0].text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div></div></div>';
+                await supa.from('messages').update({ text: newText }).eq('id', msgs[0].id);
+            }
+        }
+
+        // 🌟 3. Local History Update: Permanent Button Deletion
+        if (typeof DB.messages === 'function' && negId) {
+            const key = [AppState.CU.id, freelancerId].sort().join('_');
+            let allMsgs = DB.messages();
+            if (allMsgs[key]) {
+                allMsgs[key] = allMsgs[key].map(m => {
+                    if (m.text.includes(negId)) {
+                        return { ...m, text: m.text.split('<div class="neg-action-area">')[0] + '<div class="neg-action-area"><div style="background:rgba(239,68,68,.1); color:var(--red); padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.85rem; width:100%; text-align:center;">❌ Offer Rejected</div></div></div>' };
+                    }
+                    return m;
+                });
+                DB.saveMessages(allMsgs);
+            }
+        }
+
         const msgText = `❌ I cannot accept this offer. We can stick to the original price or you can submit a new offer.`;
         await window.sendMsg(AppState.CU.id, freelancerId, null, null, msgText);
         window.showToast('Offer Rejected.', 'info');
+        
     } catch(e) { 
         console.error(e); 
     }
 }
+
 export function reviseOffer(pid) {
     window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
     setTimeout(() => {
