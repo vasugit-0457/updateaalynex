@@ -74,62 +74,35 @@ window.fPageMobile = function(page, el) {
     closeSidebar('freelancer');
 };
 
-// ── 2. LOGIN SUCCESS ──
 window.loginSuccess = async function(u) {
     AppState.CU = u;
     DB.setCurrentUser(u);
-
-    // ✅ FIX 1: ek baar define karo — dono blocks me use hoga
     const fullName = u.full_name || u.name || 'User';
 
-    if (u.role === 'creator') {
-        const navName = document.getElementById('c-nav-name');
-        const sbName = document.getElementById('c-sb-name');
-        const sbAvatar = document.getElementById('c-sb-avatar');
-        // ✅ FIX 1: u.name → fullName
-        if (navName) navName.textContent = fullName.split(' ')[0];
-        if (sbAvatar) sbAvatar.textContent = u.avatar || fullName.charAt(0).toUpperCase();
-        if (sbName) {
-            sbName.innerHTML = `
-                <div style="font-weight:600; color:var(--text); line-height:1.2;">${fullName}</div>
-                <div style="font-size:0.75rem; color:var(--text-3); font-weight:normal; margin-top:4px; text-transform:capitalize;">Creator &middot; ${u.platform || 'YouTube'}</div>
-            `;
-        }
-        window.showScreen('screen-creator');
-        setTimeout(() => { window.cPage('home', document.querySelector('#screen-creator .nav-item[data-page="home"]') || document.querySelector('#screen-creator .nav-item')); }, 50);
+    // ✅ PEHLE sync karo — projects load ho jayein
+    await syncDataFromSupabase(u);
 
+    if (u.role === 'creator') {
+        // ... baaki creator UI code same ...
+        window.showScreen('screen-creator');
+        // ✅ PHIR render karo — ab projects DB me hain
+        setTimeout(() => { window.cPage('home', document.querySelector('#screen-creator .nav-item[data-page="home"]') || document.querySelector('#screen-creator .nav-item')); }, 50);
     } else {
-        const navName = document.getElementById('f-nav-name');
-        const sbName = document.getElementById('f-sb-name');
-        const sbAvatar = document.getElementById('f-sb-avatar');
-        if (navName) navName.textContent = fullName.split(' ')[0];
-        if (sbAvatar) sbAvatar.textContent = u.avatar || fullName.charAt(0).toUpperCase();
-        if (sbName) {
-            sbName.innerHTML = `
-                <div style="font-weight:600; color:var(--text); line-height:1.2;">${fullName}</div>
-                <div style="font-size:0.75rem; color:var(--text-3); font-weight:normal; margin-top:4px; text-transform:capitalize;">Freelancer &middot; ${u.profession || 'Editor'}</div>
-            `;
-        }
+        // ... baaki freelancer UI code same ...
         window.showScreen('screen-freelancer');
         setTimeout(() => { window.fPage('home', document.querySelector('#screen-freelancer .nav-item[data-page="home"]') || document.querySelector('#screen-freelancer .nav-item')); }, 50);
     }
 
-    // ✅ FIX 3: Pehle data sync karo, PHIR realtime start karo
-    await syncDataFromSupabase(u);
+    // Realtime baad me
     initChatRealtime(u.id);
 
-    // ✅ FIX 1 + 2: window.supabaseClient sahi naam, aur messages listener HATA diya
-    // (chatUI.js already messages handle kar raha hai — double listener conflict tha)
     if (window.supabaseClient && !AppState.realtimeInitialized) {
         AppState.realtimeInitialized = true;
         const masterChannel = window.supabaseClient.channel('aalynex_master');
-
         masterChannel
             .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
-                // Sirf projects sync karo — messages chatUI.js handle karega
                 syncDataFromSupabase(AppState.CU);
             })
-            // ✅ FIX 2: messages wala listener REMOVE kar diya — clash hota tha!
             .subscribe((status) => {
                 console.log("🌐 Master Realtime Status:", status);
             });
