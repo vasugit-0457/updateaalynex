@@ -39,20 +39,48 @@ export async function syncDataFromSupabase(u) {
         const { data: profile } = await supaClient
             .from('profiles')
             .select('*').eq('id', user.id).maybeSingle();
-        if (profile) DB.setCurrentUser(profile);
+        if (profile) DB.setCurrentUser({
+            ...profile,
+            full_name: profile.full_name,
+            name: profile.full_name,
+            role: profile.role
+        });
 
-        // ✅ Role ke hisaab se projects fetch karo
         const role = profile?.role || u.role || 'creator';
         const { data: projects } = await supaClient
             .from('projects')
             .select('*')
-            .eq(role === 'creator' ? 'creator_id' : 'freelancer_id', user.id);
-        if (projects) DB.saveProjects(projects);
+            .eq(role === 'creator' ? 'creatorid' : 'freelancerid', user.id); // ✅ snake_case
 
-        // ✅ Saare users sync karo
-        const { data: users } = await supaClient
-            .from('profiles').select('*');
-        if (users) DB.saveUsers(users);
+        if (projects) {
+            const mapped = projects.map(dp => ({
+                id: dp.id,
+                creatorId: dp.creator_id,        // ✅
+                title: dp.title,
+                description: dp.description,
+                budget: dp.budget,
+                contentType: dp.content_type,    // ✅
+                deadline: dp.deadline,
+                priority: dp.priority,
+                freelancerId: dp.freelancer_id,  // ✅
+                invitedfreelancers: dp.invitedfreelancers,
+                status: dp.status,
+                createdAt: new Date(dp.created_at).getTime(), // ✅
+                files: [],
+                editedUploaded: dp.editeduploaded || false,
+                paid: dp.paid || false,
+                rating: dp.rating || 0,
+                review: dp.review || ''
+            }));
+            DB.saveProjects(mapped);
+        }
+
+        const { data: users } = await supaClient.from('profiles').select('*');
+        if (users) DB.saveUsers(users.map(u => ({
+            ...u,
+            name: u.full_name,
+            role: u.role
+        })));
 
     } catch(e) { console.error("Sync failed", e); }
 }
