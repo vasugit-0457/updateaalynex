@@ -8,7 +8,7 @@ import { switchTab, setLRole, setSRole, handleLogin, handleSignup } from './scre
 import { toggleSidebar, closeSidebar } from './components/navbar.js';
 import { showToast } from './components/toast.js';
 import { showModal, closeModal } from './components/modal.js';
-import { switchChat, sendMsg, handleChatUpload, initChatRealtime} from './components/chatUI.js';import { cPage, fPage, manageProject, wfN, wfB, selCT, selFL, completePayment, saveProfile, saveFProfile, saveRating, handleMultiFileUpload, removeProjectFile, viewFreelancerPortfolio, downloadEditedVideo, submitReview, acceptProject, handleFinalUpload, viewProjectDetails, rejectProject,  sendNegotiation, toggleNegotiationCard, acceptNegotiation, rejectNegotiation, reviseOffer, triggerApproveAndPay} from './screens/dashboard.js';
+import { switchChat, sendMsg, handleChatUpload, initChatRealtime} from './components/chatUI.js';import { cPage, fPage, manageProject, wfN, wfB, selCT, selFL, completePayment, saveProfile, saveFProfile, saveRating, handleMultiFileUpload, removeProjectFile, viewFreelancerPortfolio, downloadEditedVideo, submitReview, acceptProject, handleFinalUpload, viewProjectDetails, rejectProject,  sendNegotiation, toggleNegotiationCard, acceptNegotiation, rejectNegotiation, reviseOffer, triggerApproveAndPay, handleProfilePhotoUpload} from './screens/dashboard.js';
 
 
 // ── 1. GLOBAL WINDOW BINDINGS (For HTML OnClicks) ──
@@ -63,6 +63,7 @@ window.initChatRealtime = initChatRealtime;
 window.sendMsg = sendMsg;            // <-- ISKE BINA SEND BUTTON KAAM NAHI KAREGA!
 window.initChatRealtime = initChatRealtime;
 window.triggerApproveAndPay = triggerApproveAndPay;
+window.handleProfilePhotoUpload = handleProfilePhotoUpload;
 
 // ─── LOGIN SUCCESS LOGIC ───
 window.loginSuccess = async function(u) {
