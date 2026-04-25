@@ -1656,14 +1656,86 @@ export async function rejectNegotiation(pid, freelancerId, btnElement, negId) {
     } catch(e) { 
         console.error(e); 
     }
-}// ─── MISSING EXPORTS RECOVERED ───
-export function downloadEditedVideo(id) { 
-    window.showToast('Download starting...', 'ok'); 
 }
 
-export function submitReview() { 
-    window.showToast('Review submitted!', 'ok'); 
-    window.cPage('projects', document.querySelector('[data-page="projects"]')); 
+// ─── REAL DOWNLOAD & REVIEW LOGIC ───
+
+export async function downloadEditedVideo(pid) {
+    window.showToast('Fetching final video...', 'info');
+    
+    const p = DB.projects().find(x => x.id === pid);
+    if (!p || !p.freelancerId) {
+        window.showToast('Error: Project or Editor not found', 'err');
+        return;
+    }
+    
+    let foundUrl = null;
+    
+    // Chat messages mein se Final Delivery wala URL dhoondh nikalega
+    if (typeof DB.messages === 'function') {
+        const key = [AppState.CU.id, p.freelancerId].sort().join('_');
+        const msgs = DB.messages()[key] || [];
+        
+        // Ulta loop (latest message pehle check karega)
+        for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].text && (msgs[i].text.includes('Final Delivery') || msgs[i].text.includes('href='))) {
+                const match = msgs[i].text.match(/href="([^"]+)"/);
+                if (match && match[1]) {
+                    foundUrl = match[1];
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (foundUrl) {
+        window.showToast('Starting Download...', 'ok');
+        window.open(foundUrl, '_blank'); // Naye tab mein video khol dega/download karega
+    } else {
+        window.showToast('Video link not found. Please check Chat messages.', 'err');
+    }
+}
+
+export async function submitReview() {
+    const pid = AppState.activeManageProjectId;
+    if (!pid) return;
+
+    // Stars aur Text ki value nikalna
+    const rating = document.querySelectorAll(`#sr1 span.lit`).length;
+    const reviewText = document.getElementById('review-text')?.value || '';
+    
+    if (!rating) {
+        window.showToast('Please select a star rating first!', 'err');
+        return;
+    }
+    
+    window.showToast('Saving review to Cloud...', 'info');
+    
+    try {
+        // 1. Local DB Update
+        const projs = DB.projects();
+        const p = projs.find(x => x.id === pid);
+        if (p) {
+            p.rating = rating;
+            p.review = reviewText;
+            DB.saveProjects(projs);
+        }
+        
+        // 2. Supabase Cloud DB Update
+        const supa = window.supaClient || window.supabaseClient || window.supabase;
+        if (supa) {
+            await supa.from('projects').update({ rating: rating, review: reviewText }).eq('id', pid);
+        }
+        
+        window.showToast('Review submitted successfully!', 'ok');
+        
+        // Review ke baad wapas projects list pe bhej do
+        window.cPage('projects', document.querySelector('[data-page="projects"]'));
+        
+    } catch (err) {
+        console.error(err);
+        window.showToast('Error saving review to database.', 'err');
+    }
 }
 
 export function reviseOffer(pid) {
