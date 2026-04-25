@@ -11,7 +11,6 @@ import { showModal, closeModal } from './components/modal.js';
 import { switchChat, sendMsg, handleChatUpload, initChatRealtime } from './components/chatUI.js';
 import { cPage, fPage, manageProject, wfN, wfB, selCT, selFL, completePayment, saveProfile, saveFProfile, saveRating, handleMultiFileUpload, removeProjectFile, viewFreelancerPortfolio, downloadEditedVideo, submitReview, acceptProject, handleFinalUpload, viewProjectDetails, rejectProject, sendNegotiation, toggleNegotiationCard, acceptNegotiation, rejectNegotiation, reviseOffer, triggerApproveAndPay, handleProfilePhotoUpload } from './screens/dashboard.js';
 
-
 // ── 1. GLOBAL WINDOW BINDINGS ──
 window.goAuth = goAuth;
 window.switchTab = switchTab;
@@ -80,15 +79,19 @@ window.loginSuccess = async function(u) {
     AppState.CU = u;
     DB.setCurrentUser(u);
 
+    // ✅ FIX 1: ek baar define karo — dono blocks me use hoga
+    const fullName = u.full_name || u.name || 'User';
+
     if (u.role === 'creator') {
         const navName = document.getElementById('c-nav-name');
         const sbName = document.getElementById('c-sb-name');
         const sbAvatar = document.getElementById('c-sb-avatar');
-        if (navName) navName.textContent = u.name.split(' ')[0];
-        if (sbAvatar) sbAvatar.textContent = u.avatar || u.name.charAt(0).toUpperCase();
+        // ✅ FIX 1: u.name → fullName
+        if (navName) navName.textContent = fullName.split(' ')[0];
+        if (sbAvatar) sbAvatar.textContent = u.avatar || fullName.charAt(0).toUpperCase();
         if (sbName) {
             sbName.innerHTML = `
-                <div style="font-weight:600; color:var(--text); line-height:1.2;">${u.name}</div>
+                <div style="font-weight:600; color:var(--text); line-height:1.2;">${fullName}</div>
                 <div style="font-size:0.75rem; color:var(--text-3); font-weight:normal; margin-top:4px; text-transform:capitalize;">Creator &middot; ${u.platform || 'YouTube'}</div>
             `;
         }
@@ -99,11 +102,11 @@ window.loginSuccess = async function(u) {
         const navName = document.getElementById('f-nav-name');
         const sbName = document.getElementById('f-sb-name');
         const sbAvatar = document.getElementById('f-sb-avatar');
-        if (navName) navName.textContent = (u.full_name || u.name || 'User').split(' ')[0];
-        if (sbAvatar) sbAvatar.textContent = u.avatar || (u.full_name || u.name || 'U').charAt(0).toUpperCase();
+        if (navName) navName.textContent = fullName.split(' ')[0];
+        if (sbAvatar) sbAvatar.textContent = u.avatar || fullName.charAt(0).toUpperCase();
         if (sbName) {
             sbName.innerHTML = `
-                <div style="font-weight:600; color:var(--text); line-height:1.2;">${u.full_name || u.name || 'User'}</div>
+                <div style="font-weight:600; color:var(--text); line-height:1.2;">${fullName}</div>
                 <div style="font-size:0.75rem; color:var(--text-3); font-weight:normal; margin-top:4px; text-transform:capitalize;">Freelancer &middot; ${u.profession || 'Editor'}</div>
             `;
         }
@@ -133,7 +136,6 @@ window.loginSuccess = async function(u) {
     }
 };
 
-
 // ── 3. LOGOUT ──
 window.logout = function() {
     showModal('Log Out', 'Are you sure you want to log out?', async () => {
@@ -146,7 +148,6 @@ window.logout = function() {
     });
 };
 
-
 // ── 4. APP INITIALIZATION ──
 window.addEventListener('load', async () => {
     initSupabase();
@@ -158,18 +159,22 @@ window.addEventListener('load', async () => {
                 if (profile) {
                     const u = {
                         id: profile.id,
-                        name: profile.name || session.user.email.split('@')[0],
+                        // ✅ FIX 2: profile.name → profile.full_name
+                        name: profile.full_name || session.user.email.split('@')[0],
+                        full_name: profile.full_name || '',
                         email: session.user.email,
                         role: profile.role || 'creator',
                         platform: profile.platform || '',
-                        avatar: (profile.name || 'U').charAt(0).toUpperCase(),
+                        profession: profile.profession || '',
+                        // ✅ FIX 2: profile.name → profile.full_name
+                        avatar: (profile.full_name || 'U').charAt(0).toUpperCase(),
                         createdAt: profile.created_at ? new Date(profile.created_at).getTime() : Date.now()
                     };
                     window.loginSuccess(u);
                     return;
                 }
             }
-        } catch(e) { console.error(e); }
+        } catch(e) { console.error(e) }
     }
     showScreen('screen-landing');
 });
