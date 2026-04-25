@@ -1614,16 +1614,6 @@ export async function rejectNegotiation(pid, freelancerId) {
     }
 }
 
-export function reviseOffer(pid) {
-    window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
-    setTimeout(() => {
-        const select = document.getElementById('neg-project-select');
-        if(select) {
-            select.value = pid;
-            window.toggleNegotiationCard(pid);
-        }
-    }, 200);
-}
 export function wfB() { 
     AppState.wfStep = Math.max(0, AppState.wfStep - 1); 
     if(typeof renderC === 'function') renderC('new'); 
