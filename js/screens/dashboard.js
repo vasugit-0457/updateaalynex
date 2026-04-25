@@ -1748,3 +1748,101 @@ export function reviseOffer(pid) {
         }
     }, 200);
 }
+// ─── PROFILE PHOTO UPLOAD LOGIC ───
+
+export async function handleProfilePhotoUpload(input) {
+    if (!input.files || !input.files.length) return;
+    const file = input.files[0];
+
+    window.showToast('Uploading photo...', 'info');
+
+    try {
+        const supa = window.supaClient || window.supabaseClient || window.supabase || supaClient;
+        if (!supa) throw new Error("Supabase connection not found");
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${AppState.CU.id}_${Date.now()}.${fileExt}`;
+        const filePath = `avatars/${fileName}`;
+
+        // 1. Supabase Storage me upload
+        const { data: uploadData, error: uploadErr } = await supa.storage.from('avatars').upload(filePath, file);
+        if (uploadErr) throw uploadErr;
+
+        // 2. Public URL nikalna
+        const { data: urlData } = supa.storage.from('avatars').getPublicUrl(uploadData.path);
+        const photoUrl = urlData?.publicUrl;
+
+        // 3. Local State aur Database update karna
+        AppState.CU.photo_url = photoUrl;
+        const users = DB.users();
+        const u = users.find(x => x.id === AppState.CU.id);
+        if (u) { 
+            u.photo_url = photoUrl; 
+            DB.saveUsers(users); 
+        }
+        DB.setCurrentUser(AppState.CU);
+
+        // 4. Supabase Profiles table me update
+        await supa.from('profiles').update({ photo_url: photoUrl }).eq('id', AppState.CU.id);
+
+        window.showToast('Profile photo updated!', 'ok');
+        
+        // 5. Smart Refresh (Creator aur Freelancer dono ke liye)
+        if (AppState.CU.role === 'creator') {
+            window.cPage('profile', document.querySelector('[data-page="profile"]'));
+        } else {
+            window.fPage('profile', document.querySelector('[data-page="profile"]'));
+        }
+
+    } catch (err) {
+        console.error("Photo upload error:", err);
+        window.showToast('Upload failed. Try again.', 'err');
+    } finally {
+        input.value = ''; 
+    }
+}// ─── FREELANCER PROFILE SAVE LOGIC ───
+
+export function saveFProfile() {
+    const name = document.getElementById('f-prof-name')?.value?.trim();
+    if (!name) { window.showToast('Name cannot be empty', 'err'); return; }
+    const phone = document.getElementById('f-prof-phone')?.value?.trim();
+    const prof = document.getElementById('f-prof-title')?.value?.trim();
+    
+    const instaLink = document.getElementById('f-prof-insta')?.value?.trim() || '';
+    const ytLink = document.getElementById('f-prof-yt')?.value?.trim() || '';
+    const workLink = document.getElementById('f-prof-work')?.value?.trim() || '';
+    
+    const users = DB.users();
+    const u = users.find(x => x.id === AppState.CU.id);
+    
+    if (u) { 
+        u.name = name; 
+        u.phone = phone; 
+        u.profession = prof; 
+        u.avatar = name.charAt(0).toUpperCase(); 
+        u.instaLink = instaLink;
+        u.ytLink = ytLink;
+        u.workLink = workLink;
+        DB.saveUsers(users); 
+    }
+    
+    AppState.CU = {...AppState.CU, name, phone, profession: prof, instaLink, ytLink, workLink}; 
+    DB.setCurrentUser(AppState.CU);
+    
+    const navName = document.getElementById('f-nav-name');
+    const sbName = document.getElementById('f-sb-name');
+    const sbAvatar = document.getElementById('f-sb-avatar');
+    if(navName) navName.textContent = name.split(' ')[0];
+    if(sbName) sbName.textContent = name;
+    if(sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
+    
+    const supa = window.supaClient || window.supabaseClient || window.supabase;
+    if (supa && AppState.CU.id) {
+        supa.from('profiles').update({ 
+            name, phone, profession: prof, insta_link: instaLink, yt_link: ytLink, work_link: workLink 
+        }).eq('id', AppState.CU.id).then(() => {});
+    }
+    
+    window.showToast('Profile updated successfully!', 'ok');
+    window.fPage('profile', document.querySelector('[data-page="profile"]'));
+}
