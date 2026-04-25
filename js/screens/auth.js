@@ -126,3 +126,4 @@ export async function handleSignup() {
         setBtn('signup-btn', false);
     }
 }
+}
