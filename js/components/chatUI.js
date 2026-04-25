@@ -2,7 +2,10 @@
 import { DB, AppState, fmtTime, fmtDate, fmt } from '../state.js';
 import { supaClient } from '../services/supabase.js'; 
 
-const getSupa = () => window.supaClient || supaClient;
+
+// ✅ FIX 1: window.supabaseClient — sahi naam
+const getSupa = () => window.supabaseClient || supaClient;
+
 
 function getSafeMessages() {
     let msgs = DB.messages();
@@ -10,20 +13,26 @@ function getSafeMessages() {
     return msgs;
 }
 
+
 let chatSubscription = null;
 let presenceChannel = null;
 let currentRealtimeUserId = null; 
+
 
 export function initChatRealtime(myId) {
     const supa = getSupa();
     if (!supa || !myId) return;
 
-    if (currentRealtimeUserId === myId) return; 
-    currentRealtimeUserId = myId; 
+    // ✅ FIX 2: Guard hatao — har baar fresh subscribe karo
+    // Pehle purane channels band karo
+    if (presenceChannel) { supa.removeChannel(presenceChannel); presenceChannel = null; }
+    if (chatSubscription) { supa.removeChannel(chatSubscription); chatSubscription = null; }
+    currentRealtimeUserId = myId;
+
     console.log("🚀 Realtime Connection Shuru ho raha hai for:", myId);
 
+
     // 🟢 PRESENCE (Online/Offline Logic)
-    if (presenceChannel) { supa.removeChannel(presenceChannel); }
     presenceChannel = supa.channel('global_presence', { config: { presence: { key: myId } } });
 
     presenceChannel.on('presence', { event: 'sync' }, () => {
@@ -37,14 +46,13 @@ export function initChatRealtime(myId) {
         if (status === 'SUBSCRIBED') await presenceChannel.track({ online: true });
     });
 
+
     // 📨 MESSAGES REALTIME LOGIC
-    if (chatSubscription) { supa.removeChannel(chatSubscription); }
     chatSubscription = supa.channel('realtime-messages')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
             const newMsg = payload.new;
             console.log("🔔 Cloud se Message Aaya! Payload:", newMsg);
             
-            // 🔥 Fix 1: Column ka naam kuch bhi ho, ab ye catch kar lega
             const msgSender = newMsg.sender_id || newMsg.senderId || newMsg.from || newMsg.user_id;
             if (!newMsg || !msgSender) {
                 console.log("⚠️ Sender ID nahi mila payload mein!");
@@ -54,10 +62,9 @@ export function initChatRealtime(myId) {
             if (String(msgSender).toLowerCase() === String(myId).toLowerCase()) return; 
 
             try {
-                // 🔥 Fix 2: Agar Supabase RLS block kare, tab bhi crash nahi hoga
                 const { data: convo, error } = await supa.from('conversations').select('*').eq('id', newMsg.conversation_id).maybeSingle();
                 
-                let otherId = AppState.currentChatUserId; // Fallback ID use karega
+                let otherId = AppState.currentChatUserId;
                 if (convo) {
                     otherId = String(convo.user1_id) === String(myId) ? convo.user2_id : convo.user1_id;
                 } else if (error) {
@@ -94,8 +101,19 @@ export function initChatRealtime(myId) {
             } catch (err) {
                 console.error("Realtime Error:", err);
             }
-        }).subscribe();
+        })
+        // ✅ FIX 3: Status check add kiya
+        .subscribe((status) => {
+            console.log("📡 Realtime Subscription Status:", status);
+            if (status === 'CHANNEL_ERROR') {
+                console.error("❌ Realtime channel error! Supabase dashboard mein Replication ON hai?");
+            }
+            if (status === 'SUBSCRIBED') {
+                console.log("✅ Realtime LIVE hai! Messages receive honge.");
+            }
+        });
 }
+
 
 export function updateChatHeaderPresence() {
     if (!AppState.currentChatUserId) return;
@@ -118,6 +136,7 @@ export function updateChatHeaderPresence() {
         dot.style.background = 'var(--text-3)'; statusText.textContent = 'Offline'; statusText.style.color = 'var(--text-3)';
     }
 }
+
 
 export function updateChatSidebarPreviews() {
     if(!AppState.CU) return;
@@ -142,6 +161,7 @@ export function updateChatSidebarPreviews() {
         }
     });
 }
+
 
 export function buildChat(myId, otherDefaultId) {
     initChatRealtime(myId);
@@ -206,6 +226,7 @@ export function buildChat(myId, otherDefaultId) {
     </div>`;
 }
 
+
 export function renderMsgs(msgs, myId) {
     if (!msgs || !msgs.length) return '<div style="text-align:center;color:var(--text-3);font-size:.78rem;padding:20px 0;">Start the conversation!</div>';
     const isCreator = AppState.CU.role === 'creator';
@@ -259,6 +280,7 @@ export function renderMsgs(msgs, myId) {
     }).join('');
 }
 
+
 export function switchChat(myId, otherId, eventObj) {
     AppState.currentChatUserId = otherId; 
     const key   = [myId, otherId].sort().join('_');
@@ -293,6 +315,7 @@ export function switchChat(myId, otherId, eventObj) {
     }
 }
 
+
 export async function handleChatUpload(input, myId, otherId) {
     if (!input.files || !input.files.length) return;
     const file = input.files[0];
@@ -314,6 +337,7 @@ export async function handleChatUpload(input, myId, otherId) {
     } catch(e) { window.showToast('Upload failed', 'err'); }
     input.value = ''; 
 }
+
 
 export async function sendMsg(myId, otherId, overrideFileUrl = null, overrideFileName = null, overrideText = null) {
     let text = overrideText || '';
