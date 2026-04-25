@@ -1058,6 +1058,93 @@ export async function triggerApproveAndPay(projectId) {
         window.showToast('Error processing payment.', 'err');
     }
 }
+export function viewFreelancerPortfolio(id) {
+    const f = DB.users().find(u => u.id === id);
+    if (!f) {
+        window.showToast('Freelancer details not found!', 'err');
+        return;
+    }
 
+    const isSelected = AppState.selFreelancerIds.includes(id);
+    const projs = DB.projects().filter(p => p.freelancerId === id && p.status === 'completed');
+    const rated = projs.filter(p => p.rating && p.rating > 0);
+    const avgRating = rated.length > 0 ? (rated.reduce((s, p) => s + p.rating, 0) / rated.length).toFixed(1) : 'New';
+    
+    const ratingNum = avgRating !== 'New' ? parseFloat(avgRating) : 0;
+    let starsHtml = '';
+    for(let i=1; i<=5; i++) {
+        starsHtml += `<span style="color: ${i <= Math.round(ratingNum) ? '#f59e0b' : '#d1d5db'}; font-size:1rem;">&#9733;</span>`;
+    }
+
+    const avatarHtml = f.photo_url
+        ? `<img src="${f.photo_url}" style="width:100%;height:100%;object-fit:cover;">`
+        : `<span style="font-size:1.8rem; color:var(--text-3); font-family:'Outfit',sans-serif; font-weight:700;">${f.avatar || f.name.charAt(0).toUpperCase()}</span>`;
+
+    const modalId = 'portfolio-modal-' + Date.now();
+    const overlay = document.createElement('div');
+    overlay.id = modalId;
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; backdrop-filter:blur(3px);';
+
+    const safeName = f.name.replace(/'/g, "\\'");
+
+    overlay.innerHTML = `
+        <div style="background:var(--bg); width:100%; max-width:420px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; max-height:90vh; padding: 24px; font-family: 'Outfit', sans-serif; box-sizing:border-box;">
+            <h3 style="margin:0 0 20px 0; font-size:1.1rem; color:var(--text);">Freelancer Profile</h3>
+            <div style="text-align:center; margin-bottom:24px;">
+                <div style="width:70px; height:70px; border-radius:50%; background:var(--bg2); margin:0 auto 8px auto; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid var(--glass-border);">
+                    ${avatarHtml}
+                </div>
+                <div style="font-weight:700; font-size:1.2rem; color:var(--text);">${f.name}</div>
+                <div style="color:#8b5cf6; font-size:.85rem; font-weight:600; margin-bottom:6px;">${f.profession || 'editor'}</div>
+                <div style="display:flex; align-items:center; justify-content:center; gap:6px; font-size:.8rem; color:var(--text-3);">
+                    <div style="display:flex; gap:2px;">${starsHtml}</div>
+                    <span>(${avgRating} &middot; ${projs.length} Projects)</span>
+                </div>
+            </div>
+
+            <div style="overflow-y:auto; padding-right:4px;">
+                <div style="margin-bottom:20px;">
+                    <div style="font-size:.7rem; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">About</div>
+                    <div style="background:var(--surface); padding:12px 14px; border-radius:8px; font-size:.85rem; color:var(--text-2); border:1px solid var(--glass-border);">
+                        Available for freelance video editing projects.
+                    </div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <div style="font-size:.7rem; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Tools & Skills</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                        <span style="border:1px solid #c4b5fd; color:#8b5cf6; background:#f5f3ff; padding:4px 12px; border-radius:99px; font-size:.75rem; font-weight:600;">Video Editing</span>
+                        <span style="border:1px solid #c4b5fd; color:#8b5cf6; background:#f5f3ff; padding:4px 12px; border-radius:99px; font-size:.75rem; font-weight:600;">Color Grading</span>
+                        <span style="border:1px solid #c4b5fd; color:#8b5cf6; background:#f5f3ff; padding:4px 12px; border-radius:99px; font-size:.75rem; font-weight:600;">Motion Graphics</span>
+                        <span style="border:1px solid #c4b5fd; color:#8b5cf6; background:#f5f3ff; padding:4px 12px; border-radius:99px; font-size:.75rem; font-weight:600;">Thumbnail Design</span>
+                        <span style="border:1px solid #c4b5fd; color:#8b5cf6; background:#f5f3ff; padding:4px 12px; border-radius:99px; font-size:.75rem; font-weight:600;">CapCut</span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:24px;">
+                    <div style="font-size:.7rem; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Experience</div>
+                    <div>
+                        <div style="font-weight:700; font-size:.9rem; color:var(--text);">senior content editor</div>
+                        <div style="font-size:.75rem; color:var(--text-3); margin-top:2px;">pw | jan-2025 to april-2026</div>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-bottom:20px;">
+                    <button style="background:#e85d2e; color:white; border:none; padding:8px 20px; border-radius:99px; font-size:.85rem; font-weight:600; cursor:pointer;">View Resume</button>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:auto;">
+                <button onclick="document.getElementById('${modalId}').remove()" style="background:transparent; border:1px solid var(--glass-border); color:var(--text-2); padding:8px 20px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer;">Cancel</button>
+                
+                <button onclick="document.getElementById('${modalId}').remove(); window.selFL('${id}', '${safeName}')" style="background:${isSelected ? '#9ca3af' : '#e85d2e'}; border:none; color:white; padding:8px 20px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer;">
+                    ${isSelected ? 'Deselect Editor' : 'Select ' + f.name.split(' ')[0]}
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+}
 export function downloadEditedVideo(id) { showToast('Download starting...', 'ok'); }
 export function submitReview() { showToast('Review submitted!', 'ok'); cPage('projects', document.querySelector('[data-page="projects"]')); }
