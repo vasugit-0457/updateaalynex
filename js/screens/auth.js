@@ -1,40 +1,37 @@
-// js/screens/auth.js ke top imports
+// js/screens/auth.js
 import { AppState, uid } from '../state.js';
-import { showToast, setBtn } from '../components/toast.js'; // ui.js ki jagah toast.js
+import { showToast, setBtn } from '../components/toast.js';
 import { loginUser, registerUser } from '../services/authService.js';
 
 export function switchTab(t) {
-    // ─── CLEAR FIELDS ON TAB SWITCH ───
     document.getElementById('login-email').value = '';
     document.getElementById('login-pw').value = '';
     document.getElementById('su-name').value = '';
     document.getElementById('su-phone').value = '';
     document.getElementById('su-email').value = '';
     document.getElementById('su-pw').value = '';
-    
-    document.getElementById('form-login').style.display  = t === 'login'  ? '' : 'none';
+
+    document.getElementById('form-login').style.display = t === 'login' ? '' : 'none';
     document.getElementById('form-signup').style.display = t === 'signup' ? '' : 'none';
-    document.getElementById('tab-login').className  = 'auth-tab' + (t==='login'  ? ' active' : '');
-    document.getElementById('tab-signup').className = 'auth-tab' + (t==='signup' ? ' active' : '');
-    document.getElementById('login-err').style.display  = 'none';
+    document.getElementById('tab-login').className = 'auth-tab' + (t === 'login' ? ' active' : '');
+    document.getElementById('tab-signup').className = 'auth-tab' + (t === 'signup' ? ' active' : '');
+    document.getElementById('login-err').style.display = 'none';
     document.getElementById('signup-err').style.display = 'none';
 }
 
 export function setLRole(r) {
-    // ─── CLEAR FIELDS ON ROLE SWITCH (LOGIN) ───
     if (AppState.loginRole !== r) {
         document.getElementById('login-email').value = '';
         document.getElementById('login-pw').value = '';
         document.getElementById('login-err').style.display = 'none';
     }
-    
+
     AppState.loginRole = r;
-    document.getElementById('lr-c').className = 'role-btn' + (r==='creator'    ? ' ac' : '');
-    document.getElementById('lr-f').className = 'role-btn' + (r==='freelancer' ? ' af' : '');
+    document.getElementById('lr-c').className = 'role-btn' + (r === 'creator' ? ' ac' : '');
+    document.getElementById('lr-f').className = 'role-btn' + (r === 'freelancer' ? ' af' : '');
 }
 
 export function setSRole(r) {
-    // ─── CLEAR FIELDS ON ROLE SWITCH (SIGNUP) ───
     if (AppState.signupRole !== r) {
         document.getElementById('su-name').value = '';
         document.getElementById('su-phone').value = '';
@@ -44,12 +41,11 @@ export function setSRole(r) {
     }
 
     AppState.signupRole = r;
-    document.getElementById('sr-c').className = 'role-btn' + (r==='creator'    ? ' ac' : '');
-    document.getElementById('sr-f').className = 'role-btn' + (r==='freelancer' ? ' af' : '');
-    document.getElementById('su-creator-extra').style.display  = r==='creator'    ? '' : 'none';
-    document.getElementById('su-freelancer-extra').style.display = r==='freelancer' ? '' : 'none';
+    document.getElementById('sr-c').className = 'role-btn' + (r === 'creator' ? ' ac' : '');
+    document.getElementById('sr-f').className = 'role-btn' + (r === 'freelancer' ? ' af' : '');
+    document.getElementById('su-creator-extra').style.display = r === 'creator' ? '' : 'none';
+    document.getElementById('su-freelancer-extra').style.display = r === 'freelancer' ? '' : 'none';
 }
-
 
 export async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
@@ -66,9 +62,8 @@ export async function handleLogin() {
     setBtn('login-btn', true, 'Logging in…');
 
     try {
-        const { session, user } = await loginUser(email, pw);
-
-        if (!session || !user) throw new Error('Invalid Login Credentials');
+        const { user, session } = await loginUser(email, pw);
+        if (!user || !session) throw new Error('Invalid Login Credentials');
 
         const { data: profile } = await window.supaClient
             .from('profiles')
@@ -77,6 +72,11 @@ export async function handleLogin() {
             .single();
 
         if (!profile) throw new Error('Profile not found');
+
+        if (profile.role && profile.role !== AppState.loginRole) {
+            await window.supaClient.auth.signOut();
+            throw new Error('Invalid Login Credentials');
+        }
 
         const u = {
             id: profile.id,
@@ -104,31 +104,62 @@ export async function handleLogin() {
 }
 
 export async function handleSignup() {
-    const name       = document.getElementById('su-name').value.trim();
-    const phone      = document.getElementById('su-phone').value.trim();
-    const email      = document.getElementById('su-email').value.trim();
-    const pw         = document.getElementById('su-pw').value;
+    const name = document.getElementById('su-name').value.trim();
+    const phone = document.getElementById('su-phone').value.trim();
+    const email = document.getElementById('su-email').value.trim();
+    const pw = document.getElementById('su-pw').value;
     const profession = document.getElementById('su-profession').value;
-    const platform   = document.getElementById('su-platform')?.value || '';
-    const errEl      = document.getElementById('signup-err');
+    const platform = document.getElementById('su-platform')?.value || '';
+    const errEl = document.getElementById('signup-err');
 
     errEl.style.display = 'none';
-    if (!name || !email || !pw) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'flex'; return; }
-    if (pw.length < 6)          { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'flex'; return; }
+    if (!name || !email || !pw) {
+        errEl.textContent = 'Please fill in all required fields.';
+        errEl.style.display = 'flex';
+        return;
+    }
+    if (pw.length < 6) {
+        errEl.textContent = 'Password must be at least 6 characters.';
+        errEl.style.display = 'flex';
+        return;
+    }
 
     setBtn('signup-btn', true, 'Creating account...');
 
     try {
-        const { data, error } = await registerUser(email, pw, name, phone, AppState.signupRole, profession, platform);
-        if (!session) {
+        const { user, session } = await registerUser(
+            email,
+            pw,
+            name,
+            phone,
+            AppState.signupRole,
+            profession,
+            platform
+        );
+
+        if (!session || !user) {
             showToast('Account created! Please confirm your email.', 'info');
             switchTab('login');
             document.getElementById('login-email').value = email;
-        } else {
-            window.loginSuccess(user);
-            showToast('Welcome, ' + name.split(' ')[0] + '!', 'ok');
+            return;
         }
-    } catch(e) {
+
+        const u = {
+            id: user.id,
+            name,
+            full_name: name,
+            email,
+            role: AppState.signupRole,
+            platform,
+            profession,
+            phone,
+            avatar: name.charAt(0).toUpperCase(),
+            createdAt: Date.now()
+        };
+
+        window.loginSuccess(u);
+        showToast('Welcome, ' + name.split(' ')[0] + '!', 'ok');
+    } catch (e) {
         errEl.textContent = e.message || 'Something went wrong. Please try again.';
         errEl.style.display = 'flex';
     } finally {
