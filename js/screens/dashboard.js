@@ -1643,6 +1643,49 @@ export async function handleProfilePhotoUpload(input) {
         input.value = ''; // Input ko reset karein
     }
 }
-
+export function saveFProfile() {
+    const name = document.getElementById('f-prof-name')?.value?.trim();
+    if (!name) { window.showToast('Name cannot be empty', 'err'); return; }
+    const phone = document.getElementById('f-prof-phone')?.value?.trim();
+    const prof = document.getElementById('f-prof-title')?.value?.trim();
+    
+    // Naye Links yahan fetch kar rahe hain
+    const instaLink = document.getElementById('f-prof-insta')?.value?.trim() || '';
+    const ytLink = document.getElementById('f-prof-yt')?.value?.trim() || '';
+    const workLink = document.getElementById('f-prof-work')?.value?.trim() || '';
+    
+    const users = DB.users();
+    const u = users.find(x => x.id === AppState.CU.id);
+    
+    if (u) { 
+        u.name = name; 
+        u.phone = phone; 
+        u.profession = prof; 
+        u.avatar = name.charAt(0).toUpperCase(); 
+        u.instaLink = instaLink;
+        u.ytLink = ytLink;
+        u.workLink = workLink;
+        DB.saveUsers(users); 
+    }
+    
+    AppState.CU = {...AppState.CU, name, phone, profession: prof, instaLink, ytLink, workLink}; 
+    DB.setCurrentUser(AppState.CU);
+    
+    const navName = document.getElementById('f-nav-name');
+    const sbName = document.getElementById('f-sb-name');
+    const sbAvatar = document.getElementById('f-sb-avatar');
+    if(navName) navName.textContent = name.split(' ')[0];
+    if(sbName) sbName.textContent = name;
+    if(sbAvatar) sbAvatar.textContent = name.charAt(0).toUpperCase();
+    
+    if (window.supabaseClient && AppState.CU.id) {
+        window.supabaseClient.from('profiles').update({ 
+            name, phone, profession: prof, insta_link: instaLink, yt_link: ytLink, work_link: workLink 
+        }).eq('id', AppState.CU.id).then(() => {});
+    }
+    
+    window.showToast('Profile updated successfully!', 'ok');
+    window.fPage('profile', document.querySelector('[data-page="profile"]'));
+}
 export function downloadEditedVideo(id) { showToast('Download starting...', 'ok'); }
 export function submitReview() { showToast('Review submitted!', 'ok'); cPage('projects', document.querySelector('[data-page="projects"]')); }
