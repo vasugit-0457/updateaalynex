@@ -18,9 +18,8 @@ export function renderFreelancerChat() {
     const relatedUserIds = [...new Set(myProjects.map(p => p.creatorId === AppState.CU.id ? p.freelancerId : p.creatorId).filter(id => id))];
     
     let defaultOther = AppState.currentChatUserId;
-    if (!defaultOther || !relatedUserIds.includes(defaultOther)) defaultOther = relatedUserIds[0] || '';{
+    if (!defaultOther || !relatedUserIds.includes(defaultOther)) defaultOther = relatedUserIds[0] || '';
     AppState.currentChatUserId = defaultOther;
 
     return `<div class="page-head"><h2>Messages</h2></div>${buildChat(AppState.CU.id, defaultOther)}`;
-}
 }
