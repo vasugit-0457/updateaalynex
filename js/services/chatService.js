@@ -38,3 +38,47 @@ export async function uploadChatVideo(file, myId) {
     const { data: urlData } = supaClient.storage.from('videos').getPublicUrl(data.path);
     return urlData.publicUrl;
 }
+// chatService.js ke end me add karo
+export function subscribeToMessages(myId, otherId, onNewMessage) {
+    if (!supaClient) { console.warn("⚠️ Supabase not ready"); return null; }
+    const uid1 = [myId, otherId].sort()[0];
+    const uid2 = [myId, otherId].sort()[1];
+    const key = [myId, otherId].sort().join('_');
+
+    const channel = supaClient
+        .channel(`chat-${uid1}-${uid2}`)
+        .on('postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'messages' },
+            (payload) => {
+                const newMsg = payload.new;
+                const allMsgs = DB.messages();
+                if (!allMsgs[key]) allMsgs[key] = [];
+                const isDuplicate = allMsgs[key].some(m =>
+                    m.text === newMsg.text &&
+                    m.from === newMsg.sender_id &&
+                    Math.abs((m.time || 0) - new Date(newMsg.created_at).getTime()) < 3000
+                );
+                if (!isDuplicate) {
+                    allMsgs[key].push({
+                        from: newMsg.sender_id,
+                        text: newMsg.text,
+                        file_url: newMsg.file_url,
+                        time: new Date(newMsg.created_at).getTime()
+                    });
+                    DB.saveMessages(allMsgs);
+                    onNewMessage(allMsgs[key]);
+                }
+            }
+        )
+        .subscribe((status) => {
+            console.log(`🟢 Realtime [${uid1} <-> ${uid2}]:`, status);
+        });
+    return channel;
+}
+
+export function unsubscribeFromMessages(channel) {
+    if (supaClient && channel) {
+        supaClient.removeChannel(channel);
+        console.log("🔴 Realtime channel closed");
+    }
+}
