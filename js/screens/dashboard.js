@@ -473,7 +473,7 @@ function cProfile() {
     <div class="two-col">
         <div style="display:flex; flex-direction:column; gap:16px;">
             <div class="det-card">
-                <h4>Personal Info</h4>
+                <div class="section-title">Personal Info</div>
                 <div class="fg"><label>Full Name</label><input id="prof-name" value="${u.name}"/></div>
                 <div class="fg"><label>Email</label><input value="${u.email}" disabled style="opacity:.5;"/></div>
                 <div class="fg"><label>Phone</label><input id="prof-phone" value="${u.phone||''}"/></div>
@@ -482,19 +482,31 @@ function cProfile() {
                 </div>
                 <button class="btn btn-primary" onclick="window.saveProfile()">Save Changes</button>
             </div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:16px;">
+            
             <div class="det-card">
-                <h4>Account Stats</h4>
+                <div class="section-title">Account Stats</div>
                 ${[['Projects Posted', DB.projects().filter(p=>p.creatorId===AppState.CU.id).length],
                    ['Completed',       DB.projects().filter(p=>p.creatorId===AppState.CU.id&&p.status==='completed').length],
                    ['Member Since',    new Date(u.createdAt).toLocaleDateString('en-IN',{month:'long',year:'numeric'})],
                    ['Role',            u.role.charAt(0).toUpperCase()+u.role.slice(1)]]
                   .map(([k,v]) => `<div class="info-row"><span class="key">${k}</span><span>${v}</span></div>`).join('')}
             </div>
-            
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="det-card" style="text-align:center;">
+                <div class="section-title" style="text-align:left;">Profile Photo</div>
+                <div style="width:80px; height:80px; border-radius:50%; background:var(--bg2); margin:0 auto 16px; overflow:hidden; display:flex; align-items:center; justify-content:center; border:1px solid var(--glass-border);">
+                    ${u.photo_url ? `<img src="${u.photo_url}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:2.5rem; color:var(--text-3); font-family: 'Outfit', sans-serif; font-weight:700;">${u.avatar}</span>`}
+                </div>
+                <label class="btn btn-ghost btn-sm" style="cursor:pointer; display:inline-block;">
+                    Upload New Photo
+                    <input type="file" accept="image/*" style="display:none;" onchange="window.handleProfilePhotoUpload(this)">
+                </label>
+            </div>
+
             <div class="det-card">
-                <div class="section-title">Portfolio & Social Links</div>
+                <div class="section-title">Social Links</div>
                 <div class="fg"><label>Instagram Profile Link</label><input id="c-prof-insta" value="${u.instaLink || ''}" placeholder="https://instagram.com/yourhandle"/></div>
                 <div class="fg"><label>YouTube Channel Link</label><input id="c-prof-yt" value="${u.ytLink || ''}" placeholder="https://youtube.com/@yourchannel"/></div>
                 <div class="fg"><label>Website / Work Link</label><input id="c-prof-work" value="${u.workLink || ''}" placeholder="https://yourwebsite.com"/></div>
@@ -543,9 +555,15 @@ export function saveFProfile() {
             name, phone, profession: prof, insta_link: instaLink, yt_link: ytLink, work_link: workLink 
         }).eq('id', AppState.CU.id).then(() => {});
     }
-    
-    window.showToast('Profile updated successfully!', 'ok');
-    window.fPage('profile', document.querySelector('[data-page="profile"]'));
+    window.showToast('Profile photo updated!', 'ok');
+        
+        // Page refresh karein taaki nayi photo dikhe (Dono roles ke liye)
+        if (AppState.CU.role === 'creator') {
+            window.cPage('profile', document.querySelector('[data-page="profile"]'));
+        }
+        else {
+            window.fPage('profile', document.querySelector('[data-page="profile"]'));
+        }
 }
 // ─── FREELANCER ROUTING & SCREENS ───
 export function fPage(p, el) {
