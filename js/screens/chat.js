@@ -22,3 +22,4 @@ export function renderFreelancerChat() {
     AppState.currentChatUserId = defaultOther;
 
     return `<div class="page-head"><h2>Messages</h2></div>${buildChat(AppState.CU.id, defaultOther)}`;
+}
