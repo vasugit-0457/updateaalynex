@@ -52,48 +52,57 @@ export function setSRole(r) {
 
 
 export async function handleLogin() {
-    const email  = document.getElementById('login-email').value.trim();
-    const pw     = document.getElementById('login-pw').value;
-    const errEl  = document.getElementById('login-err');
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-pw').value;
+    const errEl = document.getElementById('login-err');
     errEl.style.display = 'none';
 
-    if (!email || !pw) { 
-        errEl.textContent = 'Please fill in all fields.'; 
-        errEl.style.display = 'flex'; 
-        return; 
+    if (!email || !pw) {
+        errEl.textContent = 'Please fill in all fields.';
+        errEl.style.display = 'flex';
+        return;
     }
-    
-    setBtn('login-btn', true, 'Logging in…'); 
+
+    setBtn('login-btn', true, 'Logging in…');
 
     try {
-        const user = await loginUser(email, pw, AppState.loginRole);
+        const { session, user } = await loginUser(email, pw);
 
-        // ─── STRICT ROLE VALIDATION LOGIC ───
-        if (user.role && user.role !== AppState.loginRole) {
-            // Background me jo galti se login session ban gaya, usko turant delete (signOut) kar do
-            if (window.supaClient) {
-                await window.supaClient.auth.signOut();
-            }
-            // Ab error throw karo
-            throw new Error("Invalid Login Credentials");
-        }
-        // ────────────────────────────────────
+        if (!session || !user) throw new Error('Invalid Login Credentials');
 
-        window.loginSuccess(user);
-        window.showToast('Welcome back, ' + user.name.split(' ')[0] + '!', 'ok');
-    } catch(e) {
-        // Yahan humne STRICT rule laga diya hai. Error chahe kuch bhi ho, text yahi aayega:
-        errEl.textContent = "Invalid Login Credentials";
+        const { data: profile } = await window.supaClient
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile) throw new Error('Profile not found');
+
+        const u = {
+            id: profile.id,
+            name: profile.name || email.split('@')[0],
+            full_name: profile.name || '',
+            email: profile.email || email,
+            role: profile.role || AppState.loginRole,
+            platform: profile.platform || '',
+            profession: profile.profession || '',
+            phone: profile.phone || '',
+            avatar: (profile.name || 'U').charAt(0).toUpperCase(),
+            createdAt: profile.created_at ? new Date(profile.created_at).getTime() : Date.now()
+        };
+
+        window.loginSuccess(u);
+        window.showToast('Welcome back, ' + u.name.split(' ')[0] + '!', 'ok');
+    } catch (e) {
+        errEl.textContent = 'Invalid Login Credentials';
         errEl.style.display = 'flex';
-        
-        // ─── CLEAR FIELDS ON ERROR ───
         document.getElementById('login-email').value = '';
         document.getElementById('login-pw').value = '';
-        
     } finally {
         setBtn('login-btn', false);
     }
 }
+
 export async function handleSignup() {
     const name       = document.getElementById('su-name').value.trim();
     const phone      = document.getElementById('su-phone').value.trim();
@@ -110,7 +119,7 @@ export async function handleSignup() {
     setBtn('signup-btn', true, 'Creating account...');
 
     try {
-        const { session, user } = await registerUser(email, pw, name, phone, AppState.signupRole, profession, platform);
+        const { data, error } = await registerUser(email, pw, name, phone, AppState.signupRole, profession, platform);
         if (!session) {
             showToast('Account created! Please confirm your email.', 'info');
             switchTab('login');
