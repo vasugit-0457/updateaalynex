@@ -131,17 +131,16 @@ window.addEventListener('load', async () => {
                 const { data: profile } = await supaClient.from('profiles').select('*').eq('id', session.user.id).single();
                 if (profile) {
                     const u = {
-                        id: profile.id,
-                        // ✅ FIX 2: profile.name → profile.full_name
-                        name: profile.full_name || session.user.email.split('@')[0],
-                        full_name: profile.full_name || '',
-                        email: session.user.email,
-                        role: profile.role || 'creator',
-                        platform: profile.platform || '',
-                        profession: profile.profession || '',
-                        // ✅ FIX 2: profile.name → profile.full_name
-                        avatar: (profile.full_name || 'U').charAt(0).toUpperCase(),
-                        createdAt: profile.created_at ? new Date(profile.created_at).getTime() : Date.now()
+                         id: profile.id,
+    name: profile.name || session.user.email.split('@')[0], // ✅ sirf name
+    full_name: profile.name || '',  // ✅ compatibility ke liye
+    email: session.user.email,
+    role: profile.role || 'creator',
+    platform: profile.platform || '',
+    profession: profile.profession || '',
+    phone: profile.phone || '',
+    avatar: (profile.name || 'U').charAt(0).toUpperCase(),
+    createdAt: profile.created_at ? new Date(profile.created_at).getTime() : Date.now()
                     };
                     window.loginSuccess(u);
                     return;
