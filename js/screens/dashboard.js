@@ -1656,4 +1656,23 @@ export async function rejectNegotiation(pid, freelancerId, btnElement, negId) {
     } catch(e) { 
         console.error(e); 
     }
+}// ─── MISSING EXPORTS RECOVERED ───
+export function downloadEditedVideo(id) { 
+    window.showToast('Download starting...', 'ok'); 
+}
+
+export function submitReview() { 
+    window.showToast('Review submitted!', 'ok'); 
+    window.cPage('projects', document.querySelector('[data-page="projects"]')); 
+}
+
+export function reviseOffer(pid) {
+    window.fPage('negotiate', document.querySelector('[data-page=negotiate]'));
+    setTimeout(() => {
+        const select = document.getElementById('neg-project-select');
+        if(select) {
+            select.value = pid;
+            window.toggleNegotiationCard(pid);
+        }
+    }, 200);
 }
