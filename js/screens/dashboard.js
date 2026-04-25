@@ -630,36 +630,65 @@ function fHome() {
 function fBrowse() {
     const myId = String(AppState.CU.id).toLowerCase();
     
-    const projs = DB.projects().filter(p => {
-        if (p.status !== 'open') return false;
-        
-        let invited = p.invited_freelancers;
-        if (typeof invited === 'string') {
-            try { invited = JSON.parse(invited); } catch(e) { return false; }
-        }
-        if (!Array.isArray(invited)) return false;
+    // Direct Cloud (Supabase) se projects fetch karega
+    setTimeout(async () => {
+        if (window.supaClient) {
+            try {
+                const { data, error } = await window.supaClient.from('projects').select('*').eq('status', 'open');
+                if (data && !error) {
+                    const container = document.getElementById('f-browse-list');
+                    if (!container) return;
 
-        return invited.some(id => String(id).toLowerCase() === myId);
-    });
+                    // Filter for Anar (Current Freelancer)
+                    const projs = data.filter(p => {
+                        let invited = p.invited_freelancers;
+                        if (typeof invited === 'string') { try { invited = JSON.parse(invited); } catch(e) { return false; } }
+                        if (!Array.isArray(invited)) return false;
+                        return invited.some(id => String(id).toLowerCase() === myId);
+                    });
+
+                    // Local DB Sync (Taaki View Details & Accept Button kaam kare)
+                    const localProjs = DB.projects();
+                    projs.forEach(dp => {
+                        if (!localProjs.find(x => x.id === dp.id)) {
+                            localProjs.push({
+                                id: dp.id, creatorId: dp.creator_id, title: dp.title, description: dp.description,
+                                budget: dp.budget, contentType: dp.content_type, deadline: dp.deadline, priority: dp.priority,
+                                invited_freelancers: dp.invited_freelancers, status: dp.status, createdAt: new Date(dp.created_at).getTime()
+                            });
+                        }
+                    });
+                    DB.saveProjects(localProjs);
+
+                    // UI Draw
+                    if (projs.length === 0) {
+                        container.innerHTML = '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No project invitations right now.</div>';
+                    } else {
+                        container.innerHTML = projs.map(p => `
+                            <div class="pc" style="padding:16px 20px; border-radius:12px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--glass-border); margin-bottom: 12px;">
+                                <div style="display:flex; align-items:center; gap:16px;">
+                                    <div class="pico" style="background:var(--bg2); border:1px solid var(--glass-border);">${contentIconSvg(p.content_type)}</div>
+                                    <div class="pinfo">
+                                        <div class="ptitle" style="font-size:1.05rem;">${p.title}</div>
+                                        <div class="pmeta" style="margin-top:4px;">₹${fmt(p.budget)} &middot; ${p.content_type}</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button class="btn btn-ghost btn-sm" style="border:1px solid var(--glass-border);" onclick="window.viewProjectDetails('${p.id}')">View Details</button>
+                                    <button class="btn btn-danger btn-sm" style="background:rgba(239,68,68,.1); color:#ef4444; border:none;" onclick="window.rejectProject('${p.id}')">Reject</button>
+                                    <button class="btn btn-primary btn-sm" onclick="window.acceptProject('${p.id}')">Accept Job</button>
+                                </div>
+                            </div>`).join('');
+                    }
+                }
+            } catch(e) { console.error("Browse Fetch Error:", e); }
+        }
+    }, 50);
 
     return `
     <div class="page-head"><h2>Browse Projects</h2><p>Invitations from creators</p></div>
-    <div class="project-list">
-        ${projs.length ? projs.map(p => `
-            <div class="pc" style="padding:16px 20px; border-radius:12px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--glass-border);">
-                <div style="display:flex; align-items:center; gap:16px;">
-                    <div class="pico" style="background:var(--bg2); border:1px solid var(--glass-border);">${contentIconSvg(p.contentType || p.content_type)}</div>
-                    <div class="pinfo">
-                        <div class="ptitle" style="font-size:1.05rem;">${p.title}</div>
-                        <div class="pmeta" style="margin-top:4px;">₹${fmt(p.budget)} &middot; ${p.contentType || p.content_type}</div>
-                    </div>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="btn btn-ghost btn-sm" style="border:1px solid var(--glass-border);" onclick="window.viewProjectDetails('${p.id}')">View Details</button>
-                    <button class="btn btn-danger btn-sm" style="background:rgba(239,68,68,.1); color:#ef4444; border:none;" onclick="window.rejectProject('${p.id}')">Reject</button>
-                    <button class="btn btn-primary btn-sm" onclick="window.acceptProject('${p.id}')">Accept Job</button>
-                </div>
-            </div>`).join('') : '<div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">No project invitations right now.</div>'}
+    <div class="project-list" id="f-browse-list">
+        <div style="color:var(--text-3);font-size:.85rem;padding:20px 0;">Loading projects...</div>
     </div>`;
 }
 
@@ -1323,68 +1352,78 @@ export async function triggerApproveAndPay(projectId) {
 function fNegotiate() {
     const myId = String(AppState.CU.id).toLowerCase();
 
-    const projs = DB.projects().filter(p => {
-        if (p.status !== 'open') return false;
-        if (p.creatorId === AppState.CU.id) return false;
-        if (p.freelancerId) return false; 
-        
-        let invited = p.invited_freelancers;
-        if (typeof invited === 'string') {
-            try { invited = JSON.parse(invited); } catch(e) { return false; }
+    // Direct Cloud (Supabase) se projects fetch karega
+    setTimeout(async () => {
+        if (window.supaClient) {
+            try {
+                const { data, error } = await window.supaClient.from('projects').select('*').eq('status', 'open');
+                if (data && !error) {
+                    const container = document.getElementById('neg-main-container');
+                    if (!container) return;
+
+                    const projs = data.filter(p => {
+                        if (p.creator_id === AppState.CU.id) return false;
+                        if (p.freelancer_id) return false; 
+                        
+                        let invited = p.invited_freelancers;
+                        if (typeof invited === 'string') { try { invited = JSON.parse(invited); } catch(e) { return false; } }
+                        if (!Array.isArray(invited)) return false;
+                        return invited.some(id => String(id).toLowerCase() === myId);
+                    });
+
+                    if (!projs.length) {
+                        container.innerHTML = `<div style="color:var(--text-3);font-size:.85rem; padding:20px 0;">No projects available for negotiation right now.</div>`;
+                    } else {
+                        container.innerHTML = `
+                        <div style="margin-bottom:24px;">
+                            <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-3); margin-bottom:8px; text-transform:uppercase;">Select Project</label>
+                            <select id="neg-project-select" style="width:100%; max-width:100%; padding:12px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); color:var(--text); outline:none; cursor:pointer; font-family:inherit; font-size:0.9rem;" onchange="window.toggleNegotiationCard(this.value)">
+                                <option value="" disabled selected>-- Choose a project --</option>
+                                ${projs.map(p => `<option value="${p.id}">${p.title} (Offer: ₹${fmt(p.budget)})</option>`).join('')}
+                            </select>
+                        </div>
+                        <div id="neg-cards-container" style="width:100%;">
+                            ${projs.map(p => `
+                                <div id="neg-card-${p.id}" class="det-card neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
+                                    <h3 style="margin-top:0; margin-bottom:6px; font-size:1.2rem; color:var(--text); font-weight:700;">${p.title}</h3>
+                                    <div style="font-size:.85rem; color:var(--text-3); margin-bottom:24px;">
+                                        Client's offer: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}
+                                    </div>
+                                    <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+                                        <div class="fg" style="flex:1; min-width:200px; margin:0;">
+                                            <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Your Counter-Price (₹)</label>
+                                            <input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget * 1.15)}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                                        </div>
+                                        <div class="fg" style="flex:1; min-width:200px; margin:0;">
+                                            <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Proposed Deadline</label>
+                                            <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                                        </div>
+                                    </div>
+                                    <div class="fg" style="margin-bottom:24px;">
+                                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Message to Client</label>
+                                        <input type="text" id="neg-msg-${p.id}" placeholder="I can complete this at the revised price..." style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
+                                    </div>
+                                    <div style="display:flex; gap:12px;">
+                                        <button class="btn" style="background:#e85d2e; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Counter-Offer</button>
+                                        <button class="btn" style="background:#16a34a; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.acceptProject('${p.id}')">Accept Original</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>`;
+                    }
+                }
+            } catch(e) { console.error("Negotiate Fetch Error:", e); }
         }
-        if (!Array.isArray(invited)) return false;
-
-        return invited.some(id => String(id).toLowerCase() === myId);
-    });
-
-    if (!projs.length) {
-        return `<div class="page-head"><h2>Negotiate Price & Deadline</h2></div>
-                <div style="color:var(--text-3);font-size:.85rem; padding:20px 0;">No projects available for negotiation right now.</div>`;
-    }
+    }, 50);
 
     return `
     <div class="page-head" style="margin-bottom:20px;">
         <h2>Negotiate Price & Deadline</h2>
         <p style="color:var(--text-3); font-size:0.85rem; margin-top:4px;">Select a project to propose a counter-offer</p>
     </div>
-
-    <div style="margin-bottom:24px;">
-        <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-3); margin-bottom:8px; text-transform:uppercase;">Select Project</label>
-        <select id="neg-project-select" style="width:100%; max-width:100%; padding:12px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); color:var(--text); outline:none; cursor:pointer; font-family:inherit; font-size:0.9rem;" onchange="window.toggleNegotiationCard(this.value)">
-            <option value="" disabled selected>-- Choose a project --</option>
-            ${projs.map(p => `<option value="${p.id}">${p.title} (Offer: ₹${fmt(p.budget)})</option>`).join('')}
-        </select>
-    </div>
-
-    <div id="neg-cards-container" style="width:100%;">
-        ${projs.map(p => `
-            <div id="neg-card-${p.id}" class="det-card neg-card-item" style="display:none; padding:24px; border-radius:12px; background:var(--surface); border:1px solid var(--glass-border); box-shadow:0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
-                <h3 style="margin-top:0; margin-bottom:6px; font-size:1.2rem; color:var(--text); font-weight:700;">${p.title}</h3>
-                <div style="font-size:.85rem; color:var(--text-3); margin-bottom:24px;">
-                    Client's offer: <strong style="color:var(--text);">₹${fmt(p.budget)}</strong> &middot; Deadline: ${fmtDate(p.deadline)}
-                </div>
-                <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
-                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Your Counter-Price (₹)</label>
-                        <input type="number" id="neg-price-${p.id}" value="${Math.round(p.budget * 1.15)}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                    </div>
-                    <div class="fg" style="flex:1; min-width:200px; margin:0;">
-                        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Proposed Deadline</label>
-                        <input type="date" id="neg-date-${p.id}" value="${p.deadline || ''}" style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                    </div>
-                </div>
-                <div class="fg" style="margin-bottom:24px;">
-                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-2); margin-bottom:8px;">Message to Client</label>
-                    <input type="text" id="neg-msg-${p.id}" placeholder="I can complete this at the revised price..." style="width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--glass-border); border-radius:8px; font-size:0.9rem; outline:none;">
-                </div>
-                <div style="display:flex; gap:12px;">
-                    <button class="btn" style="background:#e85d2e; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.sendNegotiation('${p.id}')">Send Counter-Offer</button>
-                    <button class="btn" style="background:#16a34a; color:white; border:none; padding:12px 24px; font-weight:600; border-radius:8px; cursor:pointer;" onclick="window.acceptProject('${p.id}')">Accept Original</button>
-                </div>
-            </div>
-        `).join('')}
-    </div>
-    `;
+    <div id="neg-main-container">
+        <div style="color:var(--text-3);font-size:.85rem; padding:20px 0;">Loading projects...</div>
+    </div>`;
 }
 
 export function toggleNegotiationCard(pid) {
